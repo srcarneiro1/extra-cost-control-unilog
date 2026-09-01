@@ -35,11 +35,17 @@ SALLVE | SIM
 FOREVER | SIM
 BAOBA B2B | SIM
 ADM | SIM
+KOKESHI | SIM
+YENZAH | SIM
+RITUARIA | SIM
+BEAUTY HUB | SIM
 ```
 
 Decisão confirmada em 01/09/2026:
 
 - usar `MEGALABS` como nome canônico, sem espaço;
+- manter `LESCENT` como operação ativa já presente na carga inicial;
+- incluir `KOKESHI`, `YENZAH`, `RITUARIA` e `BEAUTY HUB` como operações ativas;
 - esta lista é a carga inicial e poderá ser incrementada posteriormente;
 - não promover automaticamente outras variações históricas para o cadastro ativo.
 
@@ -47,7 +53,6 @@ Não incluídos nesta primeira carga:
 
 - PROJETOS;
 - BTC B2B;
-- KOKESHI;
 - LOLA;
 - CELLERA FARMA;
 - CELLERA CONSUMO.
