@@ -55,7 +55,7 @@ const SheetRepository = (() => {
       });
   }
 
-  function appendObject(sheetName, record) {
+  function appendObject(sheetName, record, options) {
     const sheet = getSheet_(sheetName);
     const lastColumn = sheet.getLastColumn();
     const headers = sheet
@@ -72,8 +72,20 @@ const SheetRepository = (() => {
         : '';
     });
 
-    sheet.appendRow(row);
-    return sheet.getLastRow();
+    const targetRow = sheet.getLastRow() + 1;
+    const textFields = options && Array.isArray(options.textFields)
+      ? options.textFields
+      : [];
+
+    textFields.forEach(function (fieldName) {
+      const columnIndex = headers.indexOf(fieldName);
+      if (columnIndex >= 0) {
+        sheet.getRange(targetRow, columnIndex + 1).setNumberFormat('@');
+      }
+    });
+
+    sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
+    return targetRow;
   }
 
   return {
