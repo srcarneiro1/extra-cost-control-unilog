@@ -1,4 +1,6 @@
 const Api = (() => {
+  const PROPERTY_GATEWAY_TOKEN = 'GATEWAY_TOKEN';
+
   function handleGet(e) {
     try {
       const route = normalizeRoute_(e && e.parameter && e.parameter.route);
@@ -11,7 +13,7 @@ const Api = (() => {
       }
 
       if (route === 'cadastros') {
-        return JsonResponse.ok(CatalogService.getActiveCatalogs());
+        return JsonResponse.unauthorized('Acesso aos cadastros disponível somente pelo gateway protegido.');
       }
 
       return JsonResponse.notFound('Rota não encontrada.');
@@ -25,14 +27,44 @@ const Api = (() => {
       const route = normalizeRoute_(e && e.parameter && e.parameter.route);
       const payload = parseJsonBody_(e);
 
+      if (route === 'cadastros') {
+        authorizeGateway_(payload);
+        return JsonResponse.ok(CatalogService.getActiveCatalogs());
+      }
+
       if (route === 'solicitacoes') {
-        return JsonResponse.ok(SolicitationService.create(payload));
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(SolicitationService.create(servicePayload));
       }
 
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
       return handleError_(error);
     }
+  }
+
+  function authorizeGateway_(payload) {
+    const expectedToken = PropertiesService
+      .getScriptProperties()
+      .getProperty(PROPERTY_GATEWAY_TOKEN);
+
+    if (!expectedToken) {
+      throw new Error('Propriedade GATEWAY_TOKEN não configurada no Apps Script.');
+    }
+
+    const providedToken = String(
+      payload && payload._gatewayToken ? payload._gatewayToken : ''
+    ).trim();
+
+    if (!providedToken || providedToken !== expectedToken) {
+      const error = new Error('Acesso não autorizado.');
+      error.name = 'AuthorizationError';
+      throw error;
+    }
+
+    const sanitizedPayload = Object.assign({}, payload);
+    delete sanitizedPayload._gatewayToken;
+    return sanitizedPayload;
   }
 
   function parseJsonBody_(e) {
@@ -52,6 +84,10 @@ const Api = (() => {
   }
 
   function handleError_(error) {
+    if (error && error.name === 'AuthorizationError') {
+      return JsonResponse.unauthorized(error.message || 'Acesso não autorizado.');
+    }
+
     if (error && error.name === 'ValidationError') {
       return JsonResponse.badRequest(error.message, error.details || null);
     }
