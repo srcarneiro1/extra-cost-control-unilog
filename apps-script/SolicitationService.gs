@@ -1,5 +1,6 @@
 const SolicitationService = (() => {
   const SHEET_SOLICITACOES = 'SOLICITACOES';
+  const TEXT_FIELDS = ['COMPETENCIA', 'CENTRO_CUSTO'];
   const TYPES = Object.freeze({
     LABOR: 'MAO_DE_OBRA',
     FOOD: 'ALIMENTACAO_BEBIDA',
@@ -30,7 +31,9 @@ const SolicitationService = (() => {
 
     try {
       record.ID_SOLICITACAO = nextProtocol_(record.DATA_CRIACAO);
-      const rowNumber = SheetRepository.appendObject(SHEET_SOLICITACOES, record);
+      const rowNumber = SheetRepository.appendObject(SHEET_SOLICITACOES, record, {
+        textFields: TEXT_FIELDS,
+      });
 
       return {
         idSolicitacao: record.ID_SOLICITACAO,
