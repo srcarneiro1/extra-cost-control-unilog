@@ -1,278 +1,142 @@
 # MEMÓRIA TÉCNICA — EXTRA COST CONTROL UNILOG
 
 **Projeto:** Extra Cost Control — UNILOG  
-**Repositório:** `srcarneiro1/Extra-Cost-Control-Unilog`  
-**Data de consolidação:** 01/09/2026  
-**Status:** MVP 1 — arquitetura redefinida e aprovada como direção de trabalho
+**Repositório oficial:** `srcarneiro1/Extra-Cost-Control-Unilog`  
+**Status:** MVP 1  
+**Última consolidação:** 01/09/2026
 
 ---
 
-## 1. INSTRUÇÃO PARA RETOMADA EM NOVO CHAT
+# 1. INSTRUÇÃO OBRIGATÓRIA PARA RETOMADA
 
 Antes de propor, implementar ou alterar qualquer parte deste projeto, leia integralmente este arquivo.
 
-Considere como decisão vigente:
+Considere como decisões vigentes:
 
-1. **NÃO usar Supabase neste MVP.**
-2. Usar **Google Planilhas como camada de persistência de dados**.
+1. **Não usar Supabase neste MVP.**
+2. Usar **Google Planilhas como persistência operacional**.
 3. Usar **Google Apps Script como API e camada de regras de negócio**.
-4. Usar **Cloudflare Pages para o frontend** e, quando necessário, **Cloudflare Pages Functions/Worker como camada intermediária segura entre o navegador e o Apps Script**.
-5. Usar **GitHub como fonte oficial do código**, com controle por commits, branches, Pull Requests e merges.
-6. Não armazenar dados operacionais, dados pessoais, planilhas, tokens, credenciais ou segredos no GitHub.
-7. Manter o MVP simples e incremental. Não reabrir a arquitetura Supabase sem necessidade concreta e nova decisão explícita.
-8. Preservar as bases legadas atuais e migrá-las somente de forma controlada.
-9. Mão de obra e alimentação/bebidas podem compartilhar o mesmo fluxo de entrada, mas **não compartilham a mesma lógica financeira**.
-10. A competência financeira permanece **dia 21 até dia 20 do mês seguinte**.
+4. Usar **Cloudflare Pages** para o frontend React e, quando necessário, **Cloudflare Pages Functions/Worker** como camada intermediária segura.
+5. Usar **GitHub privado** como fonte oficial do código, com branches, commits, Pull Requests e merges.
+6. Não armazenar planilhas operacionais, dados pessoais, tokens, chaves ou segredos no GitHub.
+7. Preservar integralmente as bases legadas e migrá-las apenas de forma controlada.
+8. Mão de obra e alimentação/bebidas compartilham o processo de Custos Extras, mas **não compartilham a mesma lógica financeira**.
+9. Competência financeira obrigatória: **dia 21 até dia 20 do mês seguinte**.
+10. Priorizar um MVP simples, incremental e verificável. Não reabrir arquitetura maior sem necessidade concreta.
 
 ---
 
-# 2. OBJETIVO DO PROJETO
+# 2. OBJETIVO DO MVP 1
 
-Criar um sistema simples para controlar **Custos Extras da UNILOG**, substituindo gradualmente o processo fragmentado atual de Google Forms + Google Sheets, sem criar neste momento uma infraestrutura pesada.
+Criar uma aplicação web para controlar Custos Extras da UNILOG, evoluindo o processo atual de Google Forms + Google Sheets sem transformar o MVP em um ERP.
 
-O MVP deve controlar inicialmente:
+Escopo inicial:
 
-- solicitação de mão de obra terceirizada;
-- solicitação de alimentação e bebidas;
+- mão de obra terceirizada;
+- alimentação e bebidas;
 - operação/depositante;
-- supervisor responsável;
+- supervisor;
 - fornecedor;
-- responsabilidade financeira (CLIENTE ou UNILOG);
+- responsabilidade financeira CLIENTE ou UNILOG;
 - centro de custo quando aplicável;
-- preço vigente na data do serviço;
-- congelamento/snapshot do preço aplicado;
 - quantidade solicitada;
-- quantidade efetivamente comparecida para mão de obra;
+- quantidade realizada/comparecida para mão de obra;
+- preço vigente por data;
+- snapshot imutável do preço aplicado;
 - custo previsto;
 - custo realizado;
-- histórico e rastreabilidade básica;
-- legado das planilhas atuais.
+- rastreabilidade básica;
+- preparação para incorporação do legado.
 
-O objetivo do MVP 1 não é reproduzir um ERP. O objetivo é resolver os principais problemas atuais de qualidade, preço histórico, rastreabilidade e consolidação dos dados.
+Objetivos de processo:
+
+```text
+entrada padronizada
+→ cadastros controlados
+→ preço histórico confiável
+→ solicitado x realizado separados
+→ API desacoplada da planilha
+→ histórico preservado
+```
 
 ---
 
-# 3. ARQUITETURA DEFINITIVA DO MVP 1
+# 3. ARQUITETURA DO MVP
 
 ```text
 USUÁRIO
    ↓
 CLOUDFLARE PAGES
-Frontend React + TypeScript
+React + TypeScript + Vite
    ↓
 CLOUDFLARE FUNCTION / WORKER
-quando necessário para proteger chamadas e segredos
+quando houver segredo ou operação protegida
    ↓
 GOOGLE APPS SCRIPT WEB APP
 API + regras de negócio
    ↓
 GOOGLE PLANILHAS
-Persistência operacional
+persistência operacional
 ```
 
-Código:
+Regra de desacoplamento:
 
 ```text
-GitHub
-srcarneiro1/Extra-Cost-Control-Unilog
+Frontend → API → Planilha
 ```
 
-Deploy:
+Nunca:
 
 ```text
-GitHub
-  ↓
-Cloudflare Pages
+Frontend → coluna/célula específica da planilha
 ```
 
-Dados:
-
-```text
-Google Planilhas
-Controle de Custos Extras - UNILOG
-```
-
-Regras/backend:
-
-```text
-Google Apps Script
-Web App / API
-```
+O frontend deve consumir contratos de API. Isso permite substituir a persistência futuramente sem reescrever toda a aplicação.
 
 ---
 
-# 4. POR QUE NÃO USAREMOS SUPABASE NESTE MVP
+# 4. SEGURANÇA
 
-A decisão foi alterada por razões práticas:
-
-- a conta atual possui limitação de quantidade de projetos Supabase;
-- não há necessidade de banco relacional dedicado para provar o fluxo do MVP;
-- as bases atuais já estão em Google Planilhas;
-- a equipe já utiliza Google Forms/Sheets;
-- Apps Script permite construir uma API suficiente para o volume inicial;
-- a migração do legado fica mais simples;
-- reduzimos o número de tecnologias e o esforço de implantação;
-- GitHub + Cloudflare continuam garantindo versionamento e deploy profissional do frontend.
-
-Isto **não significa** que Google Sheets é o banco definitivo para qualquer escala futura.
-
-Se volume, concorrência, segurança, auditoria ou performance excederem os limites práticos do Sheets/Apps Script, a aplicação poderá migrar a persistência posteriormente sem descartar o frontend, desde que a API seja mantida como contrato entre as camadas.
-
----
-
-# 5. PRINCÍPIO DE DESACOPLAMENTO
-
-O frontend não deve conhecer a estrutura física da planilha.
-
-Errado:
-
-```text
-Frontend → escreve diretamente na coluna N da aba SOLICITACOES
-```
-
-Correto:
-
-```text
-Frontend
-   ↓
-POST /solicitacoes
-   ↓
-Apps Script
-   ↓
-valida regra
-   ↓
-grava na planilha
-```
-
-Assim, no futuro podemos substituir Google Sheets por outro banco sem reescrever a aplicação inteira.
-
----
-
-# 6. SEGURANÇA DA API
-
-Não colocar segredo do Apps Script dentro do JavaScript enviado ao navegador.
-
-Quando uma operação exigir segredo ou autenticação de backend, usar:
-
-```text
-Browser
-   ↓
-Cloudflare Function / Worker
-   ↓  segredo armazenado no Cloudflare
-Apps Script
-```
-
-Segredos devem ficar apenas em:
+Segredos devem existir apenas em:
 
 - Cloudflare Secrets / Environment Variables;
-- Apps Script PropertiesService.
+- Apps Script `PropertiesService`.
 
 Nunca em:
 
+- código React entregue ao navegador;
 - GitHub;
 - `.env` commitado;
-- código JavaScript público;
-- células de planilha expostas ao frontend.
+- células de planilha utilizadas como segredo.
 
-O arquivo `.env.example` poderá conter somente nomes das variáveis, sem valores reais.
+Quando necessário:
 
----
+```text
+Browser
+  ↓
+Cloudflare Function
+  ↓ segredo protegido
+Apps Script
+```
 
-# 7. FONTES LEGADAS EXISTENTES
-
-Existem duas bases operacionais que devem ser preservadas.
-
-## 7.1 Mão de obra
-
-Arquivo/base:
-
-`Solicitação de mão de obra terceirizada (respostas)`
-
-Campos históricos relevantes encontrados:
-
-- Carimbo de data/hora;
-- Supervisor;
-- Cliente / Operação;
-- Atividade;
-- Empresa terceirizada;
-- Quantidade de pessoas;
-- Quantidade de pedidos para fazer;
-- Data da execução do serviço;
-- Observações gerais;
-- Custo;
-- Tabela acordada;
-- Real;
-- valor realizado em coluna auxiliar.
-
-Problemas identificados:
-
-- atividade e função/recurso foram misturados;
-- `OPERADOR DE EMPILHADEIRA` aparece historicamente como atividade;
-- o campo `Quantidade de pedidos para fazer` contém números e textos heterogêneos;
-- existem variações de nomes de supervisores e operações;
-- há linhas vazias preenchidas apenas por fórmulas;
-- preço histórico pode ser afetado por fórmulas/tabelas atuais;
-- existem divergências entre solicitado e comparecido.
-
-## 7.2 Alimentação / bebidas
-
-Arquivo/base:
-
-`Solicitação de Lanches`
-
-Campos históricos relevantes:
-
-- Carimbo de data/hora;
-- Supervisor;
-- Empresa terceirizada;
-- Operação;
-- Data da solicitação/atendimento;
-- Alimentação;
-- Quantidade;
-- Bebida;
-- Quantidade bebida;
-- Justificativa;
-- Custo/responsável;
-- Valor alimentação;
-- Valor bebida;
-- Valor total.
-
-Problemas identificados:
-
-- preço histórico depende da tabela/fórmula atual;
-- fornecedores e produtos precisam de cadastro controlado;
-- nomes históricos apresentam variações;
-- alimentação e bebida possuem lógica diferente de mão de obra quanto ao realizado.
+O repositório deve permanecer privado.
 
 ---
 
-# 8. NOVA PLANILHA CENTRAL
+# 5. GOOGLE PLANILHA CENTRAL
 
-Planilha criada:
+Planilha oficial:
 
 `Controle de Custos Extras - UNILOG`
 
-Estado verificado na primeira revisão:
+ID atual:
 
-- aba `RESPOSTAS_FORM`;
-- aba `SOLICITACOES`.
+`18dpLKAFHQI3rHRgn1XzP0cAtzYzZsrU-r6FulFkHXvo`
 
-Naquele momento `RESPOSTAS_FORM` possuía somente:
-
-- Carimbo de data/hora;
-- O que você deseja solicitar?
-
-A estrutura ainda estava no início.
-
----
-
-# 9. ABAS PLANEJADAS PARA O MVP
-
-Não criar tudo de uma vez. A implementação será incremental.
-
-Base mínima planejada:
+Estado atual organizado:
 
 ```text
+RESPOSTAS_FORM
 SOLICITACOES
 CAD_OPERACOES
 CAD_SUPERVISORES
@@ -280,81 +144,72 @@ CAD_FORNECEDORES
 CAD_ATIVIDADES
 CAD_FUNCOES
 CAD_PRODUTOS
-PRECOS_MO
-PRECOS_PRODUTOS
-AUDITORIA / LOG
 ```
 
-`RESPOSTAS_FORM` poderá permanecer durante a transição caso o Google Form seja usado como fallback ou fonte temporária, mas a aplicação web não deve depender obrigatoriamente dele.
+`RESPOSTAS_FORM` deve ser preservada como entrada bruta/contingência do Google Forms.
 
-As bases legadas não devem ser alteradas.
+`SOLICITACOES` ainda deve ter seu dicionário definitivo fechado antes de receber cabeçalhos de produção.
 
-Quando a migração for iniciada, usar staging/abas de legado ou processo de importação controlado, nunca copiar cegamente para `SOLICITACOES`.
+`CAD_OPERACOES` e `CAD_SUPERVISORES` foram estruturadas, porém devem receber apenas dados ativos confirmados; não preencher por suposição.
 
 ---
 
-# 10. CADASTROS DO MVP
+# 6. CADASTROS DO MVP
 
-## 10.1 Operações
-
-`CAD_OPERACOES`
+## 6.1 Operações
 
 ```text
+CAD_OPERACOES
 OPERACAO | ATIVO
 ```
 
-Os nomes novos devem ser padronizados.
+Usar nomes padronizados daqui para frente. Variações históricas serão tratadas em mapa de equivalência na migração.
 
-As variações históricas serão tratadas em mapa de equivalência na migração.
-
-## 10.2 Supervisores
-
-`CAD_SUPERVISORES`
+## 6.2 Supervisores
 
 ```text
+CAD_SUPERVISORES
 SUPERVISOR | ATIVO
 ```
 
 Usar nome padronizado.
 
-## 10.3 Fornecedores
-
-`CAD_FORNECEDORES`
-
-Estrutura recomendada:
+## 6.3 Fornecedores
 
 ```text
+CAD_FORNECEDORES
 FORNECEDOR | MAO_DE_OBRA | ALIMENTACAO | ATIVO
 ```
 
-Exemplos conhecidos do legado:
+Cadastro inicial já estruturado:
 
 - MULT;
-- ÁGUIA;
+- AGUIA;
 - ALMIRANTE;
 - W-SLOW.
 
-## 10.4 Atividades
+## 6.4 Atividades
 
-`CAD_ATIVIDADES`
+Atividade representa o **trabalho executado**.
 
-Atividade representa **o trabalho executado**.
+Cadastro inicial:
 
-Exemplos já identificados:
-
-- SEPARAÇÃO;
+- SEPARACAO;
 - EMBALAGEM;
 - CARGA E DESCARGA;
-- EXPEDIÇÃO;
+- EXPEDICAO;
 - ETIQUETAGEM;
 - RESSUPRIMENTO;
-- MOVIMENTAÇÃO;
-- PREPARAÇÃO DE SAMPLING;
+- MOVIMENTACAO;
+- PREPARACAO DE SAMPLING;
 - OUTRO.
 
-## 10.5 Funções / recursos
+## 6.5 Funções / recursos
 
-`CAD_FUNCOES`
+```text
+CAD_FUNCOES
+FUNCAO | ATIVO
+```
 
 Inicialmente:
 
@@ -363,13 +218,12 @@ Inicialmente:
 
 Regra fundamental:
 
-**OPERADOR DE EMPILHADEIRA é função/recurso, não atividade.**
+> OPERADOR DE EMPILHADEIRA é função/recurso, não atividade.
 
-## 10.6 Produtos
-
-`CAD_PRODUTOS`
+## 6.6 Produtos
 
 ```text
+CAD_PRODUTOS
 PRODUTO | CATEGORIA | ATIVO
 ```
 
@@ -378,41 +232,24 @@ Categorias:
 - ALIMENTACAO;
 - BEBIDA.
 
-Produtos históricos identificados incluem, entre outros:
+Cadastro inicial inclui:
 
 - X-TUDO;
 - X-FRANGO;
-- PODRÃO;
+- PODRAO;
 - GOURMET;
 - COCA-COLA 2L;
 - COCA-COLA 600ML;
 - COCA-COLA LATA;
-- GUARANÁ 2L.
+- GUARANA 2L.
 
-O catálogo definitivo será validado contra o histórico antes de produção.
-
----
-
-# 11. FORMULÁRIO / INTERFACE DO MVP
-
-O conceito de entrada continua sendo uma **Solicitação de Custo Extra**.
-
-Tipos iniciais:
-
-```text
-MÃO DE OBRA TERCEIRIZADA
-ALIMENTAÇÃO / BEBIDAS
-```
-
-O frontend deve exibir apenas os campos pertinentes ao tipo escolhido.
-
-Para manter o MVP simples, cada envio pode representar uma necessidade/tipo principal. Não tentar reproduzir agora um ERP com dezenas de itens, workflows e subtelas.
+O catálogo deve ser validado contra o histórico antes de ser tratado como definitivo.
 
 ---
 
-# 12. CAMPOS DE MÃO DE OBRA
+# 7. SOLICITAÇÃO DE MÃO DE OBRA
 
-Base funcional planejada:
+Campos funcionais previstos:
 
 - Supervisor;
 - Operação / Depositante;
@@ -428,18 +265,29 @@ Base funcional planejada:
 - Responsável pelo custo;
 - Centro de custo quando UNILOG.
 
-Turno deve ser informado manualmente:
+Turno é manual:
 
 - DIURNO;
 - NOTURNO.
 
 Não inferir turno por horário no MVP.
 
+Quantidade comparecida é informação administrativa posterior à execução.
+
+Pode ser zero e pode excepcionalmente ser maior que a quantidade solicitada; o sistema deve registrar a realidade e evidenciar a divergência, não bloquear o fato operacional.
+
+Cálculos:
+
+```text
+VALOR_PREVISTO = QTD_SOLICITADA × PRECO_UNITARIO_APLICADO
+VALOR_REAL = QTD_COMPARECIDA × PRECO_UNITARIO_APLICADO
+```
+
 ---
 
-# 13. CAMPOS DE ALIMENTAÇÃO / BEBIDAS
+# 8. SOLICITAÇÃO DE ALIMENTAÇÃO / BEBIDAS
 
-Base funcional planejada:
+Campos funcionais previstos:
 
 - Supervisor;
 - Operação / Depositante;
@@ -455,86 +303,46 @@ Base funcional planejada:
 
 Pelo menos alimentação ou bebida deve existir.
 
+Não existe `quantidade comparecida` para produtos.
+
+Cálculo financeiro deriva da quantidade solicitada e do preço congelado.
+
 ---
 
-# 14. RESPONSABILIDADE FINANCEIRA
+# 9. RESPONSABILIDADE FINANCEIRA
 
 Campo obrigatório:
 
 ```text
-RESPONSAVEL_CUSTO
-```
-
-Valores do MVP:
-
-- CLIENTE;
-- UNILOG.
-
-Regra:
-
-```text
 CLIENTE
-→ cliente/operação deriva da própria solicitação
-→ não exigir centro de custo
-```
-
-```text
 UNILOG
-→ centro de custo obrigatório
-→ aceitar somente dígitos
-→ armazenar como texto para preservar zeros à esquerda
+```
+
+Regra CLIENTE:
+
+```text
+cliente responsável deriva da própria operação/depositante
+centro de custo não é solicitado
+```
+
+Regra UNILOG:
+
+```text
+centro de custo obrigatório
+somente dígitos
+armazenar como texto para preservar zeros à esquerda
 ```
 
 ---
 
-# 15. REGRAS FINANCEIRAS — MÃO DE OBRA
+# 10. PREÇOS VERSIONADOS
 
-A lógica fundamental permanece:
+Objetivo: nunca recalcular o passado com o preço atual.
 
-```text
-Valor previsto
-= quantidade solicitada × preço unitário aplicado
-```
+## Mão de obra
 
 ```text
-Valor realizado
-= quantidade comparecida × preço unitário congelado
-```
-
-A quantidade comparecida é informação administrativa, posterior à execução.
-
-Pode ser zero.
-
-Não impedir automaticamente comparecimento maior do que solicitado; registrar a realidade e evidenciar a divergência.
-
----
-
-# 16. REGRAS FINANCEIRAS — ALIMENTAÇÃO/BEBIDAS
-
-Diferente da mão de obra:
-
-```text
-Valor esperado
-= quantidade solicitada × preço aplicado
-```
-
-Não existe conceito de `pessoas comparecidas` para alimentação/bebidas.
-
-Não misturar a lógica financeira dos dois tipos.
-
----
-
-# 17. PREÇOS VERSIONADOS E SNAPSHOT
-
-Um dos principais objetivos do MVP é acabar com a alteração retroativa de preço histórico.
-
-## 17.1 Mão de obra
-
-`PRECOS_MO`
-
-Estrutura conceitual:
-
-```text
+PRECOS_MO
 FORNECEDOR
 FUNCAO
 TURNO
@@ -544,11 +352,10 @@ PRECO_UNITARIO
 ATIVO
 ```
 
-## 17.2 Produtos
-
-`PRECOS_PRODUTOS`
+## Produtos
 
 ```text
+PRECOS_PRODUTOS
 FORNECEDOR
 PRODUTO
 VIGENCIA_INICIO
@@ -557,61 +364,41 @@ PRECO_UNITARIO
 ATIVO
 ```
 
-## 17.3 Regra de histórico
-
-Quando a API encontrar o preço aplicável, deve gravar na solicitação o valor utilizado como snapshot.
-
-Exemplo:
+Ao aplicar preço, a API grava um snapshot:
 
 ```text
-PRECO_UNITARIO_APLICADO = 160,00
+PRECO_UNITARIO_APLICADO
 ```
 
-Se posteriormente o cadastro passar a R$ 180, a solicitação antiga continua R$ 160.
+Esse valor histórico não deve depender de fórmula dinâmica apontando para uma tabela atual.
 
-Nunca depender de fórmula dinâmica apontando para o preço atual para reconstruir custo histórico.
-
----
-
-# 18. REGRAS DE PREÇO JÁ IDENTIFICADAS NO LEGADO
-
-Histórico conhecido de mão de obra contém, entre outros:
-
-- auxiliar operacional com preço base histórico de R$ 160;
-- operador de empilhadeira com preço de R$ 240 em períodos observados;
-- regras posteriores já discutidas envolvendo R$ 180, finais de semana, domingos/feriados e turno noturno.
-
-**Importante:** não codificar novas regras automaticamente apenas a partir desta memória.
-
-Antes de implementar a tabela definitiva de preços, validar as regras vigentes com o responsável funcional e registrar a vigência corretamente.
+Antes de cadastrar as regras definitivas de preço, validar vigências e regras atuais. Não codificar novas regras apenas por inferência do legado.
 
 ---
 
-# 19. COMPETÊNCIA FINANCEIRA
+# 11. COMPETÊNCIA
 
 Regra obrigatória:
 
 ```text
-21 de um mês
-até
-20 do mês seguinte
+21 de um mês → 20 do mês seguinte
 ```
 
-Exemplo:
-
-```text
-21/08/2026 a 20/09/2026
-```
-
-A competência deve ser derivada da data operacional do item/serviço, e não digitada livremente pelo usuário.
+A competência deve ser derivada da data operacional da solicitação/item, nunca digitada livremente.
 
 ---
 
-# 20. API APPS SCRIPT — PRINCÍPIO
+# 12. PROTOCOLO E API
 
-Apps Script será tratado como uma API, não como scripts soltos ligados a células.
+Cada solicitação terá identificador próprio gerado pela API. Não usar número da linha da planilha como identificador permanente.
 
-Estrutura conceitual esperada:
+Formato conceitual possível:
+
+```text
+CE-2026-000001
+```
+
+Contrato mínimo esperado da API:
 
 ```text
 GET  /health
@@ -619,39 +406,541 @@ GET  /cadastros
 GET  /solicitacoes
 GET  /solicitacoes/:id
 POST /solicitacoes
-PUT  /solicitacoes/:id
 POST /solicitacoes/:id/comparecimento
 ```
 
-Apps Script Web Apps normalmente recebem chamadas por `doGet(e)` e `doPost(e)`; o roteamento interno será implementado na aplicação.
+Apps Script usará `doGet(e)` / `doPost(e)` e roteamento interno.
 
-PUT lógico pode ser encaminhado por POST com `action`/`method` caso as limitações práticas do Web App indiquem isso.
-
-Não definir contrato final da API antes de fechar os campos de `SOLICITACOES`.
+Não fechar o contrato completo antes de concluir o dicionário da aba `SOLICITACOES`.
 
 ---
 
-# 21. PROTOCOLO
+# 13. LEGADO
 
-Cada solicitação nova deve receber identificador único gerado pela API.
+Fontes existentes:
 
-Formato exato ainda pode ser validado.
+- `Solicitação de mão de obra terceirizada (respostas)`;
+- `Solicitação de Lanches`.
 
-Exemplo conceitual:
+Problemas conhecidos do legado de MO:
+
+- atividade e função misturadas;
+- operador de empilhadeira registrado como atividade;
+- campo de volume com texto heterogêneo;
+- nomes não padronizados;
+- linhas vazias com fórmulas;
+- preço histórico sujeito a fórmula atual;
+- solicitado x realizado divergentes.
+
+Problemas conhecidos do legado de alimentação:
+
+- preços históricos vinculados à tabela atual;
+- fornecedores/produtos com variações;
+- necessidade de padronização.
+
+Migração futura:
 
 ```text
-CE-2026-000001
+legado
+→ staging
+→ normalização
+→ equivalências
+→ validação
+→ importação
 ```
 
-Não usar número da linha da planilha como identificador permanente.
+Preservar `ORIGEM`, linha/id original e lote de importação quando aplicável.
+
+Não alterar as bases originais para fazê-las caber no novo modelo.
 
 ---
 
-# 22. AUDITORIA MÍNIMA
+# 14. GOOGLE FORMS
 
-Mesmo usando Google Sheets, alterações importantes precisam de rastreabilidade.
+O Google Form pode continuar como:
 
-Criar posteriormente `AUDITORIA` ou `LOG` com, no mínimo:
+- contingência;
+- fallback;
+- transição enquanto o frontend não estiver pronto.
+
+A arquitetura principal do produto será:
+
+```text
+Frontend Cloudflare
+→ Apps Script API
+→ Google Sheets
+```
+
+---
+
+# 15. GITHUB / CLOUDFARE / DESENVOLVIMENTO
+
+Repositório oficial:
+
+`srcarneiro1/Extra-Cost-Control-Unilog`
+
+Fluxo preferencial:
+
+```text
+feature/* ou fix/*
+↓
+Pull Request
+↓
+revisão
+↓
+merge em main
+↓
+deploy Cloudflare
+```
+
+Evitar mudanças de produção sem commit correspondente.
+
+Estrutura recomendada:
+
+```text
+src/
+  components/
+  pages/
+  services/
+  types/
+  utils/
+  styles/
+functions/
+  api/
+apps-script/
+  Code.gs
+  Api.gs
+  SheetRepository.gs
+  PricingService.gs
+  ValidationService.gs
+docs/
+public/
+MEMORIA_PROJETO.md
+README.md
+.env.example
+.gitignore
+package.json
+wrangler.jsonc
+```
+
+Frontend:
+
+- React;
+- TypeScript;
+- Vite;
+- Cloudflare Pages.
+
+Apps Script também deve ficar versionado no GitHub.
+
+---
+
+# 16. IDENTIDADE VISUAL OBRIGATÓRIA DO PRODUTO
+
+A aplicação deve parecer um produto administrativo/operacional moderno da UNILOG, com alta legibilidade, baixa carga cognitiva, consistência e foco na tomada de decisão.
+
+A identidade visual abaixo é a fonte de verdade do novo projeto.
+
+## 16.1 Princípios
+
+- confiança;
+- clareza operacional;
+- leitura rápida;
+- controle;
+- consistência entre telas;
+- informação acima de decoração;
+- padrões reaproveitáveis em vez de estilos exclusivos por página.
+
+Regra de ouro:
+
+> O usuário aprende um padrão uma vez e deve reconhecê-lo em todas as telas.
+
+## 16.2 Marca e paleta
+
+```css
+--brand-primary: #db0812;
+--brand-primary-hover: #b8070f;
+--brand-primary-soft: #fdecee;
+
+--brand-gray: #494a56;
+--brand-gray-dark: #3a3b45;
+
+--status-success: #3f7c59;
+--status-success-soft: #edf6f0;
+--status-warning: #a87900;
+--status-warning-soft: #fff6d8;
+--status-danger: #c91a23;
+--status-danger-soft: #fff0f1;
+--status-neutral: #6f747d;
+--status-neutral-soft: #f1f2f4;
+
+--surface-canvas: #f5f6f8;
+--surface-primary: #ffffff;
+--surface-secondary: #f8f9fa;
+--surface-tertiary: #f2f3f5;
+
+--text-primary: #2f3136;
+--text-secondary: #5f636b;
+--text-muted: #858a93;
+
+--border-default: #e2e4e8;
+--border-strong: #cdd0d5;
+```
+
+O vermelho da marca é **acento**, CTA e foco. Não deve significar automaticamente erro ou criticidade. Estados usam cores semânticas próprias.
+
+## 16.3 Tipografia
+
+Fonte preferencial digital:
+
+```text
+Roboto
+```
+
+Hierarquia:
+
+- títulos: Bold/Black;
+- corpo: Regular;
+- labels: pequenos e semipesados;
+- eyebrow: pequeno, tracking alto, caixa alta;
+- evitar caixa alta em textos longos.
+
+Base de corpo aproximada: 13px / line-height 1.45 no desktop.
+
+## 16.4 Espaçamento, radius e sombra
+
+Escala de espaçamento:
+
+```text
+4 / 8 / 12 / 16 / 24 / 32 / 40 / 48 px
+```
+
+Radius:
+
+```text
+controle: 8px
+card/painel: 11px
+pill/badge: 999px
+```
+
+Sombras discretas. Priorizar borda + contraste de superfície antes de elevar componentes.
+
+```css
+--shadow-card: 0 1px 3px rgba(29,31,35,.035);
+--shadow-raised: 0 12px 32px rgba(29,31,35,.10);
+```
+
+## 16.5 Shell da aplicação
+
+Desktop:
+
+```text
+sidebar escura 236px
+→ colapsável para ~68px
+workspace claro
+```
+
+Sidebar:
+
+- fundo `#494a56`;
+- logo UNILOG branco;
+- navegação em texto claro;
+- item ativo com fundo discreto e rail vertical vermelho;
+- usuário no rodapé;
+- navegação sem excesso de divisores.
+
+Mobile/tablet:
+
+- sidebar vira drawer lateral;
+- backdrop escuro;
+- botão de menu com alvo de toque adequado;
+- não comprimir a sidebar desktop.
+
+Topbar:
+
+- superfície branca;
+- ~56–58px;
+- borda inferior discreta;
+- título/contexto conciso;
+- ações e perfil sem excesso visual.
+
+Conteúdo principal:
+
+```text
+max-width aproximado: 1600px
+padding desktop: ~30–34px
+padding mobile: ~12–18px
+```
+
+## 16.6 Anatomia de página
+
+```text
+SHELL
+↓
+PAGE HEADER
+↓
+MÉTRICAS DE RESUMO quando aplicável
+↓
+TOOLBAR / FILTROS LOCAIS
+↓
+CONTEÚDO PRINCIPAL
+↓
+TABELAS / DETALHES / AÇÕES
+```
+
+Page Header:
+
+- eyebrow;
+- título principal;
+- descrição curta;
+- ações à direita no desktop;
+- ações abaixo/no fluxo no mobile.
+
+Não criar um cabeçalho diferente para cada página.
+
+## 16.7 Painéis e cards
+
+Painel padrão:
+
+- fundo branco;
+- borda `--border-default`;
+- radius 11px;
+- sombra muito discreta;
+- header interno com título + descrição + ações opcionais.
+
+Cards devem ter função clara: KPI, resumo/status, entidade, ação ou informação.
+
+Evitar:
+
+- card dentro de card sem necessidade;
+- borda colorida + badge + texto colorido repetindo a mesma severidade;
+- muitos KPIs com peso visual idêntico.
+
+## 16.8 Badges e chips
+
+Badge comunica estado.
+
+Chip comunica contexto, categoria ou contagem.
+
+Estados:
+
+```text
+SUCESSO → verde
+ATENÇÃO → amarelo
+ERRO/CRÍTICO → vermelho semântico
+NEUTRO/SEM DADOS → cinza
+```
+
+Nunca depender somente da cor: usar label, ícone ou texto.
+
+## 16.9 Formulários
+
+Este projeto é centrado em formulários; portanto devem parecer **fluxo de trabalho**, não pilha de inputs.
+
+Estrutura recomendada:
+
+```text
+PAGE HEADER
+↓
+ORIENTAÇÃO / STEPPER se útil
+↓
+SEÇÃO 1 — contexto
+↓
+SEÇÃO 2 — necessidade
+↓
+SEÇÃO 3 — responsabilidade financeira
+↓
+AÇÕES DO FORM
+```
+
+Cada seção:
+
+- card branco;
+- borda discreta;
+- radius 11px;
+- título claro;
+- texto auxiliar curto;
+- grid de campos.
+
+Desktop:
+
+- usar 2–3 colunas conforme conteúdo;
+- campos relacionados ficam próximos.
+
+Tablet:
+
+- reduzir para 2 colunas.
+
+Mobile:
+
+- uma coluna real;
+- nada de formulário desktop espremido;
+- botões principais em largura total quando necessário.
+
+Inputs/selects:
+
+```text
+altura mínima desktop: 40px
+altura mínima mobile: 44px
+radius: 8px
+borda neutra
+label visível
+foco explícito
+```
+
+Textarea mínimo aproximado: 88px.
+
+No iOS/mobile, campos textuais devem usar tamanho que evite zoom automático do navegador.
+
+## 16.10 Stepper
+
+Stepper é orientação, não navegação horizontal obrigatória.
+
+Desktop: grid horizontal compacto.
+
+Mobile:
+
+- continuar integralmente visível quando couber;
+- reduzir conteúdo secundário;
+- em telas muito estreitas, virar lista vertical;
+- nunca exigir swipe horizontal para compreender o fluxo.
+
+## 16.11 Tabelas
+
+Desktop:
+
+- header discreto e compacto;
+- primeira coluna concentra identidade principal;
+- números alinhados consistentemente;
+- hover leve;
+- ações explícitas;
+- badges para status.
+
+Mobile:
+
+> Tabela não é comprimida. Ela vira lista de record cards.
+
+Padrão:
+
+```text
+IDENTIDADE PRINCIPAL + STATUS
+metadados
+campos-chave em grid
+rodapé/ações
+```
+
+Não exigir scroll horizontal para informação essencial.
+
+## 16.12 Toolbars e busca
+
+Toolbar local:
+
+- superfície branca;
+- borda discreta;
+- busca com área flexível;
+- filtros previsíveis;
+- ação principal clara.
+
+Mobile:
+
+- empilhar filtros;
+- sem carrossel obrigatório;
+- botões e selects com 44px quando possível.
+
+## 16.13 Loading, vazio, erro e sucesso
+
+Toda superfície assíncrona deve prever:
+
+- loading/skeleton;
+- empty state;
+- error state;
+- success quando aplicável.
+
+Empty state deve explicar:
+
+1. o que não existe;
+2. por que pode não existir;
+3. o que o usuário pode fazer.
+
+## 16.14 Acessibilidade e interação
+
+Foco visível obrigatório.
+
+Padrão visual do foco:
+
+```css
+outline: 2px solid rgba(219,8,18,.62);
+outline-offset: 2px;
+```
+
+Alvos interativos recorrentes:
+
+```text
+desktop: mínimo prático ~40px
+mobile: mínimo prático ~44px
+```
+
+Hover só deve governar dispositivos que realmente possuem hover.
+
+Estados `disabled` devem reduzir contraste e impedir affordance de clique.
+
+Suportar `prefers-reduced-motion`.
+
+Não usar movimento como requisito para compreender estado.
+
+## 16.15 Responsividade obrigatória
+
+Toda feature deve ser validada em:
+
+```text
+Desktop
+Tablet
+Mobile
+Mobile estreito
+```
+
+Critérios mínimos:
+
+- nenhum card essencial cortado;
+- nenhum stepper requer swipe;
+- nenhum resumo requer swipe lateral;
+- tabelas viram cards;
+- nomes longos quebram corretamente;
+- CTAs principais permanecem visíveis;
+- forms viram uma coluna real;
+- sem overflow horizontal obrigatório;
+- touch targets adequados.
+
+## 16.16 Componentização visual
+
+Criar primitives compartilhados desde o início, por exemplo:
+
+```text
+AppShell
+PageHeader
+Panel
+SectionHeader
+Button
+Badge
+Chip
+SearchField
+Toolbar
+EmptyState
+Skeleton
+ResponsiveTable
+FormSection
+FormStepper
+ContextNotice
+```
+
+Não duplicar anatomia visual em cada página.
+
+Antes de criar novo CSS, verificar se o comportamento já pertence a um primitive existente.
+
+---
+
+# 17. AUDITORIA MÍNIMA
+
+Planejar aba `AUDITORIA` ou `LOG` com:
 
 ```text
 TIMESTAMP
@@ -664,339 +953,116 @@ VALOR_NOVO
 MOTIVO
 ```
 
-Não permitir que o histórico administrativo relevante seja silenciosamente sobrescrito.
+Alterações administrativas relevantes não devem sobrescrever histórico silenciosamente.
 
 ---
 
-# 23. LEGADO
-
-As duas planilhas antigas são fontes históricas e não devem ser alteradas para se adaptarem ao novo sistema.
-
-Processo futuro:
-
-```text
-bases antigas
-   ↓
-leitura
-   ↓
-normalização
-   ↓
-mapeamento de nomes
-   ↓
-validação
-   ↓
-importação para estrutura do MVP
-```
-
-Cada registro migrado deve preservar referência de origem, por exemplo:
-
-```text
-ORIGEM = LEGADO_MO
-ORIGEM = LEGADO_LANCHES
-```
-
-Além de identificador/linha original quando disponível.
-
-Linhas preenchidas somente por fórmulas e sem solicitação real devem ser descartadas na migração.
-
----
-
-# 24. GOOGLE FORMS
-
-O Google Form pode permanecer como:
-
-- contingência;
-- entrada temporária durante a implantação;
-- fallback caso a aplicação web esteja indisponível.
-
-Porém a arquitetura principal passa a ser:
-
-```text
-Cloudflare frontend
-→ Apps Script API
-→ Google Sheets
-```
-
-Não é obrigatório manter o Form como interface principal depois que o frontend MVP estiver funcional.
-
----
-
-# 25. GITHUB E FLUXO DE DESENVOLVIMENTO
-
-Repositório oficial:
-
-`srcarneiro1/Extra-Cost-Control-Unilog`
-
-O repositório deve permanecer privado.
-
-Fluxo preferencial:
-
-```text
-main
-  ↑
-Pull Request
-  ↑
-feature/* ou fix/*
-```
-
-Para mudanças relevantes:
-
-1. criar branch;
-2. implementar alteração;
-3. revisar diff;
-4. abrir PR;
-5. validar build/testes;
-6. fazer merge;
-7. verificar deploy Cloudflare.
-
-Evitar alterações manuais diretas em produção sem commit correspondente.
-
----
-
-# 26. ESTRUTURA DE REPOSITÓRIO RECOMENDADA
-
-```text
-Extra-Cost-Control-Unilog/
-│
-├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── services/
-│   ├── types/
-│   └── utils/
-│
-├── functions/
-│   └── api/
-│
-├── apps-script/
-│   ├── Code.gs
-│   ├── Api.gs
-│   ├── SheetRepository.gs
-│   ├── PricingService.gs
-│   └── ValidationService.gs
-│
-├── docs/
-│
-├── public/
-│
-├── .env.example
-├── .gitignore
-├── README.md
-├── MEMORIA_PROJETO.md
-├── package.json
-└── wrangler.jsonc
-```
-
-O código Apps Script ficará versionado no GitHub, mesmo que a implantação no Google precise inicialmente de cópia/deploy pelo Apps Script.
-
-Posteriormente pode ser avaliado `clasp`, mas não é requisito do MVP 1.
-
----
-
-# 27. CLOUDFLARE
-
-Cloudflare será responsável por hospedar o frontend.
-
-Arquitetura recomendada:
-
-```text
-Cloudflare Pages
-├── React/Vite SPA
-└── Pages Functions / Worker para chamadas protegidas
-```
-
-Variáveis e secrets de produção devem ser configurados no Cloudflare, não commitados.
-
----
-
-# 28. TECNOLOGIA DO FRONTEND
-
-Direção já adotada anteriormente e mantida:
-
-- React;
-- TypeScript;
-- Vite;
-- Cloudflare Pages;
-- GitHub.
-
-O frontend deve ser responsivo e adequado a desktop e mobile.
-
-Não adicionar frameworks ou dependências pesadas sem necessidade concreta.
-
----
-
-# 29. ESCOPO EXCLUÍDO DO MVP 1
+# 18. ESCOPO FORA DO MVP 1
 
 Não implementar agora, salvo nova decisão explícita:
 
 - Supabase;
-- banco PostgreSQL dedicado;
-- arquitetura multiaplicação da UNILOG;
-- reorganização do Forecast Planner;
+- PostgreSQL dedicado;
+- reorganização de outros sistemas;
+- arquitetura multiaplicação corporativa;
 - dashboard BI sofisticado;
-- integração automática com WhatsApp;
-- envio automático de anexos;
+- WhatsApp automático;
 - sistema fiscal completo;
-- workflow excessivamente detalhado;
-- split complexo de item entre várias NFs;
-- dezenas de status operacionais.
-
-Esses itens podem ser reavaliados depois que o processo básico estiver funcional.
+- dezenas de status;
+- workflow burocrático;
+- split complexo de item entre várias NFs.
 
 ---
 
-# 30. STATUS SIMPLIFICADO DO MVP
+# 19. PRINCÍPIO DE MELHORIA DE PROCESSO
 
-Não criar muitos status.
+Sempre perguntar:
 
-Direção inicial:
-
-```text
-ENVIADA
-EM_VALIDACAO
-VALIDADA
-AGUARDANDO_EXECUCAO / AGUARDANDO_REAL quando aplicável
-AGUARDANDO_NF
-CONFERIDA
-ENCERRADA
-```
-
-A lista final será reduzida e validada antes da implementação.
-
-Não usar esta seção como autorização para criar todos os status sem validação funcional.
-
----
-
-# 31. PRINCÍPIO DE PROCESSO
-
-O sistema deve diferenciar sempre:
-
-```text
-SOLICITADO
-REALIZADO
-FATURADO
-```
-
-Para mão de obra:
-
-```text
-solicitado = quantidade pedida
-realizado = quantidade comparecida
-faturado = valor efetivamente cobrado na NF
-```
-
-Para alimentação:
-
-```text
-solicitado = quantidade pedida
-esperado = quantidade × preço congelado
-faturado = valor cobrado na NF
-```
-
----
-
-# 32. NOTA FISCAL — DIREÇÃO FUTURA
-
-O processo já levantado anteriormente permanece como referência, mas não é o primeiro bloco do MVP.
-
-Uma NF:
-
-- pertence a um fornecedor;
-- pode consolidar itens de várias solicitações;
-- um fornecedor pode emitir mais de uma NF na mesma competência;
-- o sistema deve comparar esperado × faturado.
-
-Na V1, evitar fracionamento de um mesmo item entre várias notas, salvo se a operação provar que isso é necessário.
-
----
-
-# 33. PRINCÍPIO DE MELHORIA DE PROCESSO
-
-Este projeto deve ser conduzido como melhoria de processo, não apenas digitalização de um formulário ruim.
-
-Sempre questionar:
-
-- o campo é realmente necessário?
-- o dado deveria ser digitado ou derivado?
-- existe cadastro para evitar texto livre?
-- existe risco de alterar histórico?
+- esse campo precisa realmente ser digitado?
+- podemos derivá-lo?
+- existe cadastro controlado?
+- estamos preservando o histórico?
 - solicitado, realizado e faturado estão separados?
 - a regra pertence ao frontend ou à API?
-- o dado pode ser auditado?
-- o processo está mais simples que o atual?
+- o fluxo ficou mais simples que o atual?
 
-O MVP deve reduzir trabalho manual, e não apenas deslocá-lo para outra tela.
-
----
-
-# 34. PRÓXIMA AÇÃO RECOMENDADA
-
-Não iniciar pelo dashboard e não reabrir Supabase.
-
-Sequência recomendada:
-
-1. revisar a planilha `Controle de Custos Extras - UNILOG`;
-2. criar/validar os cadastros mínimos;
-3. definir a estrutura definitiva da aba `SOLICITACOES`;
-4. definir o contrato mínimo da API Apps Script;
-5. implementar Apps Script `health` + leitura dos cadastros;
-6. implementar `POST /solicitacoes`;
-7. testar escrita/leitura diretamente pela API;
-8. criar o frontend React no GitHub;
-9. conectar Cloudflare ao GitHub;
-10. integrar frontend com API por camada segura;
-11. criar tela administrativa para quantidade real de MO;
-12. implementar preços versionados e snapshot;
-13. migrar legado somente depois que a estrutura nova estiver estável.
+Digitalizar um processo ruim não é objetivo do projeto.
 
 ---
 
-# 35. REGRA PARA AS PRÓXIMAS CONVERSAS
+# 20. PRÓXIMAS AÇÕES
 
-Ao retomar este projeto:
+Ordem vigente:
 
-- usar este arquivo como memória principal;
-- diferenciar decisões confirmadas de propostas;
-- não inventar campos ou regras;
-- não ampliar escopo sem benefício operacional claro;
-- priorizar MVP funcional;
-- manter Google Sheets + Apps Script API como persistência/backend vigente;
-- manter GitHub + Cloudflare como código/deploy vigente;
-- preservar legado;
-- avançar em pequenos PRs verificáveis.
+1. validar os cadastros ativos de operações e supervisores;
+2. fechar o dicionário definitivo da aba `SOLICITACOES`;
+3. criar `PRECOS_MO` e `PRECOS_PRODUTOS` somente após validação das regras;
+4. definir contrato mínimo da API;
+5. implementar Apps Script `health` + leitura de cadastros;
+6. implementar criação de solicitação;
+7. testar API diretamente;
+8. estruturar React/Vite no GitHub;
+9. implementar design system e shell conforme seção visual desta memória;
+10. conectar Cloudflare ao GitHub;
+11. integrar frontend com API;
+12. criar fluxo administrativo de quantidade real de MO;
+13. somente depois iniciar migração do legado.
+
+Não iniciar pelo dashboard.
+
+---
+
+# 21. COMANDO CURTO DE RETOMADA
+
+Em um novo chat, usar:
+
+```text
+Retome o projeto Extra Cost Control UNILOG.
+
+Repositório oficial:
+https://github.com/srcarneiro1/Extra-Cost-Control-Unilog
+
+Antes de fazer qualquer alteração, leia integralmente o arquivo MEMORIA_PROJETO.md do repositório e trate-o como fonte de verdade funcional, arquitetural e visual.
+
+Arquitetura vigente: React + TypeScript + Vite no Cloudflare Pages; GitHub para versionamento/PR/merge; Google Apps Script como API; Google Planilhas como persistência. Não usar Supabase.
+
+Planilha oficial: Controle de Custos Extras - UNILOG.
+
+Preserve as bases legadas e não altere outros projetos ou repositórios como parte deste trabalho.
+
+Continue exatamente pela seção “Próximas ações” da memória. Diferencie decisão confirmada de proposta, não invente campos/regras e avance em mudanças pequenas e verificáveis.
+```
 
 ---
 
 ## RESUMO EXECUTIVO
 
 ```text
-SEM SUPABASE.
+SEM SUPABASE
 
-Frontend:
 React + TypeScript + Vite
         ↓
 Cloudflare Pages
         ↓
-Cloudflare Function/Worker quando necessário
+Cloudflare Function quando necessário
         ↓
 Apps Script API
         ↓
 Google Planilhas
 
-Código e governança:
 GitHub privado
 srcarneiro1/Extra-Cost-Control-Unilog
 
-MVP:
-Custos Extras
+MVP
 ├── Mão de obra terceirizada
 └── Alimentação / Bebidas
 
-Prioridades:
-padronizar entrada
-→ congelar preço histórico
-→ separar solicitado x realizado
-→ preservar legado
-→ criar API simples
-→ depois evoluir.
+Prioridades
+cadastros
+→ SOLICITACOES
+→ API
+→ frontend
+→ realizado
+→ preços congelados
+→ legado
 ```
