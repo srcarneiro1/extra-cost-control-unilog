@@ -1,0 +1,50 @@
+:root {
+  --brand-primary: #db0812;
+  --brand-primary-hover: #b8070f;
+  --brand-primary-soft: #fdecee;
+  --brand-gray: #494a56;
+  --brand-gray-dark: #3a3b45;
+
+  --status-success: #3f7c59;
+  --status-success-soft: #edf6f0;
+  --status-warning: #a87900;
+  --status-warning-soft: #fff6d8;
+  --status-danger: #c91a23;
+  --status-danger-soft: #fff0f1;
+  --status-neutral: #6f747d;
+  --status-neutral-soft: #f1f2f4;
+
+  --surface-canvas: #f5f6f8;
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8f9fa;
+  --surface-tertiary: #f2f3f5;
+
+  --text-primary: #2f3136;
+  --text-secondary: #5f636b;
+  --text-muted: #858a93;
+
+  --border-default: #e2e4e8;
+  --border-strong: #cdd0d5;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+
+  --radius-control: 8px;
+  --radius-card: 11px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 3px rgba(29, 31, 35, 0.035);
+  --shadow-raised: 0 12px 32px rgba(29, 31, 35, 0.1);
+
+  font-family: Roboto, Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
