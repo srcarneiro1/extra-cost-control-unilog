@@ -4,10 +4,11 @@
 
 Intermediar chamadas protegidas entre o frontend Cloudflare Pages e o Google Apps Script sem expor segredos no navegador.
 
-Arquitetura desta etapa:
+Arquitetura:
 
 ```text
-Cliente de teste / futuro frontend autenticado
+Usuário autenticado
+→ Cloudflare Access
 → Cloudflare Pages Function
 → segredo de integração
 → Apps Script Web App
@@ -21,34 +22,68 @@ GET  /api/cadastros
 POST /api/solicitacoes
 ```
 
-Nesta fase, enquanto o login definitivo ainda não existe, as duas rotas exigem o header temporário:
+As duas rotas aceitam autenticação por Cloudflare Access. Durante a transição, o header temporário abaixo continua funcionando somente para testes controlados:
 
 ```text
 x-gateway-test-token
 ```
 
-Esse token existe apenas para testes controlados e deverá ser removido quando a autenticação real do produto for implementada.
+O fallback de teste deve ser removido depois que o Access estiver validado em Preview e Production.
+
+## Cloudflare Access
+
+Configurar uma aplicação Access protegendo o domínio do Pages usado pelo produto.
+
+Fluxo sugerido para o MVP:
+
+```text
+Cloudflare Access
+→ One-time PIN por e-mail
+→ política Allow apenas para e-mails autorizados
+```
+
+Se futuramente existir IdP corporativo, Google Workspace ou outro provedor, ele pode substituir o One-time PIN sem alterar o contrato interno da aplicação.
+
+A Pages Function valida o JWT enviado pelo Access no header:
+
+```text
+Cf-Access-Jwt-Assertion
+```
+
+A validação verifica:
+
+- assinatura contra as chaves públicas do time Cloudflare;
+- issuer do time;
+- audience da aplicação Access;
+- presença de e-mail autenticado.
+
+A identidade confiável é utilizada em `POST /api/solicitacoes` para sobrescrever `usuarioCriacao`. O navegador não é fonte confiável desse campo quando o request vem via Access.
 
 ## Variáveis / segredos no Cloudflare Pages
 
-Configurar no ambiente do projeto:
+Configurar por ambiente:
 
 ```text
 APPS_SCRIPT_URL
 APPS_SCRIPT_GATEWAY_TOKEN
 GATEWAY_TEST_TOKEN
+CLOUDFLARE_ACCESS_TEAM_DOMAIN
+CLOUDFLARE_ACCESS_AUD
 ```
 
 Regras:
 
 - `APPS_SCRIPT_URL`: URL estável `/exec` da implantação do Web App;
 - `APPS_SCRIPT_GATEWAY_TOKEN`: segredo compartilhado Cloudflare → Apps Script;
-- `GATEWAY_TEST_TOKEN`: segredo temporário para autorizar testes do cliente → Cloudflare;
-- nenhum desses valores deve ser commitado no GitHub ou incluído no bundle React.
+- `GATEWAY_TEST_TOKEN`: segredo temporário para testes; remover após estabilização do Access;
+- `CLOUDFLARE_ACCESS_TEAM_DOMAIN`: domínio do time, por exemplo `https://empresa.cloudflareaccess.com`;
+- `CLOUDFLARE_ACCESS_AUD`: Application Audience (AUD) da aplicação Access;
+- nenhum desses valores deve ser incluído no bundle React;
+- `CLOUDFLARE_ACCESS_TEAM_DOMAIN` e `CLOUDFLARE_ACCESS_AUD` não são segredos de autenticação do usuário, mas permanecem como configuração server-side.
 
 ## Propriedade no Apps Script
 
-Em **Configurações do projeto → Propriedades do script**, adicionar:
+Em **Configurações do projeto → Propriedades do script**:
 
 ```text
 GATEWAY_TOKEN
@@ -60,41 +95,33 @@ O valor deve ser exatamente o mesmo configurado no Cloudflare como:
 APPS_SCRIPT_GATEWAY_TOKEN
 ```
 
-## Implantação do Apps Script
+O Apps Script continua protegido por autenticação serviço-a-serviço. Cloudflare Access não substitui `APPS_SCRIPT_GATEWAY_TOKEN`.
 
-O Cloudflare não possui a sessão Google usada no navegador. Portanto a implantação do Web App precisa permitir que o request chegue ao `doPost` sem login interativo.
+## Compatibilidade de transição
 
-A proteção de escrita deixa de depender da sessão Google e passa a depender da validação explícita do `GATEWAY_TOKEN` dentro da API.
-
-Antes de tornar a implantação acessível sem login:
-
-1. atualizar `Api.gs` e `JsonResponse.gs` com a versão desta PR;
-2. configurar `GATEWAY_TOKEN` nas propriedades do script;
-3. salvar;
-4. criar nova versão da implantação;
-5. somente então ajustar a implantação para permitir acesso sem sessão Google, conforme as opções disponíveis na conta Workspace.
-
-`GET ?route=health` permanece público e não grava dados.
-
-`cadastros` e `solicitacoes` exigem o token do gateway.
-
-## Teste controlado
-
-Exemplo conceitual:
+Enquanto `GATEWAY_TEST_TOKEN` estiver configurado, estes dois modos são aceitos:
 
 ```text
-POST https://<dominio-pages>/api/solicitacoes
-x-gateway-test-token: <segredo temporário>
-Content-Type: application/json
+1. sessão válida do Cloudflare Access
+2. x-gateway-test-token válido
 ```
 
-O cliente nunca envia `APPS_SCRIPT_GATEWAY_TOKEN`. A Pages Function adiciona esse segredo somente no request server-side enviado ao Apps Script.
+Sem nenhum dos dois, a Function responde `401 UNAUTHORIZED`.
+
+## Testes mínimos antes de remover o token temporário
+
+1. request sem Access e sem token temporário → `401`;
+2. request com `GATEWAY_TEST_TOKEN` → continua funcionando durante a transição;
+3. navegador autenticado pelo Access → `/api/cadastros` retorna `200` sem segredo no React;
+4. criação de solicitação pelo navegador autenticado → `USUARIO_CRIACAO` recebe o e-mail validado pelo Access;
+5. tentativa de enviar outro `usuarioCriacao` no body → deve ser ignorada quando a identidade vier do Access.
 
 ## Próxima evolução
 
-Quando o login do produto estiver implementado:
+Após validar Access em Preview e Production:
 
-1. remover `GATEWAY_TEST_TOKEN` e o header temporário;
-2. validar a sessão/identidade do usuário na Function;
-3. derivar a identidade de criação a partir da sessão confiável;
-4. manter `APPS_SCRIPT_GATEWAY_TOKEN` exclusivamente como autenticação serviço-a-serviço Cloudflare → Apps Script.
+1. remover `GATEWAY_TEST_TOKEN` dos ambientes;
+2. remover o fallback de teste do middleware;
+3. conectar o frontend tipado a `/api/cadastros`;
+4. estruturar os formulários reais;
+5. manter `APPS_SCRIPT_GATEWAY_TOKEN` exclusivamente como autenticação Cloudflare → Apps Script.
