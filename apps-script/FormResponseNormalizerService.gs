@@ -223,8 +223,8 @@ const FormResponseNormalizerService = (() => {
       return ValidationService.normalizeUpper(item.PRODUTO) === target;
     });
 
-    if (!row) {
-      ValidationService.fail('Produto não encontrado no cadastro: ' + productName + '.');
+    if (!row || !ValidationService.isTruthy(row.ATIVO)) {
+      ValidationService.fail('Produto não encontrado ou inativo: ' + productName + '.');
     }
 
     if (ValidationService.normalizeUpper(row.CATEGORIA) !== expectedCategory) {
@@ -269,14 +269,12 @@ const FormResponseNormalizerService = (() => {
   }
 
   function canonicalCatalogValue_(sheetName, fieldName, submittedValue) {
-    const normalized = ValidationService.normalizeUpper(submittedValue);
-    const row = SheetRepository.readObjects(sheetName).find(function (item) {
-      return ValidationService.normalizeUpper(item[fieldName]) === normalized;
-    });
-
-    if (!row) {
-      ValidationService.fail(fieldName + ' não encontrado no cadastro: ' + submittedValue + '.');
-    }
+    const row = ValidationService.findActive(
+      SheetRepository.readObjects(sheetName),
+      fieldName,
+      submittedValue,
+      fieldName
+    );
 
     return ValidationService.normalizeText(row[fieldName]);
   }
@@ -287,9 +285,15 @@ const FormResponseNormalizerService = (() => {
       return ValidationService.normalizeUpper(item[fieldName]) === normalized;
     });
 
-    return row
-      ? ValidationService.normalizeText(row[fieldName])
-      : ValidationService.normalizeText(submittedValue);
+    if (!row) {
+      return ValidationService.normalizeText(submittedValue);
+    }
+
+    if (!ValidationService.isTruthy(row.ATIVO)) {
+      ValidationService.fail(fieldName + ' não encontrado ou inativo: ' + submittedValue + '.');
+    }
+
+    return ValidationService.normalizeText(row[fieldName]);
   }
 
   function findExisting_(responseId) {
