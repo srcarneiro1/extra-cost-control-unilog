@@ -1,7 +1,8 @@
-interface Env {
+import { authorizeGatewayRequest, type GatewayAuthEnv } from '../_auth';
+
+interface Env extends GatewayAuthEnv {
   APPS_SCRIPT_URL: string;
   APPS_SCRIPT_GATEWAY_TOKEN: string;
-  GATEWAY_TEST_TOKEN: string;
 }
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -14,23 +15,17 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
-function isAuthorizedForTest(request: Request, env: Env): boolean {
-  const configuredToken = String(env.GATEWAY_TEST_TOKEN || '').trim();
-  const providedToken = String(request.headers.get('x-gateway-test-token') || '').trim();
-
-  return Boolean(configuredToken && providedToken && configuredToken === providedToken);
-}
-
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
+  const identity = await authorizeGatewayRequest(request, env);
 
-  if (!isAuthorizedForTest(request, env)) {
+  if (!identity) {
     return jsonResponse(
       {
         ok: false,
         error: {
           code: 'UNAUTHORIZED',
-          message: 'Acesso temporário ao gateway não autorizado.',
+          message: 'Acesso ao gateway não autorizado.',
         },
       },
       401
