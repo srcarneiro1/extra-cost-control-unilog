@@ -85,7 +85,7 @@ GET /health
 GET /cadastros
 ```
 
-Contratos já previstos na memória, mas ainda não implementados nesta fundação:
+Contratos já previstos na memória:
 
 ```text
 GET  /solicitacoes
@@ -101,30 +101,67 @@ Resposta mínima:
 ```json
 {
   "ok": true,
-  "service": "extra-cost-control-unilog",
-  "version": "mvp1"
+  "data": {
+    "service": "extra-cost-control-unilog",
+    "version": "mvp1"
+  }
 }
 ```
 
 ### GET /cadastros
 
-Retorna somente registros ativos necessários ao frontend:
+Retorna somente registros ativos necessários ao frontend em DTOs semânticos, sem expor nomes físicos de colunas da planilha.
+
+Contrato:
 
 ```json
 {
   "ok": true,
   "data": {
-    "operacoes": [],
-    "supervisores": [],
-    "fornecedores": [],
-    "atividades": [],
-    "funcoes": [],
-    "produtos": []
+    "operacoes": [
+      { "nome": "ADM" }
+    ],
+    "supervisores": [
+      { "nome": "NOME DO SUPERVISOR" }
+    ],
+    "fornecedores": [
+      {
+        "nome": "MULT",
+        "tiposSolicitacao": ["MAO_DE_OBRA"]
+      },
+      {
+        "nome": "ALMIRANTE",
+        "tiposSolicitacao": ["ALIMENTACAO_BEBIDA"]
+      }
+    ],
+    "atividades": [
+      { "nome": "SEPARACAO" }
+    ],
+    "funcoes": [
+      { "nome": "AUXILIAR OPERACIONAL" }
+    ],
+    "produtos": [
+      {
+        "nome": "COCA-COLA 2L",
+        "categoria": "BEBIDA"
+      }
+    ]
   }
 }
 ```
 
-O frontend não referencia ranges, células ou índices da planilha.
+Regras do contrato:
+
+- somente registros ativos são retornados;
+- `operacoes`, `supervisores`, `atividades` e `funcoes` usam `{ nome }`;
+- `fornecedores` usam `{ nome, tiposSolicitacao }`;
+- valores possíveis em `tiposSolicitacao`: `MAO_DE_OBRA` e `ALIMENTACAO_BEBIDA`;
+- `produtos` usam `{ nome, categoria }`;
+- valores de `categoria` permanecem `ALIMENTACAO` ou `BEBIDA`;
+- a ordem dos itens segue a ordem dos cadastros ativos na planilha;
+- campos físicos como `ATIVO`, `MAO_DE_OBRA`, `ALIMENTACAO`, `OPERACAO`, `SUPERVISOR`, `PRODUTO` e equivalentes não fazem parte do contrato público.
+
+O frontend não referencia ranges, células, índices ou nomes de colunas da planilha.
 
 ## 4. Configuração do Apps Script
 
@@ -139,9 +176,7 @@ O ID real da planilha não deve ser necessário no frontend.
 ## 5. Pendências preservadas
 
 - vigência histórica inicial de operador diurno/noturno;
-- criação física das abas `PRECOS_MO` e `PRECOS_PRODUTOS` na planilha oficial;
-- carga definitiva dos preços por fornecedor;
-- autenticação/autorização;
-- criação de solicitação;
+- autenticação definitiva do usuário;
+- leitura/listagem de solicitações;
 - comparecimento real;
 - migração do legado.
