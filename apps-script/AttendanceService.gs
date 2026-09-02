@@ -68,10 +68,17 @@ const AttendanceService = (() => {
       return Number.isFinite(value) ? value : null;
     }
 
-    const normalized = String(value)
-      .trim()
-      .replace(/\./g, '')
-      .replace(',', '.');
+    const text = String(value).trim();
+    let normalized = text;
+
+    if (text.indexOf(',') >= 0 && text.indexOf('.') >= 0) {
+      normalized = text.lastIndexOf(',') > text.lastIndexOf('.')
+        ? text.replace(/\./g, '').replace(',', '.')
+        : text.replace(/,/g, '');
+    } else if (text.indexOf(',') >= 0) {
+      normalized = text.replace(',', '.');
+    }
+
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
   }
