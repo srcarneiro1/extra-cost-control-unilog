@@ -37,6 +37,11 @@ const Api = (() => {
         return JsonResponse.ok(SolicitationService.create(servicePayload));
       }
 
+      if (route === 'triagem') {
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(TriageService.apply(servicePayload));
+      }
+
       if (route === 'comparecimento') {
         const servicePayload = authorizeGateway_(payload);
         return JsonResponse.ok(AttendanceService.register(servicePayload));
