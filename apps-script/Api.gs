@@ -37,6 +37,11 @@ const Api = (() => {
         return JsonResponse.ok(SolicitationService.create(servicePayload));
       }
 
+      if (route === 'comparecimento') {
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(AttendanceService.register(servicePayload));
+      }
+
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
       return handleError_(error);
