@@ -30,7 +30,7 @@ const SolicitationService = (() => {
     }
 
     try {
-      record.ID_SOLICITACAO = nextProtocol_(record.DATA_CRIACAO);
+      record.ID_SOLICITACAO = ProtocolService.next(record.DATA_CRIACAO);
       SheetRepository.appendObject(SHEET_SOLICITACOES, record, {
         textFields: TEXT_FIELDS,
       });
@@ -166,6 +166,9 @@ const SolicitationService = (() => {
         VALOR_BEBIDA: '',
         VALOR_PREVISTO: expectedValue,
         VALOR_REAL: '',
+        PRODUTO_ALIMENTACAO_APLICADO: '',
+        PRODUTO_BEBIDA_APLICADO: '',
+        MOTIVO_AJUSTE_PRODUTO: '',
       },
     };
   }
@@ -244,24 +247,11 @@ const SolicitationService = (() => {
         VALOR_BEBIDA: drinkValue,
         VALOR_PREVISTO: roundMoney_((foodValue || 0) + (drinkValue || 0)),
         VALOR_REAL: '',
+        PRODUTO_ALIMENTACAO_APLICADO: canonicalFood,
+        PRODUTO_BEBIDA_APLICADO: canonicalDrink,
+        MOTIVO_AJUSTE_PRODUTO: '',
       },
     };
-  }
-
-  function nextProtocol_(createdAt) {
-    const year = Utilities.formatDate(createdAt, DateService.TIMEZONE, 'yyyy');
-    const pattern = new RegExp('^CE-' + year + '-(\\d{6})$');
-    const rows = SheetRepository.readObjects(SHEET_SOLICITACOES);
-    let maxSequence = 0;
-
-    rows.forEach(function (row) {
-      const match = pattern.exec(ValidationService.normalizeText(row.ID_SOLICITACAO));
-      if (match) {
-        maxSequence = Math.max(maxSequence, Number(match[1]));
-      }
-    });
-
-    return 'CE-' + year + '-' + String(maxSequence + 1).padStart(6, '0');
   }
 
   function roundMoney_(value) {
