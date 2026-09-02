@@ -20,6 +20,16 @@ const JsonResponse = (() => {
     });
   }
 
+  function unauthorized(message) {
+    return send_({
+      ok: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        message: message || 'Acesso não autorizado.',
+      },
+    });
+  }
+
   function notFound(message) {
     return send_({ ok: false, error: { code: 'NOT_FOUND', message: message } });
   }
@@ -39,6 +49,7 @@ const JsonResponse = (() => {
   return {
     ok,
     badRequest,
+    unauthorized,
     notFound,
     notImplemented,
     error,
