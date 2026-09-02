@@ -1,82 +1,97 @@
 # MEMÓRIA TÉCNICA — EXTRA COST CONTROL UNILOG
 
 **Projeto:** Extra Cost Control — UNILOG  
-**Repositório oficial:** `srcarneiro1/Extra-Cost-Control-Unilog`  
-**Status:** MVP 1  
-**Última consolidação:** 01/09/2026
+**Repositório oficial:** `srcarneiro1/extra-cost-control-unilog`  
+**Status:** MVP 1 em desenvolvimento  
+**Última consolidação:** 02/09/2026
 
 ---
 
-# 1. INSTRUÇÃO OBRIGATÓRIA PARA RETOMADA
+# 1. REGRA DE RETOMADA
 
-Antes de propor, implementar ou alterar qualquer parte deste projeto, leia integralmente este arquivo.
+Antes de alterar o projeto, leia este arquivo e trate-o como fonte de verdade funcional, arquitetural e visual.
 
-Considere como decisões vigentes:
+Decisões vigentes:
 
-1. **Não usar Supabase neste MVP.**
-2. Usar **Google Planilhas como persistência operacional**.
-3. Usar **Google Apps Script como API e camada de regras de negócio**.
-4. Usar **Cloudflare Pages** para o frontend React e, quando necessário, **Cloudflare Pages Functions/Worker** como camada intermediária segura.
-5. Usar **GitHub privado** como fonte oficial do código, com branches, commits, Pull Requests e merges.
-6. Não armazenar planilhas operacionais, dados pessoais, tokens, chaves ou segredos no GitHub.
-7. Preservar integralmente as bases legadas e migrá-las apenas de forma controlada.
-8. Mão de obra e alimentação/bebidas compartilham o processo de Custos Extras, mas **não compartilham a mesma lógica financeira**.
-9. Competência financeira obrigatória: **dia 21 até dia 20 do mês seguinte**.
-10. Priorizar um MVP simples, incremental e verificável. Não reabrir arquitetura maior sem necessidade concreta.
+1. Não usar Supabase neste MVP.
+2. Google Planilhas é a persistência operacional.
+3. Google Apps Script é a API e camada de regras de negócio.
+4. React + TypeScript + Vite roda em Cloudflare Pages.
+5. Cloudflare Pages Functions é o gateway protegido entre frontend e Apps Script.
+6. GitHub privado é a fonte oficial de código, branches, PRs e merges.
+7. Segredos somente em Cloudflare Environment/Secrets e Apps Script `PropertiesService`.
+8. Bases legadas devem permanecer intactas.
+9. Competência financeira usa o ciclo dia 21 → dia 20.
+10. Entrada operacional permanece aberta via Google Forms.
+11. Autenticação é destinada ao módulo administrativo/gestão.
+12. Regra central: **o solicitante informa a necessidade; o Administrativo decide quem atende.**
+13. Fornecedor, preço aplicado e realizado não são preenchidos pelo solicitante.
+14. Mudanças devem ser pequenas, testáveis e sem regras inventadas.
 
 ---
 
-# 2. OBJETIVO DO MVP 1
+# 2. OBJETIVO DO MVP
 
-Criar uma aplicação web para controlar Custos Extras da UNILOG, evoluindo o processo atual de Google Forms + Google Sheets sem transformar o MVP em um ERP.
+Controlar Custos Extras da UNILOG com rastreabilidade, solicitado x realizado, histórico de preços e tratamento administrativo simples.
 
-Escopo inicial:
+Escopo atual:
 
 - mão de obra terceirizada;
 - alimentação e bebidas;
-- operação/depositante;
 - supervisor;
-- fornecedor;
-- responsabilidade financeira CLIENTE ou UNILOG;
-- centro de custo quando aplicável;
+- operação/depositante;
+- CLIENTE ou UNILOG como responsável pelo custo;
+- centro de custo quando UNILOG;
 - quantidade solicitada;
-- quantidade realizada/comparecida para mão de obra;
-- preço vigente por data;
-- snapshot imutável do preço aplicado;
-- custo previsto;
-- custo realizado;
-- rastreabilidade básica;
-- preparação para incorporação do legado.
+- quantidade comparecida para mão de obra;
+- fornecedor definido administrativamente;
+- preço vigente por data operacional;
+- snapshot do preço aplicado;
+- valor previsto;
+- valor real;
+- produto solicitado x produto aplicado;
+- rastreabilidade da origem.
 
-Objetivos de processo:
+Fluxo vigente:
 
 ```text
-entrada padronizada
-→ cadastros controlados
-→ preço histórico confiável
-→ solicitado x realizado separados
-→ API desacoplada da planilha
-→ histórico preservado
+necessidade operacional
+→ Google Forms
+→ RESPOSTAS_FORM
+→ normalizador Apps Script
+→ SOLICITACOES
+→ triagem administrativa
+→ fornecedor + preço congelado
+→ comparecimento/realizado
+→ histórico confiável
 ```
 
 ---
 
-# 3. ARQUITETURA DO MVP
+# 3. ARQUITETURA
+
+## 3.1 Entrada operacional
 
 ```text
-USUÁRIO
-   ↓
-CLOUDFLARE PAGES
-React + TypeScript + Vite
-   ↓
-CLOUDFLARE FUNCTION / WORKER
-quando houver segredo ou operação protegida
-   ↓
-GOOGLE APPS SCRIPT WEB APP
-API + regras de negócio
-   ↓
-GOOGLE PLANILHAS
-persistência operacional
+Usuário operacional
+→ Google Forms público
+→ RESPOSTAS_FORM
+→ gatilho onFormSubmit
+→ FormResponseNormalizerService
+→ SOLICITACOES
+```
+
+O Forms é o canal operacional oficial do MVP.
+
+## 3.2 Administrativo
+
+```text
+Usuário administrativo autenticado
+→ Cloudflare Access
+→ React / Cloudflare Pages
+→ Pages Functions
+→ Apps Script Web App
+→ Google Sheets
 ```
 
 Regra de desacoplamento:
@@ -85,55 +100,59 @@ Regra de desacoplamento:
 Frontend → API → Planilha
 ```
 
-Nunca:
-
-```text
-Frontend → coluna/célula específica da planilha
-```
-
-O frontend deve consumir contratos de API. Isso permite substituir a persistência futuramente sem reescrever toda a aplicação.
+Nunca criar dependência do frontend com posição física de coluna/célula.
 
 ---
 
 # 4. SEGURANÇA
 
-Segredos devem existir apenas em:
+Permitido:
 
 - Cloudflare Secrets / Environment Variables;
 - Apps Script `PropertiesService`.
 
-Nunca em:
+Proibido:
 
-- código React entregue ao navegador;
-- GitHub;
-- `.env` commitado;
-- células de planilha utilizadas como segredo.
+- segredos no React;
+- segredos no GitHub;
+- segredos em células;
+- `.env` sensível commitado.
 
-Quando necessário:
+Integração Cloudflare → Apps Script usa:
 
 ```text
-Browser
-  ↓
-Cloudflare Function
-  ↓ segredo protegido
-Apps Script
+APPS_SCRIPT_GATEWAY_TOKEN
+GATEWAY_TOKEN
 ```
 
-O repositório deve permanecer privado.
+Cloudflare Access já está incorporado ao gateway. O middleware valida `Cf-Access-Jwt-Assertion`, issuer, audience e identidade autenticada.
+
+O token temporário `GATEWAY_TEST_TOKEN` continua permitido somente para transição/testes controlados.
+
+Ainda é necessário homologar Access no ambiente Cloudflare com:
+
+- `CLOUDFLARE_ACCESS_TEAM_DOMAIN`;
+- `CLOUDFLARE_ACCESS_AUD`;
+- request sem autenticação → 401;
+- request autenticado → permitido;
+- identidade administrativa derivada da autenticação confiável.
 
 ---
 
-# 5. GOOGLE PLANILHA CENTRAL
+# 5. PLANILHA CENTRAL
 
 Planilha oficial:
 
 `Controle de Custos Extras - UNILOG`
 
-ID atual:
+ID:
 
 `18dpLKAFHQI3rHRgn1XzP0cAtzYzZsrU-r6FulFkHXvo`
 
-Estado atual organizado:
+Locale: `pt_BR`  
+Timezone: `America/Sao_Paulo`
+
+Abas:
 
 ```text
 RESPOSTAS_FORM
@@ -144,86 +163,120 @@ CAD_FORNECEDORES
 CAD_ATIVIDADES
 CAD_FUNCOES
 CAD_PRODUTOS
+PRECOS_MO
+PRECOS_PRODUTOS
 ```
 
-`RESPOSTAS_FORM` deve ser preservada como entrada bruta/contingência do Google Forms.
+`RESPOSTAS_FORM` é origem bruta e não deve ser corrigida para caber no modelo final.
 
-`SOLICITACOES` ainda deve ter seu dicionário definitivo fechado antes de receber cabeçalhos de produção.
+## 5.1 SOLICITACOES
 
-`CAD_OPERACOES` e `CAD_SUPERVISORES` foram estruturadas, porém devem receber apenas dados ativos confirmados; não preencher por suposição.
+Estrutura vigente: **36 colunas**.
+
+```text
+ID_SOLICITACAO
+TIPO_SOLICITACAO
+DATA_CRIACAO
+USUARIO_CRIACAO
+ORIGEM
+ID_ORIGEM
+LOTE_IMPORTACAO
+SUPERVISOR
+OPERACAO
+DATA_OPERACIONAL
+COMPETENCIA
+FORNECEDOR
+JUSTIFICATIVA
+RESPONSAVEL_CUSTO
+CENTRO_CUSTO
+ATIVIDADE
+FUNCAO
+TURNO
+QTD_SOLICITADA
+QTD_COMPARECIDA
+VOLUME_REFERENCIA
+UNIDADE_VOLUME
+PRECO_UNITARIO_APLICADO
+PRODUTO_ALIMENTACAO
+QTD_ALIMENTACAO
+PRECO_ALIMENTACAO_APLICADO
+VALOR_ALIMENTACAO
+PRODUTO_BEBIDA
+QTD_BEBIDA
+PRECO_BEBIDA_APLICADO
+VALOR_BEBIDA
+VALOR_PREVISTO
+VALOR_REAL
+PRODUTO_ALIMENTACAO_APLICADO
+PRODUTO_BEBIDA_APLICADO
+MOTIVO_AJUSTE_PRODUTO
+```
+
+Regras:
+
+- `PRODUTO_ALIMENTACAO` e `PRODUTO_BEBIDA` preservam o pedido original;
+- campos `*_APLICADO` armazenam o item efetivamente atendido;
+- se aplicado ≠ solicitado, `MOTIVO_AJUSTE_PRODUTO` é obrigatório;
+- `COMPETENCIA`, `CENTRO_CUSTO` e `ID_ORIGEM` devem preservar comportamento textual quando necessário;
+- centro de custo deve preservar zeros à esquerda;
+- `QTD_COMPARECIDA` é campo administrativo e está visualmente destacado na planilha;
+- `VALOR_REAL` é calculado, nunca digitado manualmente.
 
 ---
 
-# 6. CADASTROS DO MVP
+# 6. CADASTROS
 
-## 6.1 Operações
+## CAD_OPERACOES
 
 ```text
-CAD_OPERACOES
 OPERACAO | ATIVO
 ```
 
-Usar nomes padronizados daqui para frente. Variações históricas serão tratadas em mapa de equivalência na migração.
-
-## 6.2 Supervisores
+## CAD_SUPERVISORES
 
 ```text
-CAD_SUPERVISORES
 SUPERVISOR | ATIVO
 ```
 
-Usar nome padronizado.
-
-## 6.3 Fornecedores
+## CAD_FORNECEDORES
 
 ```text
-CAD_FORNECEDORES
 FORNECEDOR | MAO_DE_OBRA | ALIMENTACAO | ATIVO
 ```
 
-Cadastro inicial já estruturado:
+Fornecedores cadastrados incluem MULT, AGUIA, ALMIRANTE e W-SLOW. Elegibilidade sempre deve vir do cadastro atual.
 
-- MULT;
-- AGUIA;
-- ALMIRANTE;
-- W-SLOW.
-
-## 6.4 Atividades
-
-Atividade representa o **trabalho executado**.
-
-Cadastro inicial:
-
-- SEPARACAO;
-- EMBALAGEM;
-- CARGA E DESCARGA;
-- EXPEDICAO;
-- ETIQUETAGEM;
-- RESSUPRIMENTO;
-- MOVIMENTACAO;
-- PREPARACAO DE SAMPLING;
-- OUTRO.
-
-## 6.5 Funções / recursos
+## CAD_ATIVIDADES
 
 ```text
-CAD_FUNCOES
+ATIVIDADE | ATIVO
+```
+
+`OPERADOR DE EMPILHADEIRA` é função, não atividade.
+
+O Forms usa `Outro` nativo para atividade livre.
+
+## CAD_FUNCOES
+
+```text
 FUNCAO | ATIVO
 ```
 
-Inicialmente:
+Funções atuais:
 
 - AUXILIAR OPERACIONAL;
 - OPERADOR DE EMPILHADEIRA.
 
-Regra fundamental:
+Regra de turno:
 
-> OPERADOR DE EMPILHADEIRA é função/recurso, não atividade.
+- AUXILIAR OPERACIONAL → DIURNO;
+- OPERADOR DE EMPILHADEIRA → DIURNO ou NOTURNO.
 
-## 6.6 Produtos
+Turno é manual. Não inferir horário.
+
+## CAD_PRODUTOS
 
 ```text
-CAD_PRODUTOS
 PRODUTO | CATEGORIA | ATIVO
 ```
 
@@ -232,117 +285,153 @@ Categorias:
 - ALIMENTACAO;
 - BEBIDA.
 
-Cadastro inicial inclui:
-
-- X-TUDO;
-- X-FRANGO;
-- PODRAO;
-- GOURMET;
-- COCA-COLA 2L;
-- COCA-COLA 600ML;
-- COCA-COLA LATA;
-- GUARANA 2L.
-
-O catálogo deve ser validado contra o histórico antes de ser tratado como definitivo.
+Produto só aparece no Forms quando estiver ativo e houver pelo menos um fornecedor ativo/compatível com preço ativo e vigente.
 
 ---
 
-# 7. SOLICITAÇÃO DE MÃO DE OBRA
+# 7. GOOGLE FORMS
 
-Campos funcionais previstos:
+Formulário oficial:
 
-- Supervisor;
-- Operação / Depositante;
-- Data de execução;
-- Atividade;
-- Função / Recurso;
-- Turno;
-- Fornecedor;
-- Quantidade solicitada;
-- Volume de referência opcional;
-- Unidade do volume opcional;
-- Justificativa / detalhamento;
-- Responsável pelo custo;
-- Centro de custo quando UNILOG.
+**UNILOG | Solicitação de Custo Extra**
 
-Turno é manual:
+ID nativo:
 
-- DIURNO;
-- NOTURNO.
+`1y_2dEWZS0cPofJotpPI2f4DcNe-l-ODVhzoUru9hT-o`
 
-Não inferir turno por horário no MVP.
+O Forms é aberto e não exige e-mail. `Nome do solicitante` é obrigatório.
 
-Quantidade comparecida é informação administrativa posterior à execução.
+Regra central:
 
-Pode ser zero e pode excepcionalmente ser maior que a quantidade solicitada; o sistema deve registrar a realidade e evidenciar a divergência, não bloquear o fato operacional.
+> O solicitante informa a necessidade. Fornecedor e preços são definidos depois pelo Administrativo.
 
-Cálculos:
+Fluxos:
 
-```text
-VALOR_PREVISTO = QTD_SOLICITADA × PRECO_UNITARIO_APLICADO
-VALOR_REAL = QTD_COMPARECIDA × PRECO_UNITARIO_APLICADO
-```
+### Mão de obra
 
----
+- solicitante;
+- supervisor;
+- operação;
+- data operacional;
+- justificativa;
+- atividade;
+- quantidade solicitada;
+- volume/unidade opcionais;
+- função;
+- turno conforme função;
+- responsável pelo custo;
+- centro de custo somente se UNILOG.
 
-# 8. SOLICITAÇÃO DE ALIMENTAÇÃO / BEBIDAS
+### Alimentação/Bebidas
 
-Campos funcionais previstos:
-
-- Supervisor;
-- Operação / Depositante;
-- Data de atendimento;
-- Fornecedor;
-- Alimentação;
-- Quantidade alimentação;
-- Bebida;
-- Quantidade bebida;
-- Justificativa;
-- Responsável pelo custo;
-- Centro de custo quando UNILOG.
-
-Pelo menos alimentação ou bebida deve existir.
-
-Não existe `quantidade comparecida` para produtos.
-
-Cálculo financeiro deriva da quantidade solicitada e do preço congelado.
+- mesmos campos comuns;
+- alimentação e quantidade quando houver;
+- bebida e quantidade quando houver;
+- pelo menos um grupo deve existir;
+- catálogo unificado, sem fornecedor no Forms.
 
 ---
 
-# 9. RESPONSABILIDADE FINANCEIRA
+# 8. SINCRONIZAÇÃO DO FORMS
 
-Campo obrigatório:
+Serviço:
 
-```text
-CLIENTE
-UNILOG
-```
+`FormCatalogSyncService.gs`
 
-Regra CLIENTE:
+Funções principais:
 
 ```text
-cliente responsável deriva da própria operação/depositante
-centro de custo não é solicitado
+syncFormCatalogs
+onCatalogEdit
+scheduledFormCatalogSync
+installFormCatalogSyncTriggers
 ```
 
-Regra UNILOG:
+Sincroniza:
+
+- supervisor;
+- operação;
+- atividade;
+- alimentação;
+- bebida.
+
+Não sincroniza `Função`, porque o campo controla ramificação do Forms.
+
+Elegibilidade de produto:
 
 ```text
-centro de custo obrigatório
-somente dígitos
-armazenar como texto para preservar zeros à esquerda
+produto ativo
++ preço ativo
++ preço vigente
++ fornecedor ativo
++ fornecedor com ALIMENTACAO = SIM
 ```
+
+Gatilhos homologados:
+
+- edição da planilha;
+- execução horária de segurança.
 
 ---
 
-# 10. PREÇOS VERSIONADOS
+# 9. NORMALIZAÇÃO FORMS → SOLICITACOES
 
-Objetivo: nunca recalcular o passado com o preço atual.
-
-## Mão de obra
+Serviços:
 
 ```text
-PRECOS_MO
+FormResponseNormalizerService.gs
+ProtocolService.gs
+```
+
+Gatilho:
+
+`onOperationalFormSubmit`
+
+O normalizador:
+
+- usa `FormResponse.getId()` como `ID_ORIGEM`;
+- impede duplicidade por `ORIGEM=GOOGLE_FORMS + ID_ORIGEM`;
+- gera `CE-YYYY-######`;
+- deriva competência;
+- revalida cadastros ativos;
+- deixa fornecedor/preços/valores administrativos vazios;
+- preserva respostas inválidas apenas na origem bruta.
+
+Homologação:
+
+`CE-2026-000007` foi criado corretamente via Forms.
+
+Teste inválido `AUXILIAR OPERACIONAL + NOTURNO` foi bloqueado sem contaminar `SOLICITACOES`.
+
+---
+
+# 10. PROTOCOLO E COMPETÊNCIA
+
+Protocolo:
+
+`CE-YYYY-######`
+
+Nunca usar número de linha como ID.
+
+`ProtocolService` é a referência única para geração de protocolo.
+
+Competência:
+
+```text
+dia 21 de um mês → dia 20 do mês seguinte
+```
+
+Representação:
+
+`YYYY-MM`
+
+---
+
+# 11. PREÇOS VERSIONADOS
+
+## PRECOS_MO
+
+```text
 FORNECEDOR
 FUNCAO
 TURNO
@@ -352,215 +441,205 @@ PRECO_UNITARIO
 ATIVO
 ```
 
-## Produtos
+## PRECOS_PRODUTOS
 
 ```text
-PRECOS_PRODUTOS
 FORNECEDOR
 PRODUTO
 VIGENCIA_INICIO
 VIGENCIA_FIM
+CATEGORIA
 PRECO_UNITARIO
 ATIVO
 ```
 
-Ao aplicar preço, a API grava um snapshot:
+Preço é resolvido pela `DATA_OPERACIONAL` e congelado na solicitação.
 
-```text
-PRECO_UNITARIO_APLICADO
-```
+Snapshots:
 
-Esse valor histórico não deve depender de fórmula dinâmica apontando para uma tabela atual.
+- `PRECO_UNITARIO_APLICADO`;
+- `PRECO_ALIMENTACAO_APLICADO`;
+- `PRECO_BEBIDA_APLICADO`.
 
-Antes de cadastrar as regras definitivas de preço, validar vigências e regras atuais. Não codificar novas regras apenas por inferência do legado.
-
----
-
-# 11. COMPETÊNCIA
-
-Regra obrigatória:
-
-```text
-21 de um mês → 20 do mês seguinte
-```
-
-A competência deve ser derivada da data operacional da solicitação/item, nunca digitada livremente.
+Alteração futura de tabela não pode recalcular histórico.
 
 ---
 
-# 12. PROTOCOLO E API
+# 12. TRIAGEM ADMINISTRATIVA
 
-Cada solicitação terá identificador próprio gerado pela API. Não usar número da linha da planilha como identificador permanente.
+Serviço:
 
-Formato conceitual possível:
+`TriageService.gs`
+
+Rota Apps Script:
+
+`route=triagem`
+
+Gateway:
+
+`POST /api/triagem`
+
+A triagem:
+
+1. localiza por `ID_SOLICITACAO`;
+2. exige fornecedor ativo;
+3. valida compatibilidade com o tipo;
+4. usa `DATA_OPERACIONAL` para resolver o preço;
+5. grava fornecedor;
+6. congela preço(s);
+7. calcula `VALOR_PREVISTO`;
+8. preserva produto original;
+9. grava produto aplicado separadamente;
+10. exige motivo quando houver troca de produto;
+11. bloqueia retriagem silenciosa de solicitação já precificada.
+
+Homologação de mão de obra concluída com:
 
 ```text
-CE-2026-000001
+CE-2026-000007
+FORNECEDOR = MULT
+PRECO_UNITARIO_APLICADO = 180
+QTD_SOLICITADA = 12
+VALOR_PREVISTO = 2160
 ```
 
-Contrato mínimo esperado da API:
-
-```text
-GET  /health
-GET  /cadastros
-GET  /solicitacoes
-GET  /solicitacoes/:id
-POST /solicitacoes
-POST /solicitacoes/:id/comparecimento
-```
-
-Apps Script usará `doGet(e)` / `doPost(e)` e roteamento interno.
-
-Não fechar o contrato completo antes de concluir o dicionário da aba `SOLICITACOES`.
+A lógica de ajuste de alimentação/bebida está implementada. Antes de depender dela na UI, ainda é recomendada uma homologação dirigida de produto solicitado x aplicado.
 
 ---
 
-# 13. LEGADO
+# 13. COMPARECIMENTO / REALIZADO DE MÃO DE OBRA
 
-Fontes existentes:
+Serviço:
 
-- `Solicitação de mão de obra terceirizada (respostas)`;
-- `Solicitação de Lanches`.
+`AttendanceService.gs`
 
-Problemas conhecidos do legado de MO:
+Rota Apps Script:
 
-- atividade e função misturadas;
-- operador de empilhadeira registrado como atividade;
-- campo de volume com texto heterogêneo;
-- nomes não padronizados;
-- linhas vazias com fórmulas;
-- preço histórico sujeito a fórmula atual;
-- solicitado x realizado divergentes.
+`route=comparecimento`
 
-Problemas conhecidos do legado de alimentação:
+Gateway:
 
-- preços históricos vinculados à tabela atual;
-- fornecedores/produtos com variações;
-- necessidade de padronização.
+`POST /api/comparecimento`
 
-Migração futura:
+Regras:
 
 ```text
-legado
-→ staging
-→ normalização
-→ equivalências
-→ validação
-→ importação
+VALOR_REAL = QTD_COMPARECIDA × PRECO_UNITARIO_APLICADO
 ```
 
-Preservar `ORIGEM`, linha/id original e lote de importação quando aplicável.
+`QTD_COMPARECIDA`:
 
-Não alterar as bases originais para fazê-las caber no novo modelo.
+- pode ser 0;
+- pode ser menor que a solicitada;
+- pode ser igual;
+- pode ser maior;
+- divergência não bloqueia o registro.
 
----
+`VALOR_REAL` nunca é informado manualmente.
 
-# 14. GOOGLE FORMS
-
-O Google Form pode continuar como:
-
-- contingência;
-- fallback;
-- transição enquanto o frontend não estiver pronto.
-
-A arquitetura principal do produto será:
+Homologação concluída:
 
 ```text
-Frontend Cloudflare
-→ Apps Script API
-→ Google Sheets
+CE-2026-000007
+QTD_SOLICITADA = 12
+QTD_COMPARECIDA = 10
+PRECO_UNITARIO_APLICADO = 180
+VALOR_PREVISTO = 2160
+VALOR_REAL = 1800
+DIVERGENCIA = true
 ```
 
 ---
 
-# 15. GITHUB / CLOUDFARE / DESENVOLVIMENTO
+# 14. ALIMENTAÇÃO / BEBIDAS
 
-Repositório oficial:
+Não existe quantidade comparecida.
 
-`srcarneiro1/Extra-Cost-Control-Unilog`
-
-Fluxo preferencial:
+Cálculos:
 
 ```text
-feature/* ou fix/*
-↓
-Pull Request
-↓
-revisão
-↓
-merge em main
-↓
-deploy Cloudflare
+VALOR_ALIMENTACAO = QTD_ALIMENTACAO × PRECO_ALIMENTACAO_APLICADO
+VALOR_BEBIDA = QTD_BEBIDA × PRECO_BEBIDA_APLICADO
+VALOR_PREVISTO = VALOR_ALIMENTACAO + VALOR_BEBIDA
 ```
 
-Evitar mudanças de produção sem commit correspondente.
+Quando o fornecedor escolhido não atender exatamente o item solicitado:
 
-Estrutura recomendada:
+- o item original permanece nos campos originais;
+- o Administrativo informa o produto aplicado;
+- motivo do ajuste é obrigatório;
+- não é permitido adicionar uma categoria que não existia no pedido original.
+
+---
+
+# 15. APPS SCRIPT — ARQUIVOS PRINCIPAIS
 
 ```text
-src/
-  components/
-  pages/
-  services/
-  types/
-  utils/
-  styles/
-functions/
-  api/
-apps-script/
-  Code.gs
-  Api.gs
-  SheetRepository.gs
-  PricingService.gs
-  ValidationService.gs
-docs/
-public/
-MEMORIA_PROJETO.md
-README.md
-.env.example
-.gitignore
-package.json
-wrangler.jsonc
+Code.gs
+Api.gs
+CatalogService.gs
+SheetRepository.gs
+JsonResponse.gs
+PricingService.gs
+DateService.gs
+ValidationService.gs
+SolicitationService.gs
+FormCatalogSyncService.gs
+FormResponseNormalizerService.gs
+ProtocolService.gs
+TriageService.gs
+AttendanceService.gs
 ```
 
-Frontend:
+Capacidades implementadas:
+
+- health;
+- catálogos;
+- criação via API;
+- preços;
+- protocolo;
+- sincronização do Forms;
+- normalização do Forms;
+- triagem administrativa;
+- comparecimento/realizado de mão de obra.
+
+---
+
+# 16. FRONTEND
+
+Stack:
 
 - React;
 - TypeScript;
 - Vite;
 - Cloudflare Pages.
 
-Apps Script também deve ficar versionado no GitHub.
+Já existe client tipado inicial de catálogos.
+
+Próxima necessidade funcional do frontend:
+
+1. listagem de solicitações administrativas;
+2. detalhe da solicitação;
+3. ação de triagem;
+4. ação de registro do real;
+5. feedback de divergências e ajustes.
+
+Ordem correta:
+
+```text
+regra → API → teste → interface
+```
 
 ---
 
-# 16. IDENTIDADE VISUAL OBRIGATÓRIA DO PRODUTO
+# 17. IDENTIDADE VISUAL
 
-A aplicação deve parecer um produto administrativo/operacional moderno da UNILOG, com alta legibilidade, baixa carga cognitiva, consistência e foco na tomada de decisão.
-
-A identidade visual abaixo é a fonte de verdade do novo projeto.
-
-## 16.1 Princípios
-
-- confiança;
-- clareza operacional;
-- leitura rápida;
-- controle;
-- consistência entre telas;
-- informação acima de decoração;
-- padrões reaproveitáveis em vez de estilos exclusivos por página.
-
-Regra de ouro:
-
-> O usuário aprende um padrão uma vez e deve reconhecê-lo em todas as telas.
-
-## 16.2 Marca e paleta
+Paleta base:
 
 ```css
 --brand-primary: #db0812;
 --brand-primary-hover: #b8070f;
 --brand-primary-soft: #fdecee;
-
 --brand-gray: #494a56;
 --brand-gray-dark: #3a3b45;
 
@@ -586,361 +665,28 @@ Regra de ouro:
 --border-strong: #cdd0d5;
 ```
 
-O vermelho da marca é **acento**, CTA e foco. Não deve significar automaticamente erro ou criticidade. Estados usam cores semânticas próprias.
-
-## 16.3 Tipografia
-
-Fonte preferencial digital:
-
-```text
-Roboto
-```
-
-Hierarquia:
-
-- títulos: Bold/Black;
-- corpo: Regular;
-- labels: pequenos e semipesados;
-- eyebrow: pequeno, tracking alto, caixa alta;
-- evitar caixa alta em textos longos.
-
-Base de corpo aproximada: 13px / line-height 1.45 no desktop.
-
-## 16.4 Espaçamento, radius e sombra
-
-Escala de espaçamento:
-
-```text
-4 / 8 / 12 / 16 / 24 / 32 / 40 / 48 px
-```
-
-Radius:
-
-```text
-controle: 8px
-card/painel: 11px
-pill/badge: 999px
-```
-
-Sombras discretas. Priorizar borda + contraste de superfície antes de elevar componentes.
-
-```css
---shadow-card: 0 1px 3px rgba(29,31,35,.035);
---shadow-raised: 0 12px 32px rgba(29,31,35,.10);
-```
-
-## 16.5 Shell da aplicação
-
-Desktop:
-
-```text
-sidebar escura 236px
-→ colapsável para ~68px
-workspace claro
-```
-
-Sidebar:
-
-- fundo `#494a56`;
-- logo UNILOG branco;
-- navegação em texto claro;
-- item ativo com fundo discreto e rail vertical vermelho;
-- usuário no rodapé;
-- navegação sem excesso de divisores.
-
-Mobile/tablet:
-
-- sidebar vira drawer lateral;
-- backdrop escuro;
-- botão de menu com alvo de toque adequado;
-- não comprimir a sidebar desktop.
-
-Topbar:
-
-- superfície branca;
-- ~56–58px;
-- borda inferior discreta;
-- título/contexto conciso;
-- ações e perfil sem excesso visual.
-
-Conteúdo principal:
-
-```text
-max-width aproximado: 1600px
-padding desktop: ~30–34px
-padding mobile: ~12–18px
-```
-
-## 16.6 Anatomia de página
-
-```text
-SHELL
-↓
-PAGE HEADER
-↓
-MÉTRICAS DE RESUMO quando aplicável
-↓
-TOOLBAR / FILTROS LOCAIS
-↓
-CONTEÚDO PRINCIPAL
-↓
-TABELAS / DETALHES / AÇÕES
-```
-
-Page Header:
-
-- eyebrow;
-- título principal;
-- descrição curta;
-- ações à direita no desktop;
-- ações abaixo/no fluxo no mobile.
-
-Não criar um cabeçalho diferente para cada página.
-
-## 16.7 Painéis e cards
-
-Painel padrão:
-
-- fundo branco;
-- borda `--border-default`;
-- radius 11px;
-- sombra muito discreta;
-- header interno com título + descrição + ações opcionais.
-
-Cards devem ter função clara: KPI, resumo/status, entidade, ação ou informação.
-
-Evitar:
-
-- card dentro de card sem necessidade;
-- borda colorida + badge + texto colorido repetindo a mesma severidade;
-- muitos KPIs com peso visual idêntico.
-
-## 16.8 Badges e chips
-
-Badge comunica estado.
-
-Chip comunica contexto, categoria ou contagem.
-
-Estados:
-
-```text
-SUCESSO → verde
-ATENÇÃO → amarelo
-ERRO/CRÍTICO → vermelho semântico
-NEUTRO/SEM DADOS → cinza
-```
-
-Nunca depender somente da cor: usar label, ícone ou texto.
-
-## 16.9 Formulários
-
-Este projeto é centrado em formulários; portanto devem parecer **fluxo de trabalho**, não pilha de inputs.
-
-Estrutura recomendada:
-
-```text
-PAGE HEADER
-↓
-ORIENTAÇÃO / STEPPER se útil
-↓
-SEÇÃO 1 — contexto
-↓
-SEÇÃO 2 — necessidade
-↓
-SEÇÃO 3 — responsabilidade financeira
-↓
-AÇÕES DO FORM
-```
-
-Cada seção:
-
-- card branco;
-- borda discreta;
-- radius 11px;
-- título claro;
-- texto auxiliar curto;
-- grid de campos.
-
-Desktop:
-
-- usar 2–3 colunas conforme conteúdo;
-- campos relacionados ficam próximos.
-
-Tablet:
-
-- reduzir para 2 colunas.
-
-Mobile:
-
-- uma coluna real;
-- nada de formulário desktop espremido;
-- botões principais em largura total quando necessário.
-
-Inputs/selects:
-
-```text
-altura mínima desktop: 40px
-altura mínima mobile: 44px
-radius: 8px
-borda neutra
-label visível
-foco explícito
-```
-
-Textarea mínimo aproximado: 88px.
-
-No iOS/mobile, campos textuais devem usar tamanho que evite zoom automático do navegador.
-
-## 16.10 Stepper
-
-Stepper é orientação, não navegação horizontal obrigatória.
-
-Desktop: grid horizontal compacto.
-
-Mobile:
-
-- continuar integralmente visível quando couber;
-- reduzir conteúdo secundário;
-- em telas muito estreitas, virar lista vertical;
-- nunca exigir swipe horizontal para compreender o fluxo.
-
-## 16.11 Tabelas
-
-Desktop:
-
-- header discreto e compacto;
-- primeira coluna concentra identidade principal;
-- números alinhados consistentemente;
-- hover leve;
-- ações explícitas;
-- badges para status.
-
-Mobile:
-
-> Tabela não é comprimida. Ela vira lista de record cards.
-
-Padrão:
-
-```text
-IDENTIDADE PRINCIPAL + STATUS
-metadados
-campos-chave em grid
-rodapé/ações
-```
-
-Não exigir scroll horizontal para informação essencial.
-
-## 16.12 Toolbars e busca
-
-Toolbar local:
-
-- superfície branca;
-- borda discreta;
-- busca com área flexível;
-- filtros previsíveis;
-- ação principal clara.
-
-Mobile:
-
-- empilhar filtros;
-- sem carrossel obrigatório;
-- botões e selects com 44px quando possível.
-
-## 16.13 Loading, vazio, erro e sucesso
-
-Toda superfície assíncrona deve prever:
-
-- loading/skeleton;
-- empty state;
-- error state;
-- success quando aplicável.
-
-Empty state deve explicar:
-
-1. o que não existe;
-2. por que pode não existir;
-3. o que o usuário pode fazer.
-
-## 16.14 Acessibilidade e interação
-
-Foco visível obrigatório.
-
-Padrão visual do foco:
-
-```css
-outline: 2px solid rgba(219,8,18,.62);
-outline-offset: 2px;
-```
-
-Alvos interativos recorrentes:
-
-```text
-desktop: mínimo prático ~40px
-mobile: mínimo prático ~44px
-```
-
-Hover só deve governar dispositivos que realmente possuem hover.
-
-Estados `disabled` devem reduzir contraste e impedir affordance de clique.
-
-Suportar `prefers-reduced-motion`.
-
-Não usar movimento como requisito para compreender estado.
-
-## 16.15 Responsividade obrigatória
-
-Toda feature deve ser validada em:
-
-```text
-Desktop
-Tablet
-Mobile
-Mobile estreito
-```
-
-Critérios mínimos:
-
-- nenhum card essencial cortado;
-- nenhum stepper requer swipe;
-- nenhum resumo requer swipe lateral;
-- tabelas viram cards;
-- nomes longos quebram corretamente;
-- CTAs principais permanecem visíveis;
-- forms viram uma coluna real;
-- sem overflow horizontal obrigatório;
-- touch targets adequados.
-
-## 16.16 Componentização visual
-
-Criar primitives compartilhados desde o início, por exemplo:
-
-```text
-AppShell
-PageHeader
-Panel
-SectionHeader
-Button
-Badge
-Chip
-SearchField
-Toolbar
-EmptyState
-Skeleton
-ResponsiveTable
-FormSection
-FormStepper
-ContextNotice
-```
-
-Não duplicar anatomia visual em cada página.
-
-Antes de criar novo CSS, verificar se o comportamento já pertence a um primitive existente.
+Vermelho é marca/CTA/foco, não sinônimo automático de erro.
+
+Tipografia preferencial: Roboto.
+
+Princípios:
+
+- alta legibilidade;
+- baixa carga cognitiva;
+- responsividade real;
+- tabela vira record cards no mobile;
+- foco visível;
+- touch targets adequados;
+- `prefers-reduced-motion`;
+- campos administrativos visualmente distintos quando isso reduzir erro operacional.
 
 ---
 
-# 17. AUDITORIA MÍNIMA
+# 18. AUDITORIA
 
-Planejar aba `AUDITORIA` ou `LOG` com:
+Mudanças materiais não devem sobrescrever histórico silenciosamente.
+
+Modelo conceitual futuro:
 
 ```text
 TIMESTAMP
@@ -953,116 +699,103 @@ VALOR_NOVO
 MOTIVO
 ```
 
-Alterações administrativas relevantes não devem sobrescrever histórico silenciosamente.
+Retriagem de solicitação já precificada permanece bloqueada até existir fluxo explícito de auditoria/reprocessamento.
 
 ---
 
-# 18. ESCOPO FORA DO MVP 1
+# 19. LEGADO
 
-Não implementar agora, salvo nova decisão explícita:
+Legado permanece intocado.
+
+Migração futura:
+
+```text
+legado
+→ staging
+→ normalização
+→ equivalências
+→ validação
+→ importação
+```
+
+Preservar origem, ID/linha histórica e lote de importação quando aplicável.
+
+---
+
+# 20. FORA DO MVP 1
+
+Não implementar sem nova decisão explícita:
 
 - Supabase;
 - PostgreSQL dedicado;
-- reorganização de outros sistemas;
-- arquitetura multiaplicação corporativa;
-- dashboard BI sofisticado;
+- ERP fiscal completo;
+- workflow excessivamente burocrático;
+- dashboard BI sofisticado antes do fluxo administrativo;
 - WhatsApp automático;
-- sistema fiscal completo;
-- dezenas de status;
-- workflow burocrático;
 - split complexo de item entre várias NFs.
 
 ---
 
-# 19. PRINCÍPIO DE MELHORIA DE PROCESSO
+# 21. ESTADO HOMOLOGADO EM 02/09/2026
 
-Sempre perguntar:
+Concluído/homologado:
 
-- esse campo precisa realmente ser digitado?
-- podemos derivá-lo?
-- existe cadastro controlado?
-- estamos preservando o histórico?
-- solicitado, realizado e faturado estão separados?
-- a regra pertence ao frontend ou à API?
-- o fluxo ficou mais simples que o atual?
+- planilha central;
+- `SOLICITACOES` com 36 colunas;
+- preços versionados;
+- API-base e gateway;
+- Google Forms operacional;
+- sincronização automática de catálogos;
+- normalização Forms → `SOLICITACOES`;
+- protocolo compartilhado;
+- triagem administrativa de mão de obra;
+- congelamento de fornecedor/preço;
+- cálculo de valor previsto;
+- comparecimento real de mão de obra;
+- cálculo de valor real;
+- proteção contra retriagem silenciosa;
+- rastreabilidade de produto solicitado x aplicado;
+- Cloudflare Access incorporado ao código.
 
-Digitalizar um processo ruim não é objetivo do projeto.
+Ainda pendente:
 
----
-
-# 20. PRÓXIMAS AÇÕES
-
-Ordem vigente:
-
-1. validar os cadastros ativos de operações e supervisores;
-2. fechar o dicionário definitivo da aba `SOLICITACOES`;
-3. criar `PRECOS_MO` e `PRECOS_PRODUTOS` somente após validação das regras;
-4. definir contrato mínimo da API;
-5. implementar Apps Script `health` + leitura de cadastros;
-6. implementar criação de solicitação;
-7. testar API diretamente;
-8. estruturar React/Vite no GitHub;
-9. implementar design system e shell conforme seção visual desta memória;
-10. conectar Cloudflare ao GitHub;
-11. integrar frontend com API;
-12. criar fluxo administrativo de quantidade real de MO;
-13. somente depois iniciar migração do legado.
-
-Não iniciar pelo dashboard.
+- homologação dirigida da troca de produto em alimentação/bebida;
+- listagem/detalhe administrativo via API;
+- frontend administrativo completo;
+- validação operacional do Cloudflare Access no ambiente Cloudflare;
+- migração do legado.
 
 ---
 
-# 21. COMANDO CURTO DE RETOMADA
+# 22. PRÓXIMAS AÇÕES
 
-Em um novo chat, usar:
+1. Criar API de listagem e detalhe de solicitações administrativas.
+2. Homologar um caso de alimentação/bebida com produto aplicado diferente do solicitado.
+3. Construir tela administrativa de fila/detalhe.
+4. Integrar ações de triagem e comparecimento na UI.
+5. Configurar e validar Cloudflare Access em Preview/Production.
+6. Remover dependência do token temporário após homologação do Access.
+7. Somente depois avançar para migração do legado.
+
+**Não iniciar pelo dashboard.**
+
+---
+
+# 23. COMANDO CURTO DE RETOMADA
 
 ```text
 Retome o projeto Extra Cost Control UNILOG.
 
 Repositório oficial:
-https://github.com/srcarneiro1/Extra-Cost-Control-Unilog
+https://github.com/srcarneiro1/extra-cost-control-unilog
 
-Antes de fazer qualquer alteração, leia integralmente o arquivo MEMORIA_PROJETO.md do repositório e trate-o como fonte de verdade funcional, arquitetural e visual.
+Antes de qualquer alteração, leia integralmente MEMORIA_PROJETO.md e trate-o como fonte de verdade funcional, arquitetural e visual.
 
-Arquitetura vigente: React + TypeScript + Vite no Cloudflare Pages; GitHub para versionamento/PR/merge; Google Apps Script como API; Google Planilhas como persistência. Não usar Supabase.
+Arquitetura vigente: Google Forms aberto para entrada operacional; React + TypeScript + Vite no Cloudflare Pages para administrativo; Cloudflare Access/gateway para camada protegida; Google Apps Script como API/regras; Google Planilhas como persistência. Não usar Supabase.
 
-Planilha oficial: Controle de Custos Extras - UNILOG.
+Regra central: o solicitante informa a necessidade; o Administrativo define fornecedor, congela preços e registra o realizado.
 
-Preserve as bases legadas e não altere outros projetos ou repositórios como parte deste trabalho.
+Preserve o legado e avance em mudanças pequenas e verificáveis.
 
-Continue exatamente pela seção “Próximas ações” da memória. Diferencie decisão confirmada de proposta, não invente campos/regras e avance em mudanças pequenas e verificáveis.
-```
-
----
-
-## RESUMO EXECUTIVO
-
-```text
-SEM SUPABASE
-
-React + TypeScript + Vite
-        ↓
-Cloudflare Pages
-        ↓
-Cloudflare Function quando necessário
-        ↓
-Apps Script API
-        ↓
-Google Planilhas
-
-GitHub privado
-srcarneiro1/Extra-Cost-Control-Unilog
-
-MVP
-├── Mão de obra terceirizada
-└── Alimentação / Bebidas
-
-Prioridades
-cadastros
-→ SOLICITACOES
-→ API
-→ frontend
-→ realizado
-→ preços congelados
-→ legado
+Continue pela seção Próximas ações.
 ```
