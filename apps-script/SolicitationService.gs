@@ -31,7 +31,7 @@ const SolicitationService = (() => {
 
     try {
       record.ID_SOLICITACAO = nextProtocol_(record.DATA_CRIACAO);
-      const rowNumber = SheetRepository.appendObject(SHEET_SOLICITACOES, record, {
+      SheetRepository.appendObject(SHEET_SOLICITACOES, record, {
         textFields: TEXT_FIELDS,
       });
 
@@ -40,7 +40,6 @@ const SolicitationService = (() => {
         tipoSolicitacao: type,
         competencia: record.COMPETENCIA,
         valorPrevisto: record.VALOR_PREVISTO,
-        rowNumber: rowNumber,
       };
     } finally {
       lock.releaseLock();
