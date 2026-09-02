@@ -38,6 +38,14 @@ const ValidationService = (() => {
     return numberValue;
   }
 
+  function nonNegativeInteger(value, label) {
+    const numberValue = Number(value);
+    if (!Number.isInteger(numberValue) || numberValue < 0) {
+      fail(label + ' deve ser um número inteiro maior ou igual a zero.');
+    }
+    return numberValue;
+  }
+
   function digitsOnly(value, label) {
     const normalized = normalizeText(value);
     if (!/^\d+$/.test(normalized)) {
@@ -71,6 +79,7 @@ const ValidationService = (() => {
     requiredText,
     enumValue,
     positiveInteger,
+    nonNegativeInteger,
     digitsOnly,
     isTruthy,
     findActive,
