@@ -8,26 +8,76 @@ const CatalogService = (() => {
     produtos: 'CAD_PRODUTOS',
   };
 
+  const SOLICITATION_TYPES = Object.freeze({
+    LABOR: 'MAO_DE_OBRA',
+    FOOD: 'ALIMENTACAO_BEBIDA',
+  });
+
   function getActiveCatalogs() {
     return {
-      operacoes: active_(SheetRepository.readObjects(SHEETS.operacoes)),
-      supervisores: active_(SheetRepository.readObjects(SHEETS.supervisores)),
-      fornecedores: active_(SheetRepository.readObjects(SHEETS.fornecedores)),
-      atividades: active_(SheetRepository.readObjects(SHEETS.atividades)),
-      funcoes: active_(SheetRepository.readObjects(SHEETS.funcoes)),
-      produtos: active_(SheetRepository.readObjects(SHEETS.produtos)),
+      operacoes: namedDtos_(SHEETS.operacoes, 'OPERACAO'),
+      supervisores: namedDtos_(SHEETS.supervisores, 'SUPERVISOR'),
+      fornecedores: providerDtos_(),
+      atividades: namedDtos_(SHEETS.atividades, 'ATIVIDADE'),
+      funcoes: namedDtos_(SHEETS.funcoes, 'FUNCAO'),
+      produtos: productDtos_(),
     };
   }
 
-  function active_(rows) {
-    return rows.filter(function (row) {
-      return isTruthy_(row.ATIVO);
-    });
+  function namedDtos_(sheetName, fieldName) {
+    return activeRows_(sheetName)
+      .map(function (row) {
+        return {
+          nome: ValidationService.normalizeText(row[fieldName]),
+        };
+      })
+      .filter(function (item) {
+        return Boolean(item.nome);
+      });
   }
 
-  function isTruthy_(value) {
-    const normalized = String(value || '').trim().toUpperCase();
-    return normalized === 'SIM' || normalized === 'TRUE' || normalized === '1' || normalized === 'ATIVO';
+  function providerDtos_() {
+    return activeRows_(SHEETS.fornecedores)
+      .map(function (row) {
+        const types = [];
+
+        if (ValidationService.isTruthy(row.MAO_DE_OBRA)) {
+          types.push(SOLICITATION_TYPES.LABOR);
+        }
+
+        if (ValidationService.isTruthy(row.ALIMENTACAO)) {
+          types.push(SOLICITATION_TYPES.FOOD);
+        }
+
+        return {
+          nome: ValidationService.normalizeText(row.FORNECEDOR),
+          tiposSolicitacao: types,
+        };
+      })
+      .filter(function (item) {
+        return Boolean(item.nome);
+      });
+  }
+
+  function productDtos_() {
+    return activeRows_(SHEETS.produtos)
+      .map(function (row) {
+        return {
+          nome: ValidationService.normalizeText(row.PRODUTO),
+          categoria: ValidationService.normalizeUpper(row.CATEGORIA),
+        };
+      })
+      .filter(function (item) {
+        return Boolean(item.nome);
+      });
+  }
+
+  function activeRows_(sheetName) {
+    return SheetRepository
+      .readObjects(sheetName)
+      .filter(function (row) {
+        return ValidationService.isTruthy(row.ATIVO);
+      });
   }
 
   return {
