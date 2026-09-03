@@ -3,7 +3,7 @@
 **Projeto:** Extra Cost Control — UNILOG  
 **Repositório oficial:** `srcarneiro1/extra-cost-control-unilog`  
 **Status:** MVP 1 em desenvolvimento  
-**Última consolidação:** 02/09/2026
+**Última consolidação:** 02/09/2026 — pós-merge da triagem e comparecimento
 
 ---
 
@@ -591,7 +591,7 @@ TriageService.gs
 AttendanceService.gs
 ```
 
-Capacidades implementadas:
+Capacidades implementadas e já incorporadas ao `main`:
 
 - health;
 - catálogos;
@@ -738,7 +738,7 @@ Não implementar sem nova decisão explícita:
 
 # 21. ESTADO HOMOLOGADO EM 02/09/2026
 
-Concluído/homologado:
+Concluído/homologado e incorporado ao `main`:
 
 - planilha central;
 - `SOLICITACOES` com 36 colunas;
@@ -756,6 +756,12 @@ Concluído/homologado:
 - proteção contra retriagem silenciosa;
 - rastreabilidade de produto solicitado x aplicado;
 - Cloudflare Access incorporado ao código.
+
+Referências de merge deste marco:
+
+- PR #14 — comparecimento real de mão de obra;
+- PR #15 — triagem administrativa;
+- PR #13 — consolidação documental anterior.
 
 Ainda pendente:
 
