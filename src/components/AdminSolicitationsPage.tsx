@@ -33,9 +33,8 @@ function typeLabel(value: string) {
 
 function statusLabel(item: AdministrativeSolicitationListItem) {
   if (!item.triagemConcluida) return 'Aguardando triagem'
-  if (item.tipoSolicitacao === 'MAO_DE_OBRA' && !item.realizadoRegistrado) {
-    return 'Aguardando realizado'
-  }
+  if (item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA') return 'Triagem concluída'
+  if (!item.realizadoRegistrado) return 'Aguardando realizado'
   if (item.divergencia) return 'Com divergência'
   return 'Concluído'
 }
@@ -260,6 +259,7 @@ export function AdminSolicitationsPage() {
           <option value="TODOS">Todas as situações</option>
           <option value="Aguardando triagem">Aguardando triagem</option>
           <option value="Aguardando realizado">Aguardando realizado</option>
+          <option value="Triagem concluída">Triagem concluída</option>
           <option value="Com divergência">Com divergência</option>
           <option value="Concluído">Concluído</option>
         </select>
@@ -324,7 +324,16 @@ export function AdminSolicitationsPage() {
                 </div>
               )}
 
-              <div className="admin-values"><div><span>Previsto</span><strong>{formatMoney(detail.valorPrevisto)}</strong></div><div><span>Real</span><strong>{formatMoney(detail.valorReal)}</strong></div></div>
+              <div className="admin-values">
+                <div><span>Previsto</span><strong>{formatMoney(detail.valorPrevisto)}</strong></div>
+                <div>
+                  <span>Real</span>
+                  <strong>{formatMoney(detail.valorReal)}</strong>
+                  {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && detail.valorReal == null && (
+                    <small>Ainda não apurado neste fluxo.</small>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </aside>
