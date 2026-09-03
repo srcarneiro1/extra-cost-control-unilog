@@ -20,9 +20,15 @@ export type GatewayIdentity =
 const jwksByDomain = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 function normalizeTeamDomain_(value: unknown): string {
-  return String(value || '')
+  const normalized = String(value || '')
     .trim()
     .replace(/\/+$/, '');
+
+  if (!normalized) return '';
+
+  return /^https?:\/\//i.test(normalized)
+    ? normalized
+    : `https://${normalized}`;
 }
 
 function isAuthorizedForTest_(request: Request, env: GatewayAuthEnv): boolean {
