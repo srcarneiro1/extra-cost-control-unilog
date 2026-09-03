@@ -16,6 +16,10 @@ const Api = (() => {
         return JsonResponse.unauthorized('Acesso aos cadastros disponível somente pelo gateway protegido.');
       }
 
+      if (route === 'solicitacoes_admin') {
+        return JsonResponse.unauthorized('Consulta administrativa disponível somente pelo gateway protegido.');
+      }
+
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
       return handleError_(error);
@@ -35,6 +39,11 @@ const Api = (() => {
       if (route === 'solicitacoes') {
         const servicePayload = authorizeGateway_(payload);
         return JsonResponse.ok(SolicitationService.create(servicePayload));
+      }
+
+      if (route === 'solicitacoes_admin') {
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(AdministrativeSolicitationQueryService.execute(servicePayload));
       }
 
       if (route === 'triagem') {

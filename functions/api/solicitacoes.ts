@@ -15,23 +15,11 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { request, env } = context;
-  const identity = await authorizeGatewayRequest(request, env);
-
-  if (!identity) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Acesso ao gateway não autorizado.',
-        },
-      },
-      401
-    );
-  }
-
+async function proxyToAppsScript(
+  env: Env,
+  route: string,
+  payload: Record<string, unknown>
+): Promise<Response> {
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
       {
@@ -45,32 +33,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  let payload: Record<string, unknown>;
-
-  try {
-    payload = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'INVALID_JSON',
-          message: 'Corpo JSON inválido.',
-        },
-      },
-      400
-    );
-  }
-
-  const trustedPayload = identity.mode === 'access'
-    ? {
-        ...payload,
-        usuarioCriacao: identity.email,
-      }
-    : payload;
-
   const targetUrl = new URL(env.APPS_SCRIPT_URL);
-  targetUrl.searchParams.set('route', 'solicitacoes');
+  targetUrl.searchParams.set('route', route);
 
   const upstreamResponse = await fetch(targetUrl.toString(), {
     method: 'POST',
@@ -78,7 +42,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      ...trustedPayload,
+      ...payload,
       _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
     }),
     redirect: 'follow',
@@ -112,4 +76,82 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     upstreamPayload,
     apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502
   );
+}
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+  const identity = await authorizeGatewayRequest(request, env);
+
+  if (!identity) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Acesso ao gateway não autorizado.',
+        },
+      },
+      401
+    );
+  }
+
+  const url = new URL(request.url);
+  const idSolicitacao = String(url.searchParams.get('id') || '').trim();
+  const limite = String(url.searchParams.get('limite') || '').trim();
+
+  const payload: Record<string, unknown> = idSolicitacao
+    ? {
+        acao: 'DETALHAR',
+        idSolicitacao,
+      }
+    : {
+        acao: 'LISTAR',
+        ...(limite ? { limite } : {}),
+      };
+
+  return proxyToAppsScript(env, 'solicitacoes_admin', payload);
+};
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+  const identity = await authorizeGatewayRequest(request, env);
+
+  if (!identity) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Acesso ao gateway não autorizado.',
+        },
+      },
+      401
+    );
+  }
+
+  let payload: Record<string, unknown>;
+
+  try {
+    payload = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonResponse(
+      {
+        ok: false,
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Corpo JSON inválido.',
+        },
+      },
+      400
+    );
+  }
+
+  const trustedPayload = identity.mode === 'access'
+    ? {
+        ...payload,
+        usuarioCriacao: identity.email,
+      }
+    : payload;
+
+  return proxyToAppsScript(env, 'solicitacoes', trustedPayload);
 };
