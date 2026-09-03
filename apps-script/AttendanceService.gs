@@ -38,6 +38,20 @@ const AttendanceService = (() => {
         ValidationService.fail('A solicitação ainda não possui preço unitário aplicado. Faça a triagem administrativa antes de registrar o comparecimento.');
       }
 
+      const existingAttendance = toIntegerOrNull_(record.QTD_COMPARECIDA);
+      if (existingAttendance != null) {
+        if (existingAttendance !== attendedQuantity) {
+          ValidationService.fail(
+            'Comparecimento já registrado com quantidade ' + existingAttendance + '. Correção exige fluxo de auditoria.'
+          );
+        }
+
+        const existingRealValue = toMoneyNumber_(record.VALOR_REAL);
+        return response_(record, attendedQuantity, unitPrice, existingRealValue == null
+          ? roundMoney_(attendedQuantity * unitPrice)
+          : existingRealValue);
+      }
+
       const realValue = roundMoney_(attendedQuantity * unitPrice);
 
       SheetRepository.updateFields(
@@ -49,17 +63,27 @@ const AttendanceService = (() => {
         }
       );
 
-      return {
-        idSolicitacao: solicitationId,
-        qtdSolicitada: Number(record.QTD_SOLICITADA),
-        qtdComparecida: attendedQuantity,
-        precoUnitarioAplicado: unitPrice,
-        valorReal: realValue,
-        divergencia: Number(record.QTD_SOLICITADA) !== attendedQuantity,
-      };
+      return response_(record, attendedQuantity, unitPrice, realValue);
     } finally {
       lock.releaseLock();
     }
+  }
+
+  function response_(record, attendedQuantity, unitPrice, realValue) {
+    return {
+      idSolicitacao: ValidationService.normalizeText(record.ID_SOLICITACAO),
+      qtdSolicitada: Number(record.QTD_SOLICITADA),
+      qtdComparecida: attendedQuantity,
+      precoUnitarioAplicado: unitPrice,
+      valorReal: realValue,
+      divergencia: Number(record.QTD_SOLICITADA) !== attendedQuantity,
+    };
+  }
+
+  function toIntegerOrNull_(value) {
+    if (value === '' || value == null) return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
   }
 
   function toMoneyNumber_(value) {
