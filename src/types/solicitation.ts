@@ -1,0 +1,73 @@
+export type SolicitationType = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
+
+export interface AdministrativeSolicitationListItem {
+  idSolicitacao: string
+  tipoSolicitacao: SolicitationType
+  dataCriacao: string
+  usuarioCriacao: string
+  supervisor: string
+  operacao: string
+  dataOperacional: string
+  competencia: string
+  fornecedor: string
+  responsavelCusto: string
+  funcao: string
+  turno: string
+  qtdSolicitada: number | null
+  qtdComparecida: number | null
+  produtoAlimentacao: string
+  produtoBebida: string
+  valorPrevisto: number | null
+  valorReal: number | null
+  triagemConcluida: boolean
+  realizadoRegistrado: boolean | null
+  divergencia: boolean | null
+}
+
+export interface AdministrativeSolicitationListResponse {
+  total: number
+  limite: number
+  itens: AdministrativeSolicitationListItem[]
+}
+
+export interface AdministrativeSolicitationDetail {
+  idSolicitacao: string
+  tipoSolicitacao: SolicitationType
+  dataCriacao: string
+  usuarioCriacao: string
+  origem: string
+  idOrigem: string
+  loteImportacao: string
+  supervisor: string
+  operacao: string
+  dataOperacional: string
+  competencia: string
+  fornecedor: string
+  justificativa: string
+  responsavelCusto: string
+  centroCusto: string
+  atividade: string
+  funcao: string
+  turno: string
+  qtdSolicitada: number | null
+  qtdComparecida: number | null
+  volumeReferencia: unknown | null
+  unidadeVolume: string
+  precoUnitarioAplicado: number | null
+  produtoAlimentacao: string
+  qtdAlimentacao: number | null
+  precoAlimentacaoAplicado: number | null
+  valorAlimentacao: number | null
+  produtoBebida: string
+  qtdBebida: number | null
+  precoBebidaAplicado: number | null
+  valorBebida: number | null
+  valorPrevisto: number | null
+  valorReal: number | null
+  produtoAlimentacaoAplicado: string
+  produtoBebidaAplicado: string
+  motivoAjusteProduto: string
+  triagemConcluida: boolean
+  realizadoRegistrado: boolean | null
+  divergencia: boolean | null
+}
