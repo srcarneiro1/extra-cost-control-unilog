@@ -19,6 +19,13 @@ textarea {
   min-height: 88px;
 }
 
+.sidebar-collapse,
+.sidebar-mobile-close,
+.mobile-menu-button {
+  min-width: 40px;
+  min-height: 40px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   button:not(:disabled):hover,
   a:hover {
@@ -31,6 +38,13 @@ textarea {
   input,
   select,
   textarea {
+    min-height: 44px;
+  }
+
+  .sidebar-collapse,
+  .sidebar-mobile-close,
+  .mobile-menu-button {
+    min-width: 44px;
     min-height: 44px;
   }
 }
