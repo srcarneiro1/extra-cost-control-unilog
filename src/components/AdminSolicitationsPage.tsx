@@ -24,7 +24,7 @@ function DetailField({label,value}:{label:string;value:string|number|null}){retu
 function registrationParts(value:string){const date=value.slice(0,10);const[y,m,d]=date.split('-');return{year:y||'',month:m||'',day:d||''}}
 function buildWhatsAppMessage(detail:AdministrativeSolicitationDetail){
   const lines:string[]=[]
-  lines.push(`Pedido de hoje ${formatDateShort(detail.dataOperacional)}`)
+  lines.push(`Pedido para ${formatDateShort(detail.dataOperacional)}`)
 
   if(detail.tipoSolicitacao==='ALIMENTACAO_BEBIDA'){
     const products:string[]=[]
@@ -38,7 +38,6 @@ function buildWhatsAppMessage(detail:AdministrativeSolicitationDetail){
   }
 
   if(detail.supervisor)lines.push(`Supervisor(a) ${detail.supervisor}`)
-  if(detail.operacao)lines.push(`Operação: ${detail.operacao}`)
   if(detail.justificativa)lines.push(`Observação: ${detail.justificativa}`)
   lines.push(`Protocolo: ${detail.idSolicitacao}`)
   return lines.join('\n')
