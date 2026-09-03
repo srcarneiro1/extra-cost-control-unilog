@@ -12,6 +12,12 @@
   font-weight: 700;
 }
 
+.admin-alert-success {
+  border-color: rgba(31, 122, 70, 0.22);
+  background: rgba(31, 122, 70, 0.08);
+  color: #1f7a46;
+}
+
 .admin-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -54,7 +60,10 @@
 }
 
 .admin-filter-panel input,
-.admin-filter-panel select {
+.admin-filter-panel select,
+.admin-action-box input,
+.admin-action-box select,
+.admin-action-box textarea {
   width: 100%;
   min-height: 40px;
   padding: 8px 10px;
@@ -208,6 +217,52 @@
   padding: 12px;
   border-radius: 8px;
   background: #fff8ea;
+}
+
+.admin-action-box {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-top: 1px solid var(--border-default);
+  background: #fafbfc;
+}
+
+.admin-action-box h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.admin-action-box label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.admin-action-box textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.admin-action-box button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-action-box button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-action-box small {
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .admin-values {
