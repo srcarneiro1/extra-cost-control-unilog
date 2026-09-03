@@ -31,20 +31,7 @@ export class SolicitationServiceError extends Error {
   }
 }
 
-async function request<T>(url: string, signal?: AbortSignal): Promise<T> {
-  let response: Response
-
-  try {
-    response = await fetch(url, {
-      method: 'GET',
-      headers: { accept: 'application/json' },
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
-  }
-
+async function parseResponse<T>(response: Response): Promise<T> {
   let payload: ApiResponse<T>
 
   try {
@@ -59,7 +46,7 @@ async function request<T>(url: string, signal?: AbortSignal): Promise<T> {
   if (!response.ok || !payload.ok) {
     const apiError = payload.ok ? null : payload.error
     throw new SolicitationServiceError(
-      apiError?.message || 'Não foi possível carregar as solicitações.',
+      apiError?.message || 'Não foi possível concluir a operação.',
       apiError?.code || `HTTP_${response.status}`,
       apiError?.details,
     )
@@ -68,16 +55,69 @@ async function request<T>(url: string, signal?: AbortSignal): Promise<T> {
   return payload.data
 }
 
+async function getRequest<T>(url: string, signal?: AbortSignal): Promise<T> {
+  let response: Response
+
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    throw new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+  }
+
+  return parseResponse<T>(response)
+}
+
+async function postRequest<T>(url: string, body: Record<string, unknown>): Promise<T> {
+  let response: Response
+
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+  }
+
+  return parseResponse<T>(response)
+}
+
 export function fetchAdministrativeSolicitations(
   limit = 100,
   signal?: AbortSignal,
 ): Promise<AdministrativeSolicitationListResponse> {
-  return request(`/api/solicitacoes?limite=${encodeURIComponent(String(limit))}`, signal)
+  return getRequest(`/api/solicitacoes?limite=${encodeURIComponent(String(limit))}`, signal)
 }
 
 export function fetchAdministrativeSolicitationDetail(
   idSolicitacao: string,
   signal?: AbortSignal,
 ): Promise<AdministrativeSolicitationDetail> {
-  return request(`/api/solicitacoes?id=${encodeURIComponent(idSolicitacao)}`, signal)
+  return getRequest(`/api/solicitacoes?id=${encodeURIComponent(idSolicitacao)}`, signal)
+}
+
+export function applyAdministrativeTriage(input: {
+  idSolicitacao: string
+  fornecedor: string
+  produtoAlimentacaoAplicado?: string
+  produtoBebidaAplicado?: string
+  motivoAjusteProduto?: string
+}): Promise<unknown> {
+  return postRequest('/api/triagem', input)
+}
+
+export function registerAdministrativeAttendance(input: {
+  idSolicitacao: string
+  qtdComparecida: number
+}): Promise<unknown> {
+  return postRequest('/api/comparecimento', input)
 }
