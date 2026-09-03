@@ -47,10 +47,10 @@ export function AdminSolicitationsPage(){
   const filteredItems=useMemo(()=>{const q=search.trim().toUpperCase();return items.filter(item=>{const text=!q||[item.idSolicitacao,item.operacao,item.supervisor,item.fornecedor,item.usuarioCriacao].some(v=>v.toUpperCase().includes(q));const type=typeFilter==='TODOS'||item.tipoSolicitacao===typeFilter;const status=statusFilter==='TODOS'||statusInfo(item).label===statusFilter;return text&&type&&status})},[items,search,typeFilter,statusFilter])
   const metrics=useMemo(()=>({total:items.length,pending:items.filter(i=>!i.triagemConcluida).length,awaiting:items.filter(i=>i.tipoSolicitacao==='MAO_DE_OBRA'&&i.triagemConcluida&&!i.realizadoRegistrado).length,divergences:items.filter(i=>i.divergencia).length}),[items])
   const summary:SummaryMetricItem[]=[
-    {key:'all',label:'Total',value:metrics.total,detail:'solicitações carregadas',icon:'dataset',tone:'neutral'},
-    {key:'triage',label:'Aguardando triagem',value:metrics.pending,detail:'exigem definição administrativa',icon:'pending_actions',tone:'info'},
-    {key:'actual',label:'Aguardando realizado',value:metrics.awaiting,detail:'mão de obra já precificada',icon:'groups',tone:'warning'},
-    {key:'div',label:'Com divergência',value:metrics.divergences,detail:'solicitado x comparecido',icon:'error',tone:'danger'},
+    {key:'all',label:'Total',value:metrics.total,detail:'solicitações carregadas',icon:'dataset',tone:'neutral',active:statusFilter==='TODOS',onClick:()=>setStatusFilter('TODOS')},
+    {key:'triage',label:'Aguardando triagem',value:metrics.pending,detail:'exigem definição administrativa',icon:'pending_actions',tone:'info',active:statusFilter==='Aguardando triagem',onClick:()=>setStatusFilter('Aguardando triagem')},
+    {key:'actual',label:'Aguardando realizado',value:metrics.awaiting,detail:'mão de obra já precificada',icon:'groups',tone:'warning',active:statusFilter==='Aguardando realizado',onClick:()=>setStatusFilter('Aguardando realizado')},
+    {key:'div',label:'Com divergência',value:metrics.divergences,detail:'solicitado x comparecido',icon:'error',tone:'danger',active:statusFilter==='Com divergência',onClick:()=>setStatusFilter('Com divergência')},
   ]
   const eligibleProviders=useMemo(()=>!catalogs||!detail?[]:catalogs.fornecedores.filter(item=>item.tiposSolicitacao.includes(detail.tipoSolicitacao)),[catalogs,detail])
   const foods=catalogs?.produtos.filter(item=>item.categoria==='ALIMENTACAO')||[]
@@ -63,7 +63,7 @@ export function AdminSolicitationsPage(){
     <PageHeader eyebrow="CONTROLE DE CUSTOS EXTRAS" title="Solicitações" description="Conferência, triagem, precificação e acompanhamento do realizado em um único workspace administrativo."/>
     {error&&<div className="admin-alert" role="alert"><span className="material-symbols-rounded" aria-hidden="true">error</span><span>{error}</span></div>}
     {success&&<div className="admin-alert admin-alert-success" role="status"><span className="material-symbols-rounded" aria-hidden="true">check_circle</span><span>{success}</span></div>}
-    <SummaryMetrics items={summary} ariaLabel="Resumo das solicitações"/>
+    <SummaryMetrics items={summary} ariaLabel="Filtrar solicitações por situação"/>
 
     <div className="admin-workspace-grid">
       <Panel className="admin-list-workspace">
