@@ -10,10 +10,10 @@ export function AppShell({ children }: PropsWithChildren) {
         </div>
 
         <nav className="app-nav" aria-label="Módulos">
+          <span className="app-nav-item">Início</span>
           <span className="app-nav-item app-nav-item-active" aria-current="page">
-            Início
+            Solicitações
           </span>
-          <span className="app-nav-item">Solicitações</span>
           <span className="app-nav-item">Cadastros</span>
         </nav>
 
