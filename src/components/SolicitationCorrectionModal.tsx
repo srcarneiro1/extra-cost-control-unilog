@@ -93,42 +93,45 @@ export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, o
   const foods = catalogs?.produtos.filter((item) => item.categoria === 'ALIMENTACAO') || []
   const drinks = catalogs?.produtos.filter((item) => item.categoria === 'BEBIDA') || []
 
-  if (!open || !detail || !form) return null
-
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => current ? { ...current, [field]: value } : current)
   }
 
   async function handleSave() {
-    if (!form.motivoCorrecao.trim()) {
+    const currentForm = form
+    const currentDetail = detail
+
+    if (!currentForm || !currentDetail) return
+
+    if (!currentForm.motivoCorrecao.trim()) {
       setError('Informe o motivo da correção.')
       return
     }
 
     const dados: Record<string, unknown> = {
-      supervisor: form.supervisor,
-      operacao: form.operacao,
-      dataOperacional: form.dataOperacional,
-      fornecedor: form.fornecedor,
-      justificativa: form.justificativa,
-      responsavelCusto: form.responsavelCusto,
-      centroCusto: form.responsavelCusto === 'UNILOG' ? form.centroCusto : '',
+      supervisor: currentForm.supervisor,
+      operacao: currentForm.operacao,
+      dataOperacional: currentForm.dataOperacional,
+      fornecedor: currentForm.fornecedor,
+      justificativa: currentForm.justificativa,
+      responsavelCusto: currentForm.responsavelCusto,
+      centroCusto: currentForm.responsavelCusto === 'UNILOG' ? currentForm.centroCusto : '',
     }
 
-    if (detail.tipoSolicitacao === 'MAO_DE_OBRA') {
-      dados.atividade = form.atividade
-      dados.funcao = form.funcao
-      dados.turno = form.turno
-      dados.qtdSolicitada = Number(form.qtdSolicitada)
-      dados.qtdComparecida = form.qtdComparecida === '' ? '' : Number(form.qtdComparecida)
+    if (currentDetail.tipoSolicitacao === 'MAO_DE_OBRA') {
+      dados.atividade = currentForm.atividade
+      dados.funcao = currentForm.funcao
+      dados.turno = currentForm.turno
+      dados.qtdSolicitada = Number(currentForm.qtdSolicitada)
+      dados.qtdComparecida = currentForm.qtdComparecida === '' ? '' : Number(currentForm.qtdComparecida)
     } else {
-      dados.produtoAlimentacao = form.produtoAlimentacao
-      dados.qtdAlimentacao = form.produtoAlimentacao ? Number(form.qtdAlimentacao) : ''
-      dados.produtoBebida = form.produtoBebida
-      dados.qtdBebida = form.produtoBebida ? Number(form.qtdBebida) : ''
-      dados.produtoAlimentacaoAplicado = form.produtoAlimentacaoAplicado
-      dados.produtoBebidaAplicado = form.produtoBebidaAplicado
-      dados.motivoAjusteProduto = form.motivoAjusteProduto
+      dados.produtoAlimentacao = currentForm.produtoAlimentacao
+      dados.qtdAlimentacao = currentForm.produtoAlimentacao ? Number(currentForm.qtdAlimentacao) : ''
+      dados.produtoBebida = currentForm.produtoBebida
+      dados.qtdBebida = currentForm.produtoBebida ? Number(currentForm.qtdBebida) : ''
+      dados.produtoAlimentacaoAplicado = currentForm.produtoAlimentacaoAplicado
+      dados.produtoBebidaAplicado = currentForm.produtoBebidaAplicado
+      dados.motivoAjusteProduto = currentForm.motivoAjusteProduto
     }
 
     setSaving(true)
@@ -136,11 +139,11 @@ export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, o
 
     try {
       await correctAdministrativeSolicitation({
-        idSolicitacao: detail.idSolicitacao,
-        motivoCorrecao: form.motivoCorrecao.trim(),
+        idSolicitacao: currentDetail.idSolicitacao,
+        motivoCorrecao: currentForm.motivoCorrecao.trim(),
         dados,
       })
-      await onSaved(detail.idSolicitacao)
+      await onSaved(currentDetail.idSolicitacao)
       onClose()
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Não foi possível corrigir a solicitação.')
@@ -148,6 +151,8 @@ export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, o
       setSaving(false)
     }
   }
+
+  if (!open || !detail || !form) return null
 
   return (
     <div className="correction-modal-backdrop" role="presentation" onMouseDown={(event) => {
