@@ -98,11 +98,20 @@ export function fetchAdministrativeSolicitations(
   return getRequest(`/api/solicitacoes?limite=${encodeURIComponent(String(limit))}`, signal)
 }
 
-export function fetchAdministrativeSolicitationDetail(
+export async function fetchAdministrativeSolicitationDetail(
   idSolicitacao: string,
   signal?: AbortSignal,
 ): Promise<AdministrativeSolicitationDetail> {
-  return getRequest(`/api/solicitacoes?id=${encodeURIComponent(idSolicitacao)}`, signal)
+  const detail = await getRequest<AdministrativeSolicitationDetail>(
+    `/api/solicitacoes?id=${encodeURIComponent(idSolicitacao)}`,
+    signal,
+  )
+
+  return {
+    ...detail,
+    jornadaPadraoHoras: detail.jornadaPadraoHoras ?? 9,
+    excecoesJornada: Array.isArray(detail.excecoesJornada) ? detail.excecoesJornada : [],
+  }
 }
 
 export function applyAdministrativeTriage(input: {
