@@ -39,29 +39,37 @@ const AttendanceService = (() => {
       }
 
       const existingAttendance = toIntegerOrNull_(record.QTD_COMPARECIDA);
-      if (existingAttendance != null) {
-        if (existingAttendance !== attendedQuantity) {
-          ValidationService.fail(
-            'Comparecimento já registrado com quantidade ' + existingAttendance + '. Correção exige fluxo de auditoria.'
-          );
-        }
-
-        const existingRealValue = toMoneyNumber_(record.VALOR_REAL);
-        return response_(record, attendedQuantity, unitPrice, existingRealValue == null
-          ? roundMoney_(attendedQuantity * unitPrice)
-          : existingRealValue);
+      if (existingAttendance != null && existingAttendance !== attendedQuantity) {
+        ValidationService.fail(
+          'Comparecimento já registrado com quantidade ' + existingAttendance + '. Correção exige fluxo de auditoria.'
+        );
       }
 
-      const realValue = roundMoney_(attendedQuantity * unitPrice);
-
-      SheetRepository.updateFields(
-        SHEET_SOLICITACOES,
-        found.rowNumber,
-        {
-          QTD_COMPARECIDA: attendedQuantity,
-          VALOR_REAL: realValue,
-        }
+      const realValue = PartialShiftService.calculateRealValue(
+        solicitationId,
+        attendedQuantity,
+        unitPrice
       );
+
+      if (existingAttendance == null) {
+        SheetRepository.updateFields(
+          SHEET_SOLICITACOES,
+          found.rowNumber,
+          {
+            QTD_COMPARECIDA: attendedQuantity,
+            VALOR_REAL: realValue,
+          }
+        );
+      } else {
+        const existingRealValue = toMoneyNumber_(record.VALOR_REAL);
+        if (existingRealValue == null || existingRealValue !== realValue) {
+          SheetRepository.updateFields(
+            SHEET_SOLICITACOES,
+            found.rowNumber,
+            { VALOR_REAL: realValue }
+          );
+        }
+      }
 
       return response_(record, attendedQuantity, unitPrice, realValue);
     } finally {
@@ -105,10 +113,6 @@ const AttendanceService = (() => {
 
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  function roundMoney_(value) {
-    return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
   }
 
   return {
