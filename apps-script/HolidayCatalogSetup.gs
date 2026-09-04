@@ -25,9 +25,6 @@ function setupSerraHolidayCatalog2026() {
     'FONTE',
   ];
 
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-
   const rows = [
     ['2026-01-01', 'Confraternização Universal', 'FERIADO', 'SERRA', 'ES', 'SIM', 'Decreto Municipal 1.908/2025'],
     ['2026-04-03', 'Paixão de Cristo', 'FERIADO', 'SERRA', 'ES', 'SIM', 'Decreto Municipal 1.908/2025'],
@@ -45,36 +42,30 @@ function setupSerraHolidayCatalog2026() {
     ['2026-12-26', 'Dia do Serrano', 'FERIADO', 'SERRA', 'ES', 'SIM', 'Decreto Municipal 1.908/2025'],
   ];
 
-  const existing = sheet.getLastRow() > 1
-    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getDisplayValues()
-    : [];
+  // A aba já existia em uma estrutura anterior no projeto.
+  // Para evitar cabeçalhos incompatíveis, linhas deslocadas e duplicidades,
+  // este setup reconstrói o catálogo oficial de 2026 de forma determinística.
+  sheet.clearContents();
 
-  const existingKeys = {};
-  existing.forEach(function (row) {
-    const date = String(row[0] || '').trim();
-    const city = String(row[3] || '').trim().toUpperCase();
-    const uf = String(row[4] || '').trim().toUpperCase();
-    if (date && city && uf) {
-      existingKeys[date + '|' + city + '|' + uf] = true;
-    }
-  });
+  sheet
+    .getRange(1, 1, 1, headers.length)
+    .setValues([headers])
+    .setFontWeight('bold');
 
-  const missingRows = rows.filter(function (row) {
-    return !existingKeys[row[0] + '|' + row[3] + '|' + row[4]];
-  });
-
-  if (missingRows.length) {
-    sheet
-      .getRange(sheet.getLastRow() + 1, 1, missingRows.length, headers.length)
-      .setValues(missingRows);
-  }
+  sheet
+    .getRange(2, 1, rows.length, headers.length)
+    .setValues(rows);
 
   sheet.getRange('A:A').setNumberFormat('@');
+  sheet.setFrozenRows(1);
   sheet.autoResizeColumns(1, headers.length);
 
-  return {
+  const result = {
     sheet: sheetName,
     totalOficial2026: rows.length,
-    adicionados: missingRows.length,
+    registrosGravados: rows.length,
   };
+
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
 }
