@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { setupRegistrationDateFilterLabels } from './utils/registrationDateFilterLabels'
 import './styles/tokens.css'
 import './styles/global.css'
 import './styles/shell.css'
@@ -20,3 +21,5 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 )
+
+setupRegistrationDateFilterLabels()
