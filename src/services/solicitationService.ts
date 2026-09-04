@@ -121,3 +121,16 @@ export function registerAdministrativeAttendance(input: {
 }): Promise<unknown> {
   return postRequest('/api/comparecimento', input)
 }
+
+export function correctAdministrativeSolicitation(input: {
+  idSolicitacao: string
+  motivoCorrecao: string
+  dados: Record<string, unknown>
+}): Promise<{
+  idSolicitacao: string
+  tipoSolicitacao: string
+  camposAlterados: string[]
+  motivoCorrecao: string
+}> {
+  return postRequest('/api/correcao-solicitacao', input)
+}
