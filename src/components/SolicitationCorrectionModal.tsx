@@ -1,0 +1,285 @@
+import { useEffect, useMemo, useState } from 'react'
+import type { CatalogosDto } from '../types/catalog'
+import type { AdministrativeSolicitationDetail } from '../types/solicitation'
+import { correctAdministrativeSolicitation } from '../services/solicitationService'
+
+type Props = {
+  open: boolean
+  detail: AdministrativeSolicitationDetail | null
+  catalogs: CatalogosDto | null
+  onClose: () => void
+  onSaved: (idSolicitacao: string) => Promise<void> | void
+}
+
+type FormState = {
+  supervisor: string
+  operacao: string
+  dataOperacional: string
+  fornecedor: string
+  justificativa: string
+  responsavelCusto: string
+  centroCusto: string
+  atividade: string
+  funcao: string
+  turno: string
+  qtdSolicitada: string
+  qtdComparecida: string
+  produtoAlimentacao: string
+  qtdAlimentacao: string
+  produtoBebida: string
+  qtdBebida: string
+  produtoAlimentacaoAplicado: string
+  produtoBebidaAplicado: string
+  motivoAjusteProduto: string
+  motivoCorrecao: string
+}
+
+function fromDetail(detail: AdministrativeSolicitationDetail): FormState {
+  return {
+    supervisor: detail.supervisor || '',
+    operacao: detail.operacao || '',
+    dataOperacional: detail.dataOperacional || '',
+    fornecedor: detail.fornecedor || '',
+    justificativa: detail.justificativa || '',
+    responsavelCusto: detail.responsavelCusto || 'CLIENTE',
+    centroCusto: detail.centroCusto || '',
+    atividade: detail.atividade || '',
+    funcao: detail.funcao || '',
+    turno: detail.turno || 'DIURNO',
+    qtdSolicitada: detail.qtdSolicitada == null ? '' : String(detail.qtdSolicitada),
+    qtdComparecida: detail.qtdComparecida == null ? '' : String(detail.qtdComparecida),
+    produtoAlimentacao: detail.produtoAlimentacao || '',
+    qtdAlimentacao: detail.qtdAlimentacao == null ? '' : String(detail.qtdAlimentacao),
+    produtoBebida: detail.produtoBebida || '',
+    qtdBebida: detail.qtdBebida == null ? '' : String(detail.qtdBebida),
+    produtoAlimentacaoAplicado: detail.produtoAlimentacaoAplicado || detail.produtoAlimentacao || '',
+    produtoBebidaAplicado: detail.produtoBebidaAplicado || detail.produtoBebida || '',
+    motivoAjusteProduto: detail.motivoAjusteProduto || '',
+    motivoCorrecao: '',
+  }
+}
+
+export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, onSaved }: Props) {
+  const [form, setForm] = useState<FormState | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (open && detail) {
+      setForm(fromDetail(detail))
+      setError('')
+    }
+  }, [open, detail])
+
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !saving) onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open, saving, onClose])
+
+  const providers = useMemo(() => {
+    if (!catalogs || !detail) return []
+    return catalogs.fornecedores.filter((item) => item.tiposSolicitacao.includes(detail.tipoSolicitacao))
+  }, [catalogs, detail])
+
+  const foods = catalogs?.produtos.filter((item) => item.categoria === 'ALIMENTACAO') || []
+  const drinks = catalogs?.produtos.filter((item) => item.categoria === 'BEBIDA') || []
+
+  if (!open || !detail || !form) return null
+
+  function set<K extends keyof FormState>(field: K, value: FormState[K]) {
+    setForm((current) => current ? { ...current, [field]: value } : current)
+  }
+
+  async function handleSave() {
+    if (!form.motivoCorrecao.trim()) {
+      setError('Informe o motivo da correção.')
+      return
+    }
+
+    const dados: Record<string, unknown> = {
+      supervisor: form.supervisor,
+      operacao: form.operacao,
+      dataOperacional: form.dataOperacional,
+      fornecedor: form.fornecedor,
+      justificativa: form.justificativa,
+      responsavelCusto: form.responsavelCusto,
+      centroCusto: form.responsavelCusto === 'UNILOG' ? form.centroCusto : '',
+    }
+
+    if (detail.tipoSolicitacao === 'MAO_DE_OBRA') {
+      dados.atividade = form.atividade
+      dados.funcao = form.funcao
+      dados.turno = form.turno
+      dados.qtdSolicitada = Number(form.qtdSolicitada)
+      dados.qtdComparecida = form.qtdComparecida === '' ? '' : Number(form.qtdComparecida)
+    } else {
+      dados.produtoAlimentacao = form.produtoAlimentacao
+      dados.qtdAlimentacao = form.produtoAlimentacao ? Number(form.qtdAlimentacao) : ''
+      dados.produtoBebida = form.produtoBebida
+      dados.qtdBebida = form.produtoBebida ? Number(form.qtdBebida) : ''
+      dados.produtoAlimentacaoAplicado = form.produtoAlimentacaoAplicado
+      dados.produtoBebidaAplicado = form.produtoBebidaAplicado
+      dados.motivoAjusteProduto = form.motivoAjusteProduto
+    }
+
+    setSaving(true)
+    setError('')
+
+    try {
+      await correctAdministrativeSolicitation({
+        idSolicitacao: detail.idSolicitacao,
+        motivoCorrecao: form.motivoCorrecao.trim(),
+        dados,
+      })
+      await onSaved(detail.idSolicitacao)
+      onClose()
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível corrigir a solicitação.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="correction-modal-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !saving) onClose()
+    }}>
+      <section className="correction-modal" role="dialog" aria-modal="true" aria-labelledby="correction-modal-title">
+        <header className="correction-modal-header">
+          <div>
+            <span className="ui-eyebrow">CORREÇÃO ADMINISTRATIVA</span>
+            <h2 id="correction-modal-title">{detail.idSolicitacao}</h2>
+            <p>As alterações serão recalculadas e registradas em auditoria.</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose} disabled={saving} aria-label="Fechar correção">
+            <span className="material-symbols-rounded" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        {error && <div className="admin-alert" role="alert">{error}</div>}
+
+        <div className="correction-modal-body">
+          <div className="correction-form-grid">
+            <label>Supervisor
+              <select value={form.supervisor} onChange={(event) => set('supervisor', event.target.value)}>
+                {catalogs?.supervisores.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+              </select>
+            </label>
+            <label>Operação
+              <select value={form.operacao} onChange={(event) => set('operacao', event.target.value)}>
+                {catalogs?.operacoes.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+              </select>
+            </label>
+            <label>Data operacional
+              <input type="date" value={form.dataOperacional} onChange={(event) => set('dataOperacional', event.target.value)} />
+            </label>
+            <label>Fornecedor
+              <select value={form.fornecedor} onChange={(event) => set('fornecedor', event.target.value)}>
+                <option value="">Sem triagem</option>
+                {providers.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+              </select>
+            </label>
+            <label>Responsável pelo custo
+              <select value={form.responsavelCusto} onChange={(event) => set('responsavelCusto', event.target.value)}>
+                <option value="CLIENTE">CLIENTE</option>
+                <option value="UNILOG">UNILOG</option>
+              </select>
+            </label>
+            {form.responsavelCusto === 'UNILOG' && <label>Centro de custo
+              <input value={form.centroCusto} onChange={(event) => set('centroCusto', event.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+            </label>}
+          </div>
+
+          <label>Justificativa
+            <textarea value={form.justificativa} onChange={(event) => set('justificativa', event.target.value)} rows={3} />
+          </label>
+
+          {detail.tipoSolicitacao === 'MAO_DE_OBRA' ? (
+            <div className="correction-form-grid correction-section">
+              <label>Atividade
+                <select value={form.atividade} onChange={(event) => set('atividade', event.target.value)}>
+                  {catalogs?.atividades.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+                </select>
+              </label>
+              <label>Função
+                <select value={form.funcao} onChange={(event) => set('funcao', event.target.value)}>
+                  {catalogs?.funcoes.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+                </select>
+              </label>
+              <label>Turno
+                <select value={form.turno} onChange={(event) => set('turno', event.target.value)}>
+                  <option value="DIURNO">DIURNO</option>
+                  <option value="NOTURNO">NOTURNO</option>
+                </select>
+              </label>
+              <label>Qtd. solicitada
+                <input type="number" min="1" step="1" value={form.qtdSolicitada} onChange={(event) => set('qtdSolicitada', event.target.value)} />
+              </label>
+              <label>Qtd. comparecida
+                <input type="number" min="0" step="1" value={form.qtdComparecida} onChange={(event) => set('qtdComparecida', event.target.value)} placeholder="Ainda não registrado" />
+              </label>
+            </div>
+          ) : (
+            <div className="correction-section">
+              <div className="correction-form-grid">
+                <label>Alimentação solicitada
+                  <select value={form.produtoAlimentacao} onChange={(event) => set('produtoAlimentacao', event.target.value)}>
+                    <option value="">Sem alimentação</option>
+                    {foods.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+                  </select>
+                </label>
+                {form.produtoAlimentacao && <label>Qtd. alimentação
+                  <input type="number" min="1" step="1" value={form.qtdAlimentacao} onChange={(event) => set('qtdAlimentacao', event.target.value)} />
+                </label>}
+                <label>Bebida solicitada
+                  <select value={form.produtoBebida} onChange={(event) => set('produtoBebida', event.target.value)}>
+                    <option value="">Sem bebida</option>
+                    {drinks.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+                  </select>
+                </label>
+                {form.produtoBebida && <label>Qtd. bebida
+                  <input type="number" min="1" step="1" value={form.qtdBebida} onChange={(event) => set('qtdBebida', event.target.value)} />
+                </label>}
+              </div>
+              {form.fornecedor && <div className="correction-form-grid">
+                {form.produtoAlimentacao && <label>Alimentação aplicada
+                  <select value={form.produtoAlimentacaoAplicado} onChange={(event) => set('produtoAlimentacaoAplicado', event.target.value)}>
+                    {foods.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+                  </select>
+                </label>}
+                {form.produtoBebida && <label>Bebida aplicada
+                  <select value={form.produtoBebidaAplicado} onChange={(event) => set('produtoBebidaAplicado', event.target.value)}>
+                    {drinks.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
+                  </select>
+                </label>}
+                <label className="correction-form-span">Motivo do ajuste de produto
+                  <input value={form.motivoAjusteProduto} onChange={(event) => set('motivoAjusteProduto', event.target.value)} />
+                </label>
+              </div>}
+            </div>
+          )}
+
+          <label className="correction-reason">Motivo da correção <span>*</span>
+            <textarea value={form.motivoCorrecao} onChange={(event) => set('motivoCorrecao', event.target.value)} rows={3} placeholder="Ex.: quantidade lançada incorretamente pelo administrativo." />
+          </label>
+        </div>
+
+        <footer className="correction-modal-footer">
+          <button type="button" className="button" onClick={onClose} disabled={saving}>Cancelar</button>
+          <button type="button" className="button button-primary" onClick={() => void handleSave()} disabled={saving || !form.motivoCorrecao.trim()}>
+            {saving ? 'Salvando…' : 'Salvar correção'}
+          </button>
+        </footer>
+      </section>
+    </div>
+  )
+}
