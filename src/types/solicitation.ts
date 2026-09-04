@@ -1,5 +1,17 @@
 export type SolicitationType = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
 
+export interface PartialShiftException {
+  idExcecao: string
+  nomeColaborador: string
+  horasTrabalhadas: number | null
+  horarioSaida: string
+  motivo: string
+  valorProporcional: number | null
+  valorRegistrado: number | null
+  dataRegistro: string
+  usuarioAdministrativo: string
+}
+
 export interface AdministrativeSolicitationListItem {
   idSolicitacao: string
   tipoSolicitacao: SolicitationType
@@ -70,4 +82,6 @@ export interface AdministrativeSolicitationDetail {
   triagemConcluida: boolean
   realizadoRegistrado: boolean | null
   divergencia: boolean | null
+  jornadaPadraoHoras: number | null
+  excecoesJornada: PartialShiftException[]
 }
