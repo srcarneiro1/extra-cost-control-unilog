@@ -243,7 +243,11 @@ const SolicitationCorrectionService = (() => {
       unitPrice = roundMoney_(priceResult.price);
       expectedValue = roundMoney_(requestedQuantity * unitPrice);
       if (attendedQuantity !== '' && attendedQuantity != null) {
-        realValue = roundMoney_(Number(attendedQuantity) * unitPrice);
+        realValue = PartialShiftService.calculateRealValue(
+          record.ID_SOLICITACAO,
+          Number(attendedQuantity),
+          unitPrice
+        );
       }
     }
 
