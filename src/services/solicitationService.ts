@@ -122,6 +122,26 @@ export function registerAdministrativeAttendance(input: {
   return postRequest('/api/comparecimento', input)
 }
 
+export function registerPartialShift(input: {
+  idSolicitacao: string
+  nomeColaborador: string
+  horasTrabalhadas: number
+  horarioSaida?: string
+  motivo: string
+}): Promise<{
+  idExcecao: string
+  idSolicitacao: string
+  nomeColaborador: string
+  horasTrabalhadas: number
+  horarioSaida: string
+  motivo: string
+  valorProporcional: number
+  valorReal: number
+  jornadaPadraoHoras: number
+}> {
+  return postRequest('/api/jornada-parcial', input)
+}
+
 export function correctAdministrativeSolicitation(input: {
   idSolicitacao: string
   motivoCorrecao: string
