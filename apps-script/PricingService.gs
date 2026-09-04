@@ -5,10 +5,10 @@ const PricingService = (() => {
     DOMINGO_FERIADO: 'DOMINGO_FERIADO',
   });
 
-  function classifyDay(dateValue, isHoliday) {
+  function classifyDay(dateValue) {
     const date = DateService.parseDateOnly(dateValue);
 
-    if (isHoliday) {
+    if (HolidayService.isSerraHoliday(date)) {
       return DAY_TYPES.DOMINGO_FERIADO;
     }
 
@@ -20,7 +20,7 @@ const PricingService = (() => {
 
   function resolveLaborPrice(params) {
     const date = DateService.parseDateOnly(params.date);
-    const dayType = classifyDay(date, Boolean(params.isHoliday));
+    const dayType = classifyDay(date);
     const rows = SheetRepository.readObjects('PRECOS_MO');
 
     const candidates = rows.filter(function (row) {
@@ -45,6 +45,7 @@ const PricingService = (() => {
     return {
       price: toNumber_(candidates[0].PRECO_UNITARIO),
       dayType: dayType,
+      feriadoSerra: dayType === DAY_TYPES.DOMINGO_FERIADO && HolidayService.isSerraHoliday(date),
     };
   }
 

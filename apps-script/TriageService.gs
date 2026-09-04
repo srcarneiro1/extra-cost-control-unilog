@@ -116,7 +116,6 @@ const TriageService = (() => {
       role: role,
       shift: shift,
       date: operationalDate,
-      isHoliday: false,
     });
 
     const unitPrice = roundMoney_(priceResult.price);

@@ -140,7 +140,6 @@ const SolicitationService = (() => {
       role: roleRow.FUNCAO,
       shift: shift,
       date: common.operationalDate,
-      isHoliday: false,
     });
 
     const unitPrice = roundMoney_(priceResult.price);
