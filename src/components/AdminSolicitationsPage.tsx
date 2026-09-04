@@ -19,6 +19,7 @@ import {
   fetchAdministrativeSolicitationDetail,
   fetchAdministrativeSolicitations,
   registerAdministrativeAttendance,
+  registerPartialShift,
 } from '../services/solicitationService'
 import type { CatalogosDto } from '../types/catalog'
 import type {
@@ -166,6 +167,10 @@ export function AdminSolicitationsPage() {
   const [appliedDrink, setAppliedDrink] = useState('')
   const [adjustmentReason, setAdjustmentReason] = useState('')
   const [attendance, setAttendance] = useState('')
+  const [partialEmployee, setPartialEmployee] = useState('')
+  const [partialHours, setPartialHours] = useState('')
+  const [partialDeparture, setPartialDeparture] = useState('')
+  const [partialReason, setPartialReason] = useState('')
   const [correctionOpen, setCorrectionOpen] = useState(false)
 
   async function reload(selected = selectedId) {
@@ -220,6 +225,10 @@ export function AdminSolicitationsPage() {
         setAppliedDrink(loaded.produtoBebidaAplicado || loaded.produtoBebida || '')
         setAdjustmentReason(loaded.motivoAjusteProduto || '')
         setAttendance(loaded.qtdComparecida == null ? '' : String(loaded.qtdComparecida))
+        setPartialEmployee('')
+        setPartialHours('')
+        setPartialDeparture('')
+        setPartialReason('')
       })
       .catch((requestError) => {
         if (requestError instanceof DOMException && requestError.name === 'AbortError') return
@@ -271,12 +280,9 @@ export function AdminSolicitationsPage() {
     () =>
       items.filter((item) => {
         const parts = registrationParts(item.dataCriacao)
-        const yearMatches =
-          registrationYear === 'TODOS' || parts.year === registrationYear
-        const monthMatches =
-          registrationMonth === 'TODOS' || parts.month === registrationMonth
-        const dateMatches =
-          registrationDate === 'TODOS' || parts.date === registrationDate
+        const yearMatches = registrationYear === 'TODOS' || parts.year === registrationYear
+        const monthMatches = registrationMonth === 'TODOS' || parts.month === registrationMonth
+        const dateMatches = registrationDate === 'TODOS' || parts.date === registrationDate
         return yearMatches && monthMatches && dateMatches
       }),
     [items, registrationYear, registrationMonth, registrationDate],
@@ -381,6 +387,12 @@ export function AdminSolicitationsPage() {
     registrationMonth !== 'TODOS' ||
     registrationDate !== 'TODOS'
 
+  const canRegisterPartialShift =
+    detail?.tipoSolicitacao === 'MAO_DE_OBRA' &&
+    detail.realizadoRegistrado === true &&
+    (detail.qtdComparecida ?? 0) > 0 &&
+    detail.excecoesJornada.length < (detail.qtdComparecida ?? 0)
+
   function handleYearChange(value: string) {
     setRegistrationYear(value)
     setRegistrationMonth('TODOS')
@@ -414,9 +426,7 @@ export function AdminSolicitationsPage() {
         fornecedor: provider,
         ...(detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA'
           ? {
-              produtoAlimentacaoAplicado: detail.produtoAlimentacao
-                ? appliedFood
-                : undefined,
+              produtoAlimentacaoAplicado: detail.produtoAlimentacao ? appliedFood : undefined,
               produtoBebidaAplicado: detail.produtoBebida ? appliedDrink : undefined,
               motivoAjusteProduto: adjustmentReason || undefined,
             }
@@ -460,6 +470,56 @@ export function AdminSolicitationsPage() {
         requestError instanceof Error
           ? requestError.message
           : 'Não foi possível registrar o comparecimento.',
+      )
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  async function handlePartialShift() {
+    if (!detail || !canRegisterPartialShift) return
+
+    const employee = partialEmployee.trim()
+    const hours = Number(partialHours)
+    const standardHours = detail.jornadaPadraoHoras || 9
+    const reason = partialReason.trim()
+
+    if (!employee) {
+      setError('Informe o nome do colaborador que cumpriu jornada parcial.')
+      return
+    }
+    if (!Number.isFinite(hours) || hours <= 0 || hours >= standardHours) {
+      setError(`Horas trabalhadas deve ser maior que zero e menor que ${standardHours} horas.`)
+      return
+    }
+    if (!reason) {
+      setError('Informe o motivo da jornada parcial.')
+      return
+    }
+
+    setActionLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      await registerPartialShift({
+        idSolicitacao: detail.idSolicitacao,
+        nomeColaborador: employee,
+        horasTrabalhadas: hours,
+        horarioSaida: partialDeparture || undefined,
+        motivo: reason,
+      })
+      setPartialEmployee('')
+      setPartialHours('')
+      setPartialDeparture('')
+      setPartialReason('')
+      await reload(detail.idSolicitacao)
+      setSuccess('Jornada parcial registrada e valor real recalculado.')
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Não foi possível registrar a jornada parcial.',
       )
     } finally {
       setActionLoading(false)
@@ -875,6 +935,95 @@ export function AdminSolicitationsPage() {
                   </div>
                 )}
 
+              {detail.tipoSolicitacao === 'MAO_DE_OBRA' && detail.realizadoRegistrado && (
+                <div className="admin-action-box partial-shift-box">
+                  <div className="admin-section-heading">
+                    <span className="material-symbols-rounded" aria-hidden="true">schedule</span>
+                    <div>
+                      <strong>Jornada parcial</strong>
+                      <small>
+                        Diária padrão de {detail.jornadaPadraoHoras || 9}h · registre somente quem saiu antes.
+                      </small>
+                    </div>
+                  </div>
+
+                  {detail.excecoesJornada.length > 0 && (
+                    <div className="partial-shift-list" aria-label="Jornadas parciais registradas">
+                      {detail.excecoesJornada.map((exception) => (
+                        <div className="partial-shift-item" key={exception.idExcecao}>
+                          <div className="partial-shift-item-main">
+                            <strong>{exception.nomeColaborador}</strong>
+                            <span>
+                              {exception.horasTrabalhadas ?? '—'}h
+                              {exception.horarioSaida ? ` · saída ${exception.horarioSaida}` : ''}
+                            </span>
+                          </div>
+                          <div className="partial-shift-item-value">
+                            <strong>{formatMoney(exception.valorProporcional)}</strong>
+                            <small>{exception.motivo}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {canRegisterPartialShift ? (
+                    <>
+                      <div className="partial-shift-form-grid">
+                        <label>
+                          Colaborador
+                          <input
+                            value={partialEmployee}
+                            onChange={(event) => setPartialEmployee(event.target.value)}
+                            placeholder="Nome de quem saiu antes"
+                          />
+                        </label>
+                        <label>
+                          Horas trabalhadas
+                          <input
+                            type="number"
+                            min="0.01"
+                            max={(detail.jornadaPadraoHoras || 9) - 0.01}
+                            step="0.25"
+                            value={partialHours}
+                            onChange={(event) => setPartialHours(event.target.value)}
+                            placeholder="Ex.: 5"
+                          />
+                        </label>
+                        <label>
+                          Horário de saída
+                          <input
+                            type="time"
+                            value={partialDeparture}
+                            onChange={(event) => setPartialDeparture(event.target.value)}
+                          />
+                        </label>
+                        <label className="partial-shift-reason">
+                          Motivo
+                          <input
+                            value={partialReason}
+                            onChange={(event) => setPartialReason(event.target.value)}
+                            placeholder="Ex.: saída antecipada autorizada"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        className="button button-primary"
+                        type="button"
+                        onClick={() => void handlePartialShift()}
+                        disabled={actionLoading || !partialEmployee.trim() || !partialHours || !partialReason.trim()}
+                      >
+                        {actionLoading ? 'Salvando…' : 'Registrar jornada parcial'}
+                      </button>
+                    </>
+                  ) : (detail.qtdComparecida ?? 0) > 0 && (
+                    <div className="partial-shift-complete">
+                      Todas as pessoas comparecidas já possuem exceção de jornada registrada.
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="admin-value-strip">
                 <div>
                   <span>Valor previsto</span>
@@ -887,7 +1036,9 @@ export function AdminSolicitationsPage() {
                   <small>
                     {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && detail.valorReal == null
                       ? 'Ainda não apurado neste fluxo'
-                      : 'calculado pelo realizado'}
+                      : detail.excecoesJornada.length > 0
+                        ? 'recalculado com jornada parcial'
+                        : 'calculado pelo realizado'}
                   </small>
                 </div>
               </div>
