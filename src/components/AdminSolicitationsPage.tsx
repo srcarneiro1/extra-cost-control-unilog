@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader } from './PageHeader'
 import { SolicitationCorrectionModal } from './SolicitationCorrectionModal'
 import { SolicitationDetailModal } from './SolicitationDetailModal'
@@ -126,6 +126,10 @@ export function AdminSolicitationsPage() {
   const [workflowOpen, setWorkflowOpen] = useState(false)
   const [correctionOpen, setCorrectionOpen] = useState(false)
 
+  const detailCacheRef = useRef(new Map<string, AdministrativeSolicitationDetail>())
+  const detailRequestsRef = useRef(new Map<string, Promise<AdministrativeSolicitationDetail>>())
+  const activeDetailRequestRef = useRef(0)
+
   function notify(tone: Notice['tone'], message: string) {
     setNotice({ tone, message })
   }
@@ -135,48 +139,98 @@ export function AdminSolicitationsPage() {
     setItems(response.itens)
   }
 
+  function requestDetail(idSolicitacao: string, force = false) {
+    if (!force) {
+      const cached = detailCacheRef.current.get(idSolicitacao)
+      if (cached) return Promise.resolve(cached)
+
+      const running = detailRequestsRef.current.get(idSolicitacao)
+      if (running) return running
+    }
+
+    const request = fetchAdministrativeSolicitationDetail(idSolicitacao)
+      .then((loaded) => {
+        detailCacheRef.current.set(idSolicitacao, loaded)
+        return loaded
+      })
+      .finally(() => {
+        detailRequestsRef.current.delete(idSolicitacao)
+      })
+
+    detailRequestsRef.current.set(idSolicitacao, request)
+    return request
+  }
+
   async function refreshDetail(idSolicitacao: string) {
-    const loaded = await fetchAdministrativeSolicitationDetail(idSolicitacao)
+    const loaded = await requestDetail(idSolicitacao, true)
     setDetail(loaded)
     return loaded
   }
 
+  function prefetchDetail(idSolicitacao: string) {
+    void requestDetail(idSolicitacao).catch(() => undefined)
+  }
+
   async function openDetail(idSolicitacao: string) {
-    setDetail(null)
-    setDetailLoading(true)
-    setWorkflowOpen(false)
+    const requestId = ++activeDetailRequestRef.current
+    const cached = detailCacheRef.current.get(idSolicitacao) || null
+
+    setDetail(cached)
+    setDetailLoading(!cached)
+    setWorkflowOpen(true)
     setCorrectionOpen(false)
 
     try {
-      await refreshDetail(idSolicitacao)
-      setWorkflowOpen(true)
+      const loaded = await requestDetail(idSolicitacao)
+      if (requestId !== activeDetailRequestRef.current) return
+      setDetail(loaded)
     } catch (error) {
+      if (requestId !== activeDetailRequestRef.current) return
+      setWorkflowOpen(false)
       notify(
         'error',
         error instanceof Error ? error.message : 'Não foi possível carregar a solicitação.',
       )
     } finally {
-      setDetailLoading(false)
+      if (requestId === activeDetailRequestRef.current) setDetailLoading(false)
     }
   }
 
   async function openCorrection(idSolicitacao: string) {
-    setDetail(null)
-    setDetailLoading(true)
-    setCorrectionOpen(false)
+    const requestId = ++activeDetailRequestRef.current
+    const cached = detailCacheRef.current.get(idSolicitacao) || null
+
+    setDetail(cached)
+    setDetailLoading(!cached)
+    setCorrectionOpen(true)
     setWorkflowOpen(false)
 
     try {
-      await refreshDetail(idSolicitacao)
-      setCorrectionOpen(true)
+      const loaded = await requestDetail(idSolicitacao)
+      if (requestId !== activeDetailRequestRef.current) return
+      setDetail(loaded)
     } catch (error) {
+      if (requestId !== activeDetailRequestRef.current) return
+      setCorrectionOpen(false)
       notify(
         'error',
         error instanceof Error ? error.message : 'Não foi possível carregar a solicitação para edição.',
       )
     } finally {
-      setDetailLoading(false)
+      if (requestId === activeDetailRequestRef.current) setDetailLoading(false)
     }
+  }
+
+  function closeWorkflow() {
+    activeDetailRequestRef.current += 1
+    setWorkflowOpen(false)
+    setDetailLoading(false)
+  }
+
+  function closeCorrection() {
+    activeDetailRequestRef.current += 1
+    setCorrectionOpen(false)
+    setDetailLoading(false)
   }
 
   async function handleWorkflowChanged(idSolicitacao: string, message: string) {
@@ -590,6 +644,8 @@ export function AdminSolicitationsPage() {
                             <button
                               type="button"
                               className="button button-compact"
+                              onPointerEnter={() => prefetchDetail(item.idSolicitacao)}
+                              onFocus={() => prefetchDetail(item.idSolicitacao)}
                               onClick={() => void openCorrection(item.idSolicitacao)}
                               disabled={detailLoading}
                             >
@@ -599,6 +655,8 @@ export function AdminSolicitationsPage() {
                             <button
                               type="button"
                               className="button button-primary button-compact"
+                              onPointerEnter={() => prefetchDetail(item.idSolicitacao)}
+                              onFocus={() => prefetchDetail(item.idSolicitacao)}
                               onClick={() => void openDetail(item.idSolicitacao)}
                               disabled={detailLoading}
                             >
@@ -665,16 +723,17 @@ export function AdminSolicitationsPage() {
         loading={detailLoading}
         detail={detail}
         catalogs={catalogs}
-        onClose={() => setWorkflowOpen(false)}
+        onClose={closeWorkflow}
         onChanged={handleWorkflowChanged}
         onNotify={notify}
       />
 
       <SolicitationCorrectionModal
         open={correctionOpen}
+        loading={detailLoading}
         detail={detail}
         catalogs={catalogs}
-        onClose={() => setCorrectionOpen(false)}
+        onClose={closeCorrection}
         onSaved={handleCorrectionSaved}
       />
     </section>
