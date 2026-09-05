@@ -131,22 +131,32 @@ export function registerAdministrativeAttendance(input: {
   return postRequest('/api/comparecimento', input)
 }
 
-export function registerPartialShift(input: {
-  idSolicitacao: string
+export interface PartialShiftEntryInput {
   nomeColaborador: string
   horasTrabalhadas: number
   horarioSaida?: string
   motivo: string
-}): Promise<{
-  idExcecao: string
+}
+
+export function registerPartialShifts(input: {
   idSolicitacao: string
-  nomeColaborador: string
-  horasTrabalhadas: number
-  horarioSaida: string
-  motivo: string
-  valorProporcional: number
-  valorReal: number
+  excecoes: PartialShiftEntryInput[]
+}): Promise<{
+  idSolicitacao: string
+  quantidadeComparecida: number
+  quantidadeRegistrada: number
+  totalJornadasParciais: number
+  limiteComparecimento: number
   jornadaPadraoHoras: number
+  valorReal: number
+  excecoes: Array<{
+    idExcecao: string
+    nomeColaborador: string
+    horasTrabalhadas: number
+    horarioSaida: string
+    motivo: string
+    valorProporcional: number
+  }>
 }> {
   return postRequest('/api/jornada-parcial', input)
 }
