@@ -21,17 +21,11 @@ const PartialShiftService = (() => {
       input.idSolicitacao,
       'ID da solicitação'
     );
-    const employeeName = ValidationService.requiredText(
-      input.nomeColaborador,
-      'Nome do colaborador'
-    );
-    const workedHours = validateWorkedHours_(input.horasTrabalhadas);
-    const departureTime = validateDepartureTime_(input.horarioSaida);
-    const reason = ValidationService.requiredText(input.motivo, 'Motivo');
     const administrativeUser = ValidationService.requiredText(
       input.usuarioAdministrativo,
       'Usuário administrativo'
     );
+    const entries = normalizeEntries_(input);
 
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) {
@@ -39,8 +33,7 @@ const PartialShiftService = (() => {
     }
 
     try {
-      ensureSheet_();
-
+      const exceptionSheet = ensureSheet_();
       const found = SheetRepository.findRowByField(
         SHEET_SOLICITACOES,
         'ID_SOLICITACAO',
@@ -70,71 +63,161 @@ const PartialShiftService = (() => {
       }
 
       const existing = activeRows_(solicitationId);
-      const normalizedEmployee = ValidationService.normalizeUpper(employeeName);
-      const duplicate = existing.some(function (row) {
-        return ValidationService.normalizeUpper(row.NOME_COLABORADOR) === normalizedEmployee;
-      });
+      const available = attendedQuantity - existing.length;
 
-      if (duplicate) {
+      if (available <= 0) {
+        ValidationService.fail('Todas as pessoas comparecidas já possuem jornada parcial registrada.');
+      }
+      if (entries.length > available) {
         ValidationService.fail(
-          'Já existe uma exceção de jornada ativa para ' + employeeName + '. Correção exige fluxo auditado.'
+          'Foram informadas ' + entries.length + ' jornadas parciais, mas há somente ' + available +
+          ' pessoa(s) disponível(is) dentro do comparecimento registrado.'
         );
       }
 
-      if (existing.length >= attendedQuantity) {
-        ValidationService.fail(
-          'A quantidade de exceções de jornada não pode ser maior ou igual ao total comparecido já registrado.'
-        );
-      }
+      validateDuplicates_(existing, entries);
 
-      const proportionalValue = proportionalValue_(unitPrice, workedHours);
-      const exceptionId = 'JPAR-' + Utilities.getUuid();
-
-      SheetRepository.appendObject(
-        SHEET_EXCECOES,
-        {
-          ID_EXCECAO: exceptionId,
+      const now = new Date();
+      const records = entries.map(function (entry) {
+        return {
+          ID_EXCECAO: 'JPAR-' + Utilities.getUuid(),
           ID_SOLICITACAO: solicitationId,
-          NOME_COLABORADOR: employeeName,
-          HORAS_TRABALHADAS: workedHours,
-          HORARIO_SAIDA: departureTime,
-          MOTIVO: reason,
-          VALOR_REGISTRADO: proportionalValue,
-          DATA_REGISTRO: new Date(),
+          NOME_COLABORADOR: entry.nomeColaborador,
+          HORAS_TRABALHADAS: entry.horasTrabalhadas,
+          HORARIO_SAIDA: entry.horarioSaida,
+          MOTIVO: entry.motivo,
+          VALOR_REGISTRADO: proportionalValue_(unitPrice, entry.horasTrabalhadas),
+          DATA_REGISTRO: now,
           USUARIO_ADMINISTRATIVO: administrativeUser,
           ATIVO: 'SIM',
-        },
-        { textFields: ['ID_EXCECAO', 'ID_SOLICITACAO', 'HORARIO_SAIDA'] }
-      );
+        };
+      });
 
-      const realValue = calculateRealValue_(
-        attendedQuantity,
-        unitPrice,
-        existing.concat([{
-          HORAS_TRABALHADAS: workedHours,
-        }])
-      );
+      const startRow = appendBatch_(exceptionSheet, records);
+      let realValue;
 
-      SheetRepository.updateFields(
-        SHEET_SOLICITACOES,
-        found.rowNumber,
-        { VALOR_REAL: realValue }
-      );
+      try {
+        realValue = calculateRealValue_(
+          attendedQuantity,
+          unitPrice,
+          existing.concat(records)
+        );
+
+        SheetRepository.updateFields(
+          SHEET_SOLICITACOES,
+          found.rowNumber,
+          { VALOR_REAL: realValue }
+        );
+      } catch (error) {
+        exceptionSheet
+          .getRange(startRow, 1, records.length, HEADERS.length)
+          .clearContent();
+        throw error;
+      }
 
       return {
-        idExcecao: exceptionId,
         idSolicitacao: solicitationId,
-        nomeColaborador: employeeName,
-        horasTrabalhadas: workedHours,
-        horarioSaida: departureTime,
-        motivo: reason,
-        valorProporcional: proportionalValue,
-        valorReal: realValue,
+        quantidadeComparecida: attendedQuantity,
+        quantidadeRegistrada: records.length,
+        totalJornadasParciais: existing.length + records.length,
+        limiteComparecimento: attendedQuantity,
         jornadaPadraoHoras: FULL_SHIFT_HOURS,
+        valorReal: realValue,
+        excecoes: records.map(function (row) {
+          return {
+            idExcecao: row.ID_EXCECAO,
+            nomeColaborador: row.NOME_COLABORADOR,
+            horasTrabalhadas: row.HORAS_TRABALHADAS,
+            horarioSaida: row.HORARIO_SAIDA,
+            motivo: row.MOTIVO,
+            valorProporcional: row.VALOR_REGISTRADO,
+          };
+        }),
       };
     } finally {
       lock.releaseLock();
     }
+  }
+
+  function normalizeEntries_(input) {
+    const source = Array.isArray(input.excecoes)
+      ? input.excecoes
+      : [{
+          nomeColaborador: input.nomeColaborador,
+          horasTrabalhadas: input.horasTrabalhadas,
+          horarioSaida: input.horarioSaida,
+          motivo: input.motivo,
+        }];
+
+    if (!source.length) {
+      ValidationService.fail('Informe pelo menos uma pessoa com jornada parcial.');
+    }
+
+    return source.map(function (entry, index) {
+      const item = entry || {};
+      const position = source.length > 1 ? ' #' + (index + 1) : '';
+      return {
+        nomeColaborador: ValidationService.requiredText(
+          item.nomeColaborador,
+          'Nome do colaborador' + position
+        ),
+        horasTrabalhadas: validateWorkedHours_(
+          item.horasTrabalhadas,
+          'Horas trabalhadas' + position
+        ),
+        horarioSaida: validateDepartureTime_(
+          item.horarioSaida,
+          'Horário de saída' + position
+        ),
+        motivo: ValidationService.requiredText(
+          item.motivo,
+          'Motivo' + position
+        ),
+      };
+    });
+  }
+
+  function validateDuplicates_(existing, entries) {
+    const names = {};
+
+    existing.forEach(function (row) {
+      names[ValidationService.normalizeUpper(row.NOME_COLABORADOR)] = true;
+    });
+
+    entries.forEach(function (entry) {
+      const key = ValidationService.normalizeUpper(entry.nomeColaborador);
+      if (names[key]) {
+        ValidationService.fail(
+          'Já existe uma jornada parcial ativa para ' + entry.nomeColaborador +
+          '. Não é permitido duplicar o mesmo colaborador.'
+        );
+      }
+      names[key] = true;
+    });
+  }
+
+  function appendBatch_(sheet, records) {
+    const startRow = sheet.getLastRow() + 1;
+    const values = records.map(function (record) {
+      return HEADERS.map(function (header) {
+        return Object.prototype.hasOwnProperty.call(record, header)
+          ? record[header]
+          : '';
+      });
+    });
+
+    ['ID_EXCECAO', 'ID_SOLICITACAO', 'HORARIO_SAIDA'].forEach(function (fieldName) {
+      const columnIndex = HEADERS.indexOf(fieldName);
+      sheet
+        .getRange(startRow, columnIndex + 1, records.length, 1)
+        .setNumberFormat('@');
+    });
+
+    sheet
+      .getRange(startRow, 1, records.length, HEADERS.length)
+      .setValues(values);
+
+    return startRow;
   }
 
   function listBySolicitation(solicitationId, unitPrice) {
@@ -225,21 +308,21 @@ const PartialShiftService = (() => {
     });
   }
 
-  function validateWorkedHours_(value) {
+  function validateWorkedHours_(value, label) {
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue) || numberValue <= 0 || numberValue >= FULL_SHIFT_HOURS) {
       ValidationService.fail(
-        'Horas trabalhadas deve ser maior que zero e menor que ' + FULL_SHIFT_HOURS + ' horas.'
+        (label || 'Horas trabalhadas') + ' deve ser maior que zero e menor que ' + FULL_SHIFT_HOURS + ' horas.'
       );
     }
     return Math.round(numberValue * 100) / 100;
   }
 
-  function validateDepartureTime_(value) {
+  function validateDepartureTime_(value, label) {
     const normalized = ValidationService.normalizeText(value);
     if (!normalized) return '';
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(normalized)) {
-      ValidationService.fail('Horário de saída deve estar no formato HH:MM.');
+      ValidationService.fail((label || 'Horário de saída') + ' deve estar no formato HH:MM.');
     }
     return normalized;
   }
@@ -263,6 +346,8 @@ const PartialShiftService = (() => {
       sheet.setFrozenRows(1);
       sheet.autoResizeColumns(1, HEADERS.length);
     }
+
+    return sheet;
   }
 
   function toIntegerOrNull_(value) {
