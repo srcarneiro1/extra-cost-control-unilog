@@ -144,13 +144,13 @@ export function AdminSolicitationsPage() {
   async function openDetail(idSolicitacao: string) {
     setDetail(null)
     setDetailLoading(true)
-    setWorkflowOpen(true)
+    setWorkflowOpen(false)
     setCorrectionOpen(false)
 
     try {
       await refreshDetail(idSolicitacao)
+      setWorkflowOpen(true)
     } catch (error) {
-      setWorkflowOpen(false)
       notify(
         'error',
         error instanceof Error ? error.message : 'Não foi possível carregar a solicitação.',
@@ -562,8 +562,9 @@ export function AdminSolicitationsPage() {
                     <th>Operação</th>
                     <th>Tipo</th>
                     <th>Status</th>
-                    <th>Previsto</th>
-                    <th>Ações</th>
+                    <th className="admin-money-column">Previsto</th>
+                    <th className="admin-money-column">Valor real</th>
+                    <th className="admin-actions-header">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -582,7 +583,8 @@ export function AdminSolicitationsPage() {
                         <td data-label="Operação"><strong>{item.operacao || '—'}</strong></td>
                         <td data-label="Tipo"><span className="module-badge">{typeLabel(item.tipoSolicitacao)}</span></td>
                         <td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td>
-                        <td data-label="Previsto"><strong>{formatMoney(item.valorPrevisto)}</strong></td>
+                        <td data-label="Previsto" className="admin-money-column"><strong>{formatMoney(item.valorPrevisto)}</strong></td>
+                        <td data-label="Valor real" className="admin-money-column"><strong>{formatMoney(item.valorReal)}</strong></td>
                         <td data-label="Ações" className="admin-row-actions-cell">
                           <div className="admin-row-actions">
                             <button
