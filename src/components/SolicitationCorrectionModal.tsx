@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CatalogosDto } from '../types/catalog'
 import type { AdministrativeSolicitationDetail } from '../types/solicitation'
 import { correctAdministrativeSolicitation } from '../services/solicitationService'
+import { Modal } from './ui/Modal'
+import { Skeleton } from './ui/Primitives'
 
 type Props = {
   open: boolean
+  loading?: boolean
   detail: AdministrativeSolicitationDetail | null
   catalogs: CatalogosDto | null
   onClose: () => void
@@ -59,7 +62,14 @@ function fromDetail(detail: AdministrativeSolicitationDetail): FormState {
   }
 }
 
-export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, onSaved }: Props) {
+export function SolicitationCorrectionModal({
+  open,
+  loading = false,
+  detail,
+  catalogs,
+  onClose,
+  onSaved,
+}: Props) {
   const [form, setForm] = useState<FormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -72,18 +82,11 @@ export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, o
   }, [open, detail])
 
   useEffect(() => {
-    if (!open) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !saving) onClose()
+    if (!open) {
+      setForm(null)
+      setError('')
     }
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open, saving, onClose])
+  }, [open])
 
   const providers = useMemo(() => {
     if (!catalogs || !detail) return []
@@ -152,27 +155,39 @@ export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, o
     }
   }
 
-  if (!open || !detail || !form) return null
+  const isLoading = loading || !detail || !form
 
   return (
-    <div className="correction-modal-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget && !saving) onClose()
-    }}>
-      <section className="correction-modal" role="dialog" aria-modal="true" aria-labelledby="correction-modal-title">
-        <header className="correction-modal-header">
-          <div>
-            <span className="ui-eyebrow">CORREÇÃO ADMINISTRATIVA</span>
-            <h2 id="correction-modal-title">{detail.idSolicitacao}</h2>
-            <p>As alterações serão recalculadas e registradas em auditoria.</p>
-          </div>
-          <button type="button" className="icon-button" onClick={onClose} disabled={saving} aria-label="Fechar correção">
-            <span className="material-symbols-rounded" aria-hidden="true">close</span>
+    <Modal
+      open={open}
+      titleId="correction-modal-title"
+      eyebrow="CORREÇÃO ADMINISTRATIVA"
+      title={detail?.idSolicitacao || 'Carregando solicitação…'}
+      description={detail ? 'As alterações serão recalculadas e registradas em auditoria.' : 'Buscando os dados mais recentes para edição.'}
+      onClose={onClose}
+      busy={saving}
+      width="medium"
+      bodyClassName={isLoading ? 'correction-modal-body ui-modal-loading' : 'correction-modal-body'}
+      footer={!isLoading ? (
+        <>
+          <button type="button" className="button" onClick={onClose} disabled={saving}>Cancelar</button>
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => void handleSave()}
+            disabled={saving || !form.motivoCorrecao.trim()}
+          >
+            {saving ? 'Salvando…' : 'Salvar correção'}
           </button>
-        </header>
+        </>
+      ) : undefined}
+    >
+      {isLoading ? (
+        <Skeleton lines={10} />
+      ) : (
+        <>
+          {error && <div className="admin-alert correction-modal-error" role="alert">{error}</div>}
 
-        {error && <div className="admin-alert" role="alert">{error}</div>}
-
-        <div className="correction-modal-body">
           <div className="correction-form-grid">
             <label>Supervisor
               <select value={form.supervisor} onChange={(event) => set('supervisor', event.target.value)}>
@@ -276,15 +291,8 @@ export function SolicitationCorrectionModal({ open, detail, catalogs, onClose, o
           <label className="correction-reason">Motivo da correção <span>*</span>
             <textarea value={form.motivoCorrecao} onChange={(event) => set('motivoCorrecao', event.target.value)} rows={3} placeholder="Ex.: quantidade lançada incorretamente pelo administrativo." />
           </label>
-        </div>
-
-        <footer className="correction-modal-footer">
-          <button type="button" className="button" onClick={onClose} disabled={saving}>Cancelar</button>
-          <button type="button" className="button button-primary" onClick={() => void handleSave()} disabled={saving || !form.motivoCorrecao.trim()}>
-            {saving ? 'Salvando…' : 'Salvar correção'}
-          </button>
-        </footer>
-      </section>
-    </div>
+        </>
+      )}
+    </Modal>
   )
 }
