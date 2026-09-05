@@ -98,11 +98,20 @@ export function fetchAdministrativeSolicitations(
   return getRequest(`/api/solicitacoes?limite=${encodeURIComponent(String(limit))}`, signal)
 }
 
-export function fetchAdministrativeSolicitationDetail(
+export async function fetchAdministrativeSolicitationDetail(
   idSolicitacao: string,
   signal?: AbortSignal,
 ): Promise<AdministrativeSolicitationDetail> {
-  return getRequest(`/api/solicitacoes?id=${encodeURIComponent(idSolicitacao)}`, signal)
+  const detail = await getRequest<AdministrativeSolicitationDetail>(
+    `/api/solicitacoes?id=${encodeURIComponent(idSolicitacao)}`,
+    signal,
+  )
+
+  return {
+    ...detail,
+    jornadaPadraoHoras: detail.jornadaPadraoHoras ?? 9,
+    excecoesJornada: Array.isArray(detail.excecoesJornada) ? detail.excecoesJornada : [],
+  }
 }
 
 export function applyAdministrativeTriage(input: {
@@ -120,6 +129,36 @@ export function registerAdministrativeAttendance(input: {
   qtdComparecida: number
 }): Promise<unknown> {
   return postRequest('/api/comparecimento', input)
+}
+
+export interface PartialShiftEntryInput {
+  nomeColaborador: string
+  horasTrabalhadas: number
+  horarioSaida?: string
+  motivo: string
+}
+
+export function registerPartialShifts(input: {
+  idSolicitacao: string
+  excecoes: PartialShiftEntryInput[]
+}): Promise<{
+  idSolicitacao: string
+  quantidadeComparecida: number
+  quantidadeRegistrada: number
+  totalJornadasParciais: number
+  limiteComparecimento: number
+  jornadaPadraoHoras: number
+  valorReal: number
+  excecoes: Array<{
+    idExcecao: string
+    nomeColaborador: string
+    horasTrabalhadas: number
+    horarioSaida: string
+    motivo: string
+    valorProporcional: number
+  }>
+}> {
+  return postRequest('/api/jornada-parcial', input)
 }
 
 export function correctAdministrativeSolicitation(input: {

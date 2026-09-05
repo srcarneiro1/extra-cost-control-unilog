@@ -87,9 +87,12 @@ const AdministrativeSolicitationQueryService = (() => {
 
   function toDetail_(record) {
     const indicators = indicators_(record);
+    const type = ValidationService.normalizeUpper(record.TIPO_SOLICITACAO);
+    const unitPrice = numberOrNull_(record.PRECO_UNITARIO_APLICADO);
+    const solicitationId = text_(record.ID_SOLICITACAO);
 
     return {
-      idSolicitacao: text_(record.ID_SOLICITACAO),
+      idSolicitacao: solicitationId,
       tipoSolicitacao: text_(record.TIPO_SOLICITACAO),
       dataCriacao: dateTime_(record.DATA_CRIACAO),
       usuarioCriacao: text_(record.USUARIO_CRIACAO),
@@ -113,7 +116,7 @@ const AdministrativeSolicitationQueryService = (() => {
         ? null
         : record.VOLUME_REFERENCIA,
       unidadeVolume: text_(record.UNIDADE_VOLUME),
-      precoUnitarioAplicado: numberOrNull_(record.PRECO_UNITARIO_APLICADO),
+      precoUnitarioAplicado: unitPrice,
       produtoAlimentacao: text_(record.PRODUTO_ALIMENTACAO),
       qtdAlimentacao: numberOrNull_(record.QTD_ALIMENTACAO),
       precoAlimentacaoAplicado: numberOrNull_(record.PRECO_ALIMENTACAO_APLICADO),
@@ -130,6 +133,10 @@ const AdministrativeSolicitationQueryService = (() => {
       triagemConcluida: indicators.triagemConcluida,
       realizadoRegistrado: indicators.realizadoRegistrado,
       divergencia: indicators.divergencia,
+      jornadaPadraoHoras: type === TYPE_LABOR ? PartialShiftService.FULL_SHIFT_HOURS : null,
+      excecoesJornada: type === TYPE_LABOR
+        ? PartialShiftService.listBySolicitation(solicitationId, unitPrice)
+        : [],
     };
   }
 

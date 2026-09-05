@@ -56,6 +56,11 @@ const Api = (() => {
         return JsonResponse.ok(AttendanceService.register(servicePayload));
       }
 
+      if (route === 'jornada_parcial') {
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(PartialShiftService.register(servicePayload));
+      }
+
       if (route === 'correcao_solicitacao') {
         const servicePayload = authorizeGateway_(payload);
         return JsonResponse.ok(SolicitationCorrectionService.correct(servicePayload));
