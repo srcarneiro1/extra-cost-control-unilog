@@ -7,8 +7,8 @@ import './styles/shell.css'
 import './styles/ui-foundations.css'
 import './styles/modal.css'
 import './styles/admin.css'
-import './styles/partial-shift.css'
 import './styles/solicitation-workflow.css'
+import './styles/partial-shift.css'
 import './styles/accessibility.css'
 
 const root = document.getElementById('root')
