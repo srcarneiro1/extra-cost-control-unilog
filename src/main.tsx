@@ -9,6 +9,7 @@ import './styles/ui-foundations.css'
 import './styles/admin.css'
 import './styles/responsive-tuning.css'
 import './styles/partial-shift.css'
+import './styles/solicitation-workflow.css'
 import './styles/accessibility.css'
 
 const root = document.getElementById('root')
