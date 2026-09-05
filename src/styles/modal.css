@@ -1,0 +1,65 @@
+.ui-modal-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:120;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background:rgba(24,26,31,.5);
+  backdrop-filter:blur(2px);
+  animation:ui-modal-backdrop-in .16s ease-out both;
+}
+
+.ui-modal{
+  width:min(880px,calc(100vw - 40px));
+  max-height:calc(100vh - 48px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid var(--border-default);
+  border-radius:16px;
+  background:var(--surface-primary);
+  box-shadow:0 24px 70px rgba(0,0,0,.22);
+  transform-origin:center top;
+  animation:ui-modal-panel-in .18s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.ui-modal-large{width:min(980px,calc(100vw - 48px))}
+
+.ui-modal-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:18px 20px;
+  border-bottom:1px solid var(--border-default);
+  background:linear-gradient(180deg,#fff,#fbfcfd);
+}
+
+.ui-modal-header-copy{display:grid;gap:3px;min-width:0}
+.ui-modal-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ui-modal-title-row h2{margin:0;font-size:21px;line-height:1.2;letter-spacing:-.025em}
+.ui-modal-header p{margin:0;font-size:10px;color:var(--text-muted)}
+.ui-modal-body{min-height:0;overflow:auto;overscroll-behavior:contain}
+.ui-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--border-default);background:var(--surface-secondary)}
+.ui-modal-loading{min-height:320px;display:grid;align-content:start}
+
+@keyframes ui-modal-backdrop-in{
+  from{opacity:0}
+  to{opacity:1}
+}
+
+@keyframes ui-modal-panel-in{
+  from{opacity:0;transform:translateY(10px) scale(.985)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+@media(max-width:760px){
+  .ui-modal-backdrop{padding:0}
+  .ui-modal,.ui-modal-large{width:100%;height:100%;max-height:none;border-radius:0}
+  .ui-modal-header,.ui-modal-footer{padding-left:16px;padding-right:16px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .ui-modal-backdrop,.ui-modal{animation:none}
+}
