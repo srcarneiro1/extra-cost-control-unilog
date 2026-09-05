@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 type ModalWidth = 'medium' | 'large'
 
@@ -17,6 +17,15 @@ type Props = {
   bodyClassName?: string
 }
 
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
 export function Modal({
   open,
   titleId,
@@ -31,20 +40,67 @@ export function Modal({
   width = 'medium',
   bodyClassName = '',
 }: Props) {
+  const modalRef = useRef<HTMLElement>(null)
+  const restoreFocusRef = useRef<HTMLElement | null>(null)
+
   useEffect(() => {
     if (!open) return
+
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
 
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
+    const frame = window.requestAnimationFrame(() => {
+      modalRef.current?.focus({ preventScroll: true })
+    })
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) onClose()
+      if (event.key === 'Escape' && !busy) {
+        event.preventDefault()
+        onClose()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const modal = modalRef.current
+      if (!modal) return
+
+      const focusable = Array.from(
+        modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((element) => element.offsetParent !== null)
+
+      if (!focusable.length) {
+        event.preventDefault()
+        modal.focus()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
 
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      window.cancelAnimationFrame(frame)
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', onKeyDown)
+
+      const restoreTarget = restoreFocusRef.current
+      if (restoreTarget?.isConnected) {
+        window.requestAnimationFrame(() => restoreTarget.focus({ preventScroll: true }))
+      }
     }
   }, [open, busy, onClose])
 
@@ -59,6 +115,8 @@ export function Modal({
       }}
     >
       <section
+        ref={modalRef}
+        tabIndex={-1}
         className={`ui-modal ui-modal-${width}`}
         role="dialog"
         aria-modal="true"
