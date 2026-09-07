@@ -15,8 +15,11 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { request, env } = context;
+async function proxyCatalogRequest(
+  request: Request,
+  env: Env,
+  servicePayload: Record<string, unknown>,
+): Promise<Response> {
   const identity = await authorizeGatewayRequest(request, env);
 
   if (!identity) {
@@ -28,7 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           message: 'Acesso ao gateway não autorizado.',
         },
       },
-      401
+      401,
     );
   }
 
@@ -41,7 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           message: 'Gateway não configurado no ambiente Cloudflare.',
         },
       },
-      500
+      500,
     );
   }
 
@@ -54,6 +57,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
+      ...servicePayload,
       _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
     }),
     redirect: 'follow',
@@ -73,7 +77,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           message: 'Apps Script retornou uma resposta inválida.',
         },
       },
-      502
+      502,
     );
   }
 
@@ -85,6 +89,42 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   return jsonResponse(
     upstreamPayload,
-    apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502
+    apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502,
   );
+}
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const url = new URL(context.request.url);
+  const adminMode = url.searchParams.get('mode') === 'admin';
+
+  return proxyCatalogRequest(
+    context.request,
+    context.env,
+    adminMode ? { modo: 'ADMIN' } : {},
+  );
+};
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  let payload: Record<string, unknown>;
+
+  try {
+    const parsed = await context.request.json();
+    payload =
+      typeof parsed === 'object' && parsed !== null
+        ? (parsed as Record<string, unknown>)
+        : {};
+  } catch {
+    return jsonResponse(
+      {
+        ok: false,
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Corpo JSON inválido.',
+        },
+      },
+      400,
+    );
+  }
+
+  return proxyCatalogRequest(context.request, context.env, payload);
 };
