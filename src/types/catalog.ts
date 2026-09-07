@@ -1,4 +1,5 @@
 export type TipoSolicitacao = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
+export type WhatsappDestino = 'NENHUM' | 'NUMERO' | 'GRUPO'
 
 export interface CatalogoNomeDto {
   nome: string
@@ -7,6 +8,19 @@ export interface CatalogoNomeDto {
 export interface FornecedorDto {
   nome: string
   tiposSolicitacao: TipoSolicitacao[]
+  whatsappDestino?: WhatsappDestino
+  whatsappNumero?: string
+  whatsappGrupoLink?: string
+}
+
+export interface FornecedorAdminDto {
+  nome: string
+  maoDeObra: boolean
+  alimentacao: boolean
+  ativo: boolean
+  whatsappDestino: WhatsappDestino
+  whatsappNumero: string
+  whatsappGrupoLink: string
 }
 
 export type CategoriaProduto = 'ALIMENTACAO' | 'BEBIDA'
@@ -25,6 +39,20 @@ export interface CatalogosDto {
   produtos: ProdutoDto[]
 }
 
+export interface CatalogosAdminDto {
+  fornecedores: FornecedorAdminDto[]
+}
+
+export interface SaveFornecedorAdminInput {
+  fornecedor: string
+  maoDeObra: boolean
+  alimentacao: boolean
+  ativo: boolean
+  whatsappDestino: WhatsappDestino
+  whatsappNumero?: string
+  whatsappGrupoLink?: string
+}
+
 export interface ApiErrorDto {
   code: string
   message: string
@@ -35,6 +63,26 @@ export type CatalogosApiResponse =
   | {
       ok: true
       data: CatalogosDto
+    }
+  | {
+      ok: false
+      error: ApiErrorDto
+    }
+
+export type CatalogosAdminApiResponse =
+  | {
+      ok: true
+      data: CatalogosAdminDto
+    }
+  | {
+      ok: false
+      error: ApiErrorDto
+    }
+
+export type FornecedorAdminApiResponse =
+  | {
+      ok: true
+      data: FornecedorAdminDto
     }
   | {
       ok: false
