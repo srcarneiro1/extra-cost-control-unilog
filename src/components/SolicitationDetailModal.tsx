@@ -158,6 +158,11 @@ export function SolicitationDetailModal({
     )
   }, [catalogs, detail])
 
+  const whatsappProvider = useMemo(() => {
+    if (!catalogs || !detail?.fornecedor) return null
+    return catalogs.fornecedores.find((item) => item.nome === detail.fornecedor) || null
+  }, [catalogs, detail?.fornecedor])
+
   const foods = catalogs?.produtos.filter((item) => item.categoria === 'ALIMENTACAO') || []
   const drinks = catalogs?.produtos.filter((item) => item.categoria === 'BEBIDA') || []
 
@@ -174,6 +179,12 @@ export function SolicitationDetailModal({
     detail?.triagemConcluida &&
     (detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' || detail.realizadoRegistrado !== true),
   )
+
+  const whatsappButtonLabel = whatsappProvider?.whatsappDestino === 'GRUPO'
+    ? 'Abrir grupo'
+    : whatsappProvider?.whatsappDestino === 'NUMERO'
+      ? 'Abrir fornecedor'
+      : 'Abrir WhatsApp'
 
   function handlePartialCountChange(raw: string) {
     const next = Math.max(0, Math.min(availablePartialCount, Number(raw) || 0))
@@ -343,8 +354,38 @@ export function SolicitationDetailModal({
 
   function handleOpenWhatsApp() {
     if (!detail || !canShare) return
+    const message = buildWhatsAppMessage(detail)
+
+    if (
+      whatsappProvider?.whatsappDestino === 'NUMERO' &&
+      whatsappProvider.whatsappNumero
+    ) {
+      const number = whatsappProvider.whatsappNumero.replace(/\D/g, '')
+      window.open(
+        `https://wa.me/${number}?text=${encodeURIComponent(message)}`,
+        '_blank',
+        'noopener,noreferrer',
+      )
+      return
+    }
+
+    if (
+      whatsappProvider?.whatsappDestino === 'GRUPO' &&
+      whatsappProvider.whatsappGrupoLink
+    ) {
+      void navigator.clipboard.writeText(message)
+        .then(() => onNotify('success', 'Resumo copiado. Cole a mensagem no grupo do WhatsApp.'))
+        .catch(() => onNotify('error', 'O grupo foi aberto, mas não foi possível copiar o resumo automaticamente.'))
+      window.open(
+        whatsappProvider.whatsappGrupoLink,
+        '_blank',
+        'noopener,noreferrer',
+      )
+      return
+    }
+
     window.open(
-      `https://wa.me/?text=${encodeURIComponent(buildWhatsAppMessage(detail))}`,
+      `https://wa.me/?text=${encodeURIComponent(message)}`,
       '_blank',
       'noopener,noreferrer',
     )
@@ -450,7 +491,7 @@ export function SolicitationDetailModal({
                   Copiar resumo
                 </button>
                 <button className="button button-primary" type="button" onClick={handleOpenWhatsApp}>
-                  Abrir WhatsApp
+                  {whatsappButtonLabel}
                 </button>
               </div>
             </section>
