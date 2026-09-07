@@ -49,9 +49,19 @@ const CatalogService = (() => {
           types.push(SOLICITATION_TYPES.FOOD);
         }
 
+        const number = ValidationService.normalizeText(row.WHATSAPP_NUMERO);
+        const groupLink = ValidationService.normalizeText(row.WHATSAPP_GRUPO_LINK);
+        let destination = ValidationService.normalizeUpper(row.WHATSAPP_DESTINO || '');
+        if (['NENHUM', 'NUMERO', 'GRUPO'].indexOf(destination) === -1) {
+          destination = groupLink ? 'GRUPO' : number ? 'NUMERO' : 'NENHUM';
+        }
+
         return {
           nome: ValidationService.normalizeText(row.FORNECEDOR),
           tiposSolicitacao: types,
+          whatsappDestino: destination,
+          whatsappNumero: number,
+          whatsappGrupoLink: groupLink,
         };
       })
       .filter(function (item) {
