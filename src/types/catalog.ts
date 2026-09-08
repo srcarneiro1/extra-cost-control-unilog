@@ -30,6 +30,12 @@ export interface ProdutoDto {
   categoria: CategoriaProduto
 }
 
+export interface ProdutoAdminDto {
+  nome: string
+  categoria: CategoriaProduto
+  ativo: boolean
+}
+
 export interface PrecoMaoObraAdminDto {
   fornecedor: string
   funcao: string
@@ -62,6 +68,7 @@ export interface CatalogosDto {
 
 export interface CatalogosAdminDto {
   fornecedores: FornecedorAdminDto[]
+  produtos: ProdutoAdminDto[]
   precosMaoObra: PrecoMaoObraAdminDto[]
   precosProdutos: PrecoProdutoAdminDto[]
 }
@@ -74,6 +81,12 @@ export interface SaveFornecedorAdminInput {
   whatsappDestino: WhatsappDestino
   whatsappNumero?: string
   whatsappGrupoLink?: string
+}
+
+export interface SaveProdutoAdminInput {
+  produto: string
+  categoria: CategoriaProduto
+  ativo: boolean
 }
 
 export interface SavePrecoMaoObraAdminInput {
@@ -122,6 +135,16 @@ export type FornecedorAdminApiResponse =
   | {
       ok: true
       data: FornecedorAdminDto
+    }
+  | {
+      ok: false
+      error: ApiErrorDto
+    }
+
+export type ProdutoAdminApiResponse =
+  | {
+      ok: true
+      data: ProdutoAdminDto
     }
   | {
       ok: false
