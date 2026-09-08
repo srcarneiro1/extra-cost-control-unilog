@@ -3,7 +3,6 @@ import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
 import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton, SummaryMetrics } from './ui/Primitives'
 import {
-  fetchCatalogos,
   fetchCatalogosAdmin,
   saveFornecedorAdmin,
   saveProdutoAdmin,
@@ -12,7 +11,6 @@ import {
 } from '../services/catalogService'
 import type {
   CatalogosAdminDto,
-  CatalogosDto,
   CategoriaProduto,
   FornecedorAdminDto,
   PrecoMaoObraAdminDto,
@@ -121,7 +119,6 @@ function priceStatus(item: { ativo: boolean; vigenciaFim: string }) {
 }
 
 export function CadastrosPage() {
-  const [catalogs, setCatalogs] = useState<CatalogosDto | null>(null)
   const [adminCatalogs, setAdminCatalogs] = useState<CatalogosAdminDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -142,12 +139,7 @@ export function CadastrosPage() {
     setLoading(true)
     setLoadError('')
     try {
-      const [activeData, adminData] = await Promise.all([
-        fetchCatalogos(signal),
-        fetchCatalogosAdmin(signal),
-      ])
-      setCatalogs(activeData)
-      setAdminCatalogs(adminData)
+      setAdminCatalogs(await fetchCatalogosAdmin(signal))
     } catch (loadError) {
       if (loadError instanceof DOMException && loadError.name === 'AbortError') return
       setLoadError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar os cadastros.')
@@ -194,14 +186,15 @@ export function CadastrosPage() {
 
   const laborProviders = (adminCatalogs?.fornecedores || []).filter((item) => item.maoDeObra)
   const foodProviders = (adminCatalogs?.fornecedores || []).filter((item) => item.alimentacao)
+  const summary = adminCatalogs?.resumoAtivos
 
   const metrics = [
-    { key: 'operacoes', label: 'Operações', value: catalogs?.operacoes.length ?? '—', icon: 'warehouse' },
-    { key: 'supervisores', label: 'Supervisores', value: catalogs?.supervisores.length ?? '—', icon: 'badge' },
-    { key: 'fornecedores', label: 'Fornecedores ativos', value: catalogs?.fornecedores.length ?? '—', icon: 'local_shipping' },
-    { key: 'atividades', label: 'Atividades', value: catalogs?.atividades.length ?? '—', icon: 'task_alt' },
-    { key: 'funcoes', label: 'Funções', value: catalogs?.funcoes.length ?? '—', icon: 'engineering' },
-    { key: 'produtos', label: 'Produtos ativos', value: catalogs?.produtos.length ?? '—', icon: 'inventory_2' },
+    { key: 'operacoes', label: 'Operações', value: summary?.operacoes ?? '—', icon: 'warehouse' },
+    { key: 'supervisores', label: 'Supervisores', value: summary?.supervisores ?? '—', icon: 'badge' },
+    { key: 'fornecedores', label: 'Fornecedores ativos', value: summary?.fornecedores ?? '—', icon: 'local_shipping' },
+    { key: 'atividades', label: 'Atividades', value: summary?.atividades ?? '—', icon: 'task_alt' },
+    { key: 'funcoes', label: 'Funções', value: summary?.funcoes ?? '—', icon: 'engineering' },
+    { key: 'produtos', label: 'Produtos ativos', value: summary?.produtos ?? '—', icon: 'inventory_2' },
   ]
 
   function resetMessages() {
@@ -245,11 +238,7 @@ export function CadastrosPage() {
   function editProduct(item: ProdutoAdminDto) {
     resetMessages()
     setEditingExisting(true)
-    setCatalogProductDraft({
-      nome: item.nome,
-      categoria: item.categoria,
-      ativo: item.ativo,
-    })
+    setCatalogProductDraft({ nome: item.nome, categoria: item.categoria, ativo: item.ativo })
     setEditorOpen(true)
   }
 
@@ -321,9 +310,7 @@ export function CadastrosPage() {
       }
 
       if (section === 'PRECOS_MO') {
-        if (!laborDraft.fornecedor || !laborDraft.funcao || !laborDraft.vigenciaInicio || !laborDraft.precoUnitario) {
-          throw new Error('Preencha fornecedor, função, vigência e preço.')
-        }
+        if (!laborDraft.fornecedor || !laborDraft.funcao || !laborDraft.vigenciaInicio || !laborDraft.precoUnitario) throw new Error('Preencha fornecedor, função, vigência e preço.')
         await savePrecoMaoObraAdmin({
           fornecedor: laborDraft.fornecedor,
           funcao: laborDraft.funcao,
@@ -338,9 +325,7 @@ export function CadastrosPage() {
       }
 
       if (section === 'PRECOS_PRODUTOS') {
-        if (!productPriceDraft.fornecedor || !productPriceDraft.produto || !productPriceDraft.vigenciaInicio || !productPriceDraft.precoUnitario) {
-          throw new Error('Preencha fornecedor, produto, vigência e preço.')
-        }
+        if (!productPriceDraft.fornecedor || !productPriceDraft.produto || !productPriceDraft.vigenciaInicio || !productPriceDraft.precoUnitario) throw new Error('Preencha fornecedor, produto, vigência e preço.')
         await savePrecoProdutoAdmin({
           fornecedor: productPriceDraft.fornecedor,
           produto: productPriceDraft.produto,
@@ -376,12 +361,7 @@ export function CadastrosPage() {
         eyebrow="ADMINISTRAÇÃO"
         title="Cadastros"
         description="Mantenha fornecedores, produtos e tabelas de preço com rastreabilidade. Cadastros podem ser reativados; preços voltam por nova vigência, sem reescrever histórico."
-        actions={(
-          <button className="button button-primary" type="button" onClick={openNew}>
-            <span className="material-symbols-rounded" aria-hidden="true">add</span>
-            {pageActionLabel}
-          </button>
-        )}
+        actions={<button className="button button-primary" type="button" onClick={openNew}><span className="material-symbols-rounded" aria-hidden="true">add</span>{pageActionLabel}</button>}
       />
 
       {notice && <div className="admin-alert admin-alert-success catalog-notice">{notice}</div>}
@@ -396,113 +376,10 @@ export function CadastrosPage() {
         <button type="button" className={section === 'PRECOS_PRODUTOS' ? 'is-active' : ''} onClick={() => changeSection('PRECOS_PRODUTOS')}>Preços de produtos</button>
       </div>
 
-      {section === 'FORNECEDORES' && (
-        <Panel className="catalog-provider-list">
-          <PanelHeader eyebrow="FORNECEDORES" title="Fornecedores e contato" description="Inative registros em vez de excluir. Um fornecedor inativo pode ser reativado pelo mesmo botão Editar." />
-          <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor ou destino…" label="Buscar fornecedores" />
-          {loading ? <Skeleton lines={7} /> : providers.length ? (
-            <div className="table-wrap embedded">
-              <table className="responsive-data-table catalog-table">
-                <thead><tr><th>Fornecedor</th><th>Atendimento</th><th>WhatsApp</th><th>Status</th><th>Ação</th></tr></thead>
-                <tbody>{providers.map((item) => (
-                  <tr key={item.nome}>
-                    <td data-label="Fornecedor" data-primary="true"><strong>{item.nome}</strong></td>
-                    <td data-label="Atendimento"><div className="catalog-badge-stack">{item.maoDeObra && <Badge>Mão de obra</Badge>}{item.alimentacao && <Badge>Alimentação</Badge>}</div></td>
-                    <td data-label="WhatsApp">{destinationLabel(item)}</td>
-                    <td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td>
-                    <td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => editProvider(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          ) : <EmptyState title="Nenhum fornecedor encontrado" description="Ajuste a busca ou cadastre um novo fornecedor." icon="local_shipping" />}
-        </Panel>
-      )}
-
-      {section === 'PRODUTOS' && (
-        <Panel className="catalog-provider-list">
-          <PanelHeader eyebrow="CATÁLOGO" title="Produtos" description="Produtos inativos permanecem no histórico e podem ser reativados. A disponibilidade no Forms ainda depende de fornecedor e preço vigente elegíveis." />
-          <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar produto ou categoria…" label="Buscar produtos" />
-          {loading ? <Skeleton lines={7} /> : products.length ? (
-            <div className="table-wrap embedded">
-              <table className="responsive-data-table catalog-table">
-                <thead><tr><th>Produto</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead>
-                <tbody>{products.map((item) => (
-                  <tr key={item.nome}>
-                    <td data-label="Produto" data-primary="true"><strong>{item.nome}</strong></td>
-                    <td data-label="Categoria">{categoryLabel(item.categoria)}</td>
-                    <td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td>
-                    <td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => editProduct(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          ) : <EmptyState title="Nenhum produto encontrado" description="Ajuste a busca ou cadastre um novo produto." icon="inventory_2" />}
-        </Panel>
-      )}
-
-      {section === 'PRECOS_MO' && (
-        <Panel className="catalog-provider-list">
-          <PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de mão de obra" description="Preço inativo não é religado na mesma linha. Reativar cria nova vigência e preserva o registro anterior exatamente como ficou." />
-          <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, função, turno…" label="Buscar preços de mão de obra" />
-          {loading ? <Skeleton lines={7} /> : laborPrices.length ? (
-            <div className="table-wrap embedded">
-              <table className="responsive-data-table catalog-table catalog-price-table">
-                <thead><tr><th>Fornecedor</th><th>Função</th><th>Turno</th><th>Tipo de dia</th><th>Vigência</th><th>Preço</th><th>Status</th><th>Ação</th></tr></thead>
-                <tbody>{laborPrices.map((item, index) => {
-                  const status = priceStatus(item)
-                  return (
-                    <tr key={`${item.fornecedor}-${item.funcao}-${item.turno}-${item.tipoDia}-${item.vigenciaInicio}-${index}`}>
-                      <td data-label="Fornecedor" data-primary="true"><strong>{item.fornecedor}</strong></td>
-                      <td data-label="Função">{item.funcao}</td>
-                      <td data-label="Turno">{item.turno}</td>
-                      <td data-label="Tipo de dia">{dayTypeLabel(item.tipoDia)}</td>
-                      <td data-label="Vigência">{dateLabel(item.vigenciaInicio)} → {dateLabel(item.vigenciaFim)}</td>
-                      <td data-label="Preço"><strong>{money(item.precoUnitario)}</strong></td>
-                      <td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td>
-                      <td data-label="Ação">
-                        {item.ativo && !item.vigenciaFim && <button className="button catalog-edit-button" type="button" onClick={() => openLaborVersion(item)}>Nova vigência</button>}
-                        {!item.ativo && <button className="button catalog-edit-button" type="button" onClick={() => openLaborVersion(item, true)}>Reativar</button>}
-                      </td>
-                    </tr>
-                  )
-                })}</tbody>
-              </table>
-            </div>
-          ) : <EmptyState title="Nenhum preço de mão de obra encontrado" description="Cadastre a primeira vigência para começar o histórico controlado." icon="payments" />}
-        </Panel>
-      )}
-
-      {section === 'PRECOS_PRODUTOS' && (
-        <Panel className="catalog-provider-list">
-          <PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de produtos" description="Preços inativos podem voltar por uma nova vigência. O fornecedor e o produto precisam estar ativos no momento da reativação." />
-          <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, produto, categoria…" label="Buscar preços de produtos" />
-          {loading ? <Skeleton lines={7} /> : productPrices.length ? (
-            <div className="table-wrap embedded">
-              <table className="responsive-data-table catalog-table catalog-price-table">
-                <thead><tr><th>Fornecedor</th><th>Produto</th><th>Categoria</th><th>Vigência</th><th>Preço</th><th>Status</th><th>Ação</th></tr></thead>
-                <tbody>{productPrices.map((item, index) => {
-                  const status = priceStatus(item)
-                  return (
-                    <tr key={`${item.fornecedor}-${item.produto}-${item.vigenciaInicio}-${index}`}>
-                      <td data-label="Fornecedor" data-primary="true"><strong>{item.fornecedor}</strong></td>
-                      <td data-label="Produto">{item.produto}</td>
-                      <td data-label="Categoria">{categoryLabel(item.categoria)}</td>
-                      <td data-label="Vigência">{dateLabel(item.vigenciaInicio)} → {dateLabel(item.vigenciaFim)}</td>
-                      <td data-label="Preço"><strong>{money(item.precoUnitario)}</strong></td>
-                      <td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td>
-                      <td data-label="Ação">
-                        {item.ativo && !item.vigenciaFim && <button className="button catalog-edit-button" type="button" onClick={() => openProductPriceVersion(item)}>Nova vigência</button>}
-                        {!item.ativo && <button className="button catalog-edit-button" type="button" onClick={() => openProductPriceVersion(item, true)}>Reativar</button>}
-                      </td>
-                    </tr>
-                  )
-                })}</tbody>
-              </table>
-            </div>
-          ) : <EmptyState title="Nenhum preço de produto encontrado" description="Cadastre a primeira vigência para começar o histórico controlado." icon="sell" />}
-        </Panel>
-      )}
+      {section === 'FORNECEDORES' && <ProviderPanel loading={loading} items={providers} search={search} setSearch={setSearch} onEdit={editProvider} />}
+      {section === 'PRODUTOS' && <ProductPanel loading={loading} items={products} search={search} setSearch={setSearch} onEdit={editProduct} />}
+      {section === 'PRECOS_MO' && <LaborPricePanel loading={loading} items={laborPrices} search={search} setSearch={setSearch} onVersion={openLaborVersion} />}
+      {section === 'PRECOS_PRODUTOS' && <ProductPricePanel loading={loading} items={productPrices} search={search} setSearch={setSearch} onVersion={openProductPriceVersion} />}
 
       <Modal
         open={editorOpen}
@@ -514,25 +391,38 @@ export function CadastrosPage() {
         busy={saving}
         width="medium"
         bodyClassName="catalog-editor-modal-body"
-        footer={(
-          <>
-            <button className="button" type="button" onClick={closeEditor} disabled={saving}>Cancelar</button>
-            <button className="button button-primary" type="button" onClick={() => void handleSave()} disabled={saving}>
-              {saving ? 'Salvando…' : saveButtonLabel(section, editingExisting, reactivatingPrice)}
-            </button>
-          </>
-        )}
+        footer={<><button className="button" type="button" onClick={closeEditor} disabled={saving}>Cancelar</button><button className="button button-primary" type="button" onClick={() => void handleSave()} disabled={saving}>{saving ? 'Salvando…' : saveButtonLabel(section, editingExisting, reactivatingPrice)}</button></>}
       >
         <div className="catalog-editor-form">
           {editorError && <div className="admin-alert catalog-editor-error" role="alert">{editorError}</div>}
           {section === 'FORNECEDORES' && <ProviderForm draft={providerDraft} setDraft={setProviderDraft} editingExisting={editingExisting} />}
           {section === 'PRODUTOS' && <ProductForm draft={catalogProductDraft} setDraft={setCatalogProductDraft} editingExisting={editingExisting} />}
-          {section === 'PRECOS_MO' && <LaborPriceForm draft={laborDraft} setDraft={setLaborDraft} catalogs={catalogs} providers={laborProviders} />}
+          {section === 'PRECOS_MO' && <LaborPriceForm draft={laborDraft} setDraft={setLaborDraft} functions={adminCatalogs?.funcoes || []} providers={laborProviders} />}
           {section === 'PRECOS_PRODUTOS' && <ProductPriceForm draft={productPriceDraft} setDraft={setProductPriceDraft} products={adminCatalogs?.produtos || []} providers={foodProviders} />}
         </div>
       </Modal>
     </div>
   )
+}
+
+function CatalogSearch({ value, onChange, placeholder, label }: { value: string; onChange: (value: string) => void; placeholder: string; label: string }) {
+  return <div className="catalog-list-toolbar"><SearchField value={value} onChange={onChange} placeholder={placeholder} ariaLabel={label} /></div>
+}
+
+function ProviderPanel({ loading, items, search, setSearch, onEdit }: { loading: boolean; items: FornecedorAdminDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: FornecedorAdminDto) => void }) {
+  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="FORNECEDORES" title="Fornecedores e contato" description="Inative registros em vez de excluir. Um fornecedor inativo pode ser reativado pelo mesmo botão Editar." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor ou destino…" label="Buscar fornecedores" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>Fornecedor</th><th>Atendimento</th><th>WhatsApp</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.nome}><td data-label="Fornecedor" data-primary="true"><strong>{item.nome}</strong></td><td data-label="Atendimento"><div className="catalog-badge-stack">{item.maoDeObra && <Badge>Mão de obra</Badge>}{item.alimentacao && <Badge>Alimentação</Badge>}</div></td><td data-label="WhatsApp">{destinationLabel(item)}</td><td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td></tr>)}</tbody></table></div> : <EmptyState title="Nenhum fornecedor encontrado" description="Ajuste a busca ou cadastre um novo fornecedor." icon="local_shipping" />}</Panel>
+}
+
+function ProductPanel({ loading, items, search, setSearch, onEdit }: { loading: boolean; items: ProdutoAdminDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: ProdutoAdminDto) => void }) {
+  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="CATÁLOGO" title="Produtos" description="Produtos inativos só ficam visíveis para manutenção quando existe vínculo com fornecedor de alimentação ativo." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar produto ou categoria…" label="Buscar produtos" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>Produto</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.nome}><td data-label="Produto" data-primary="true"><strong>{item.nome}</strong></td><td data-label="Categoria">{categoryLabel(item.categoria)}</td><td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td></tr>)}</tbody></table></div> : <EmptyState title="Nenhum produto encontrado" description="Ajuste a busca ou cadastre um novo produto." icon="inventory_2" />}</Panel>
+}
+
+function LaborPricePanel({ loading, items, search, setSearch, onVersion }: { loading: boolean; items: PrecoMaoObraAdminDto[]; search: string; setSearch: (value: string) => void; onVersion: (item: PrecoMaoObraAdminDto, reactivate?: boolean) => void }) {
+  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de mão de obra" description="Preço inativo não é religado na mesma linha. Reativar cria nova vigência e preserva o registro anterior." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, função, turno…" label="Buscar preços de mão de obra" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table catalog-price-table"><thead><tr><th>Fornecedor</th><th>Função</th><th>Turno</th><th>Tipo de dia</th><th>Vigência</th><th>Preço</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item, index) => { const status = priceStatus(item); return <tr key={`${item.fornecedor}-${item.funcao}-${item.turno}-${item.tipoDia}-${item.vigenciaInicio}-${index}`}><td data-label="Fornecedor" data-primary="true"><strong>{item.fornecedor}</strong></td><td data-label="Função">{item.funcao}</td><td data-label="Turno">{item.turno}</td><td data-label="Tipo de dia">{dayTypeLabel(item.tipoDia)}</td><td data-label="Vigência">{dateLabel(item.vigenciaInicio)} → {dateLabel(item.vigenciaFim)}</td><td data-label="Preço"><strong>{money(item.precoUnitario)}</strong></td><td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td><td data-label="Ação">{item.ativo && !item.vigenciaFim && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item)}>Nova vigência</button>}{!item.ativo && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item, true)}>Reativar</button>}</td></tr> })}</tbody></table></div> : <EmptyState title="Nenhum preço de mão de obra encontrado" description="Cadastre a primeira vigência para começar o histórico controlado." icon="payments" />}</Panel>
+}
+
+function ProductPricePanel({ loading, items, search, setSearch, onVersion }: { loading: boolean; items: PrecoProdutoAdminDto[]; search: string; setSearch: (value: string) => void; onVersion: (item: PrecoProdutoAdminDto, reactivate?: boolean) => void }) {
+  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de produtos" description="Só são exibidos vínculos cujo fornecedor de alimentação está ativo. Reativação cria nova vigência." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, produto, categoria…" label="Buscar preços de produtos" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table catalog-price-table"><thead><tr><th>Fornecedor</th><th>Produto</th><th>Categoria</th><th>Vigência</th><th>Preço</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item, index) => { const status = priceStatus(item); return <tr key={`${item.fornecedor}-${item.produto}-${item.vigenciaInicio}-${index}`}><td data-label="Fornecedor" data-primary="true"><strong>{item.fornecedor}</strong></td><td data-label="Produto">{item.produto}</td><td data-label="Categoria">{categoryLabel(item.categoria)}</td><td data-label="Vigência">{dateLabel(item.vigenciaInicio)} → {dateLabel(item.vigenciaFim)}</td><td data-label="Preço"><strong>{money(item.precoUnitario)}</strong></td><td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td><td data-label="Ação">{item.ativo && !item.vigenciaFim && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item)}>Nova vigência</button>}{!item.ativo && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item, true)}>Reativar</button>}</td></tr> })}</tbody></table></div> : <EmptyState title="Nenhum preço de produto encontrado" description="Cadastre a primeira vigência para começar o histórico controlado." icon="sell" />}</Panel>
 }
 
 function modalEyebrow(section: CatalogSection, editing: boolean, reactivating: boolean) {
@@ -561,43 +451,18 @@ function saveButtonLabel(section: CatalogSection, editing: boolean, reactivating
   return reactivating ? 'Reativar com nova vigência' : 'Criar nova vigência'
 }
 
-function CatalogSearch({ value, onChange, placeholder, label }: { value: string; onChange: (value: string) => void; placeholder: string; label: string }) {
-  return <div className="catalog-list-toolbar"><SearchField value={value} onChange={onChange} placeholder={placeholder} ariaLabel={label} /></div>
-}
-
 function ProviderForm({ draft, setDraft, editingExisting }: { draft: ProviderDraft; setDraft: React.Dispatch<React.SetStateAction<ProviderDraft>>; editingExisting: boolean }) {
-  return <>
-    <label>Fornecedor<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value.toUpperCase() }))} placeholder="Ex.: MULT" />{editingExisting && <small>Para trocar o nome, crie um novo fornecedor e inative o anterior.</small>}</label>
-    <fieldset className="catalog-fieldset"><legend>Atende</legend><label className="catalog-check"><input type="checkbox" checked={draft.maoDeObra} onChange={(event) => setDraft((current) => ({ ...current, maoDeObra: event.target.checked }))} /><span>Mão de obra</span></label><label className="catalog-check"><input type="checkbox" checked={draft.alimentacao} onChange={(event) => setDraft((current) => ({ ...current, alimentacao: event.target.checked }))} /><span>Alimentação / bebida</span></label></fieldset>
-    <label>Destino do WhatsApp<select value={draft.whatsappDestino} onChange={(event) => setDraft((current) => ({ ...current, whatsappDestino: event.target.value as WhatsappDestino }))}><option value="NENHUM">Não configurado</option><option value="NUMERO">Número individual</option><option value="GRUPO">Grupo do WhatsApp</option></select></label>
-    {draft.whatsappDestino === 'NUMERO' && <label>Número do WhatsApp<input inputMode="tel" value={draft.whatsappNumero} onChange={(event) => setDraft((current) => ({ ...current, whatsappNumero: event.target.value }))} placeholder="Ex.: 5527999999999" /><small>Use formato internacional completo.</small></label>}
-    {draft.whatsappDestino === 'GRUPO' && <label>Link de convite do grupo<input type="url" value={draft.whatsappGrupoLink} onChange={(event) => setDraft((current) => ({ ...current, whatsappGrupoLink: event.target.value }))} placeholder="https://chat.whatsapp.com/..." /></label>}
-    <label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label>
-  </>
+  return <><label>Fornecedor<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value.toUpperCase() }))} placeholder="Ex.: MULT" />{editingExisting && <small>Para trocar o nome, crie um novo fornecedor e inative o anterior.</small>}</label><fieldset className="catalog-fieldset"><legend>Atende</legend><label className="catalog-check"><input type="checkbox" checked={draft.maoDeObra} onChange={(event) => setDraft((current) => ({ ...current, maoDeObra: event.target.checked }))} /><span>Mão de obra</span></label><label className="catalog-check"><input type="checkbox" checked={draft.alimentacao} onChange={(event) => setDraft((current) => ({ ...current, alimentacao: event.target.checked }))} /><span>Alimentação / bebida</span></label></fieldset><label>Destino do WhatsApp<select value={draft.whatsappDestino} onChange={(event) => setDraft((current) => ({ ...current, whatsappDestino: event.target.value as WhatsappDestino }))}><option value="NENHUM">Não configurado</option><option value="NUMERO">Número individual</option><option value="GRUPO">Grupo do WhatsApp</option></select></label>{draft.whatsappDestino === 'NUMERO' && <label>Número do WhatsApp<input inputMode="tel" value={draft.whatsappNumero} onChange={(event) => setDraft((current) => ({ ...current, whatsappNumero: event.target.value }))} placeholder="Ex.: 5527999999999" /></label>}{draft.whatsappDestino === 'GRUPO' && <label>Link de convite do grupo<input type="url" value={draft.whatsappGrupoLink} onChange={(event) => setDraft((current) => ({ ...current, whatsappGrupoLink: event.target.value }))} placeholder="https://chat.whatsapp.com/..." /></label>}<label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label></>
 }
 
 function ProductForm({ draft, setDraft, editingExisting }: { draft: ProductDraft; setDraft: React.Dispatch<React.SetStateAction<ProductDraft>>; editingExisting: boolean }) {
-  return <>
-    <label>Produto<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value.toUpperCase() }))} placeholder="Ex.: MARMITA P" />{editingExisting && <small>O nome fica imutável para preservar referências históricas.</small>}</label>
-    <label>Categoria<select value={draft.categoria} onChange={(event) => setDraft((current) => ({ ...current, categoria: event.target.value as CategoriaProduto }))}><option value="ALIMENTACAO">Alimentação</option><option value="BEBIDA">Bebida</option></select></label>
-    <label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label>
-    <div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">info</span><p>Produto ativo só aparece no fluxo operacional quando também existe fornecedor ativo e preço ativo/vigente elegível.</p></div>
-  </>
+  return <><label>Produto<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value.toUpperCase() }))} placeholder="Ex.: MARMITA P" />{editingExisting && <small>O nome fica imutável para preservar referências históricas.</small>}</label><label>Categoria<select value={draft.categoria} onChange={(event) => setDraft((current) => ({ ...current, categoria: event.target.value as CategoriaProduto }))}><option value="ALIMENTACAO">Alimentação</option><option value="BEBIDA">Bebida</option></select></label><label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label><div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">info</span><p>Produto ativo só aparece no fluxo operacional quando também existe fornecedor ativo e preço ativo/vigente elegível.</p></div></>
 }
 
-function LaborPriceForm({ draft, setDraft, catalogs, providers }: { draft: LaborPriceDraft; setDraft: React.Dispatch<React.SetStateAction<LaborPriceDraft>>; catalogs: CatalogosDto | null; providers: FornecedorAdminDto[] }) {
-  return <>
-    <div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label><label>Função<select value={draft.funcao} onChange={(event) => setDraft((current) => ({ ...current, funcao: event.target.value, turno: event.target.value === 'AUXILIAR OPERACIONAL' ? 'DIURNO' : current.turno }))}><option value="">Selecione</option>{(catalogs?.funcoes || []).map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}</select></label></div>
-    <div className="catalog-form-grid"><label>Turno<select value={draft.turno} disabled={draft.funcao === 'AUXILIAR OPERACIONAL'} onChange={(event) => setDraft((current) => ({ ...current, turno: event.target.value as 'DIURNO' | 'NOTURNO' }))}><option value="DIURNO">Diurno</option><option value="NOTURNO">Noturno</option></select></label><label>Tipo de dia<select value={draft.tipoDia} onChange={(event) => setDraft((current) => ({ ...current, tipoDia: event.target.value as TipoDia }))}><option value="UTIL">Dia útil</option><option value="SABADO">Sábado</option><option value="DOMINGO_FERIADO">Domingo / feriado</option></select></label></div>
-    <div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div>
-    <div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">history</span><p>Reativação de preço sempre cria nova vigência. Fornecedor e função precisam estar ativos para salvar.</p></div>
-  </>
+function LaborPriceForm({ draft, setDraft, functions, providers }: { draft: LaborPriceDraft; setDraft: React.Dispatch<React.SetStateAction<LaborPriceDraft>>; functions: { nome: string }[]; providers: FornecedorAdminDto[] }) {
+  return <><div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label><label>Função<select value={draft.funcao} onChange={(event) => setDraft((current) => ({ ...current, funcao: event.target.value, turno: event.target.value === 'AUXILIAR OPERACIONAL' ? 'DIURNO' : current.turno }))}><option value="">Selecione</option>{functions.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}</select></label></div><div className="catalog-form-grid"><label>Turno<select value={draft.turno} disabled={draft.funcao === 'AUXILIAR OPERACIONAL'} onChange={(event) => setDraft((current) => ({ ...current, turno: event.target.value as 'DIURNO' | 'NOTURNO' }))}><option value="DIURNO">Diurno</option><option value="NOTURNO">Noturno</option></select></label><label>Tipo de dia<select value={draft.tipoDia} onChange={(event) => setDraft((current) => ({ ...current, tipoDia: event.target.value as TipoDia }))}><option value="UTIL">Dia útil</option><option value="SABADO">Sábado</option><option value="DOMINGO_FERIADO">Domingo / feriado</option></select></label></div><div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div><div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">history</span><p>Reativação de preço sempre cria nova vigência. Fornecedor e função precisam estar ativos para salvar.</p></div></>
 }
 
 function ProductPriceForm({ draft, setDraft, products, providers }: { draft: ProductPriceDraft; setDraft: React.Dispatch<React.SetStateAction<ProductPriceDraft>>; products: ProdutoAdminDto[]; providers: FornecedorAdminDto[] }) {
-  return <>
-    <div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label><label>Produto<select value={draft.produto} onChange={(event) => setDraft((current) => ({ ...current, produto: event.target.value }))}><option value="">Selecione</option>{products.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome} · {categoryLabel(item.categoria)}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label></div>
-    <div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div>
-    <div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">history</span><p>Reativação cria uma nova vigência. Se fornecedor ou produto estiver inativo, reative o cadastro correspondente antes de salvar o preço.</p></div>
-  </>
+  return <><div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label><label>Produto<select value={draft.produto} onChange={(event) => setDraft((current) => ({ ...current, produto: event.target.value }))}><option value="">Selecione</option>{products.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome} · {categoryLabel(item.categoria)}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label></div><div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div><div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">history</span><p>Reativação cria uma nova vigência. Se fornecedor ou produto estiver inativo, reative o cadastro correspondente antes de salvar o preço.</p></div></>
 }
