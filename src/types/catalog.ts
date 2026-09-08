@@ -66,7 +66,18 @@ export interface CatalogosDto {
   produtos: ProdutoDto[]
 }
 
+export interface CatalogosAdminResumoDto {
+  operacoes: number
+  supervisores: number
+  fornecedores: number
+  atividades: number
+  funcoes: number
+  produtos: number
+}
+
 export interface CatalogosAdminDto {
+  resumoAtivos: CatalogosAdminResumoDto
+  funcoes: CatalogoNomeDto[]
   fornecedores: FornecedorAdminDto[]
   produtos: ProdutoAdminDto[]
   precosMaoObra: PrecoMaoObraAdminDto[]
