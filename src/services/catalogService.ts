@@ -5,11 +5,14 @@ import type {
   CatalogosDto,
   FornecedorAdminApiResponse,
   FornecedorAdminDto,
+  ProdutoAdminApiResponse,
+  ProdutoAdminDto,
   PrecoMaoObraAdminApiResponse,
   PrecoMaoObraAdminDto,
   PrecoProdutoAdminApiResponse,
   PrecoProdutoAdminDto,
   SaveFornecedorAdminInput,
+  SaveProdutoAdminInput,
   SavePrecoMaoObraAdminInput,
   SavePrecoProdutoAdminInput,
 } from '../types/catalog'
@@ -66,9 +69,7 @@ async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
   }
 
   const payload = await parseJson<{ ok: true; data: T } | { ok: false; error: { message?: string; code?: string; details?: unknown } }>(response)
-  if (!response.ok || !payload.ok) {
-    throwApiError(response, payload)
-  }
+  if (!response.ok || !payload.ok) throwApiError(response, payload)
   return payload.data
 }
 
@@ -107,11 +108,26 @@ export async function fetchCatalogosAdmin(signal?: AbortSignal): Promise<Catalog
 
   const payload = await parseJson<CatalogosAdminApiResponse>(response)
   if (!response.ok || !payload.ok) throwApiError(response, payload)
-  return payload.data
+
+  if (!Array.isArray(payload.data.precosMaoObra) || !Array.isArray(payload.data.precosProdutos)) {
+    throw new CatalogServiceError(
+      'O backend de cadastros está desatualizado. Publique a versão do Apps Script compatível com tabelas de preço.',
+      'CATALOG_ADMIN_VERSION_MISMATCH',
+    )
+  }
+
+  return {
+    ...payload.data,
+    produtos: Array.isArray(payload.data.produtos) ? payload.data.produtos : [],
+  }
 }
 
 export async function saveFornecedorAdmin(input: SaveFornecedorAdminInput): Promise<FornecedorAdminDto> {
   return postAdmin<FornecedorAdminDto>({ acao: 'SALVAR_FORNECEDOR', ...input })
+}
+
+export async function saveProdutoAdmin(input: SaveProdutoAdminInput): Promise<ProdutoAdminDto> {
+  return postAdmin<ProdutoAdminDto>({ acao: 'SALVAR_PRODUTO', ...input })
 }
 
 export async function savePrecoMaoObraAdmin(input: SavePrecoMaoObraAdminInput): Promise<PrecoMaoObraAdminDto> {
@@ -124,5 +140,6 @@ export async function savePrecoProdutoAdmin(input: SavePrecoProdutoAdminInput): 
 
 export type _CatalogResponseGuards =
   | FornecedorAdminApiResponse
+  | ProdutoAdminApiResponse
   | PrecoMaoObraAdminApiResponse
   | PrecoProdutoAdminApiResponse
