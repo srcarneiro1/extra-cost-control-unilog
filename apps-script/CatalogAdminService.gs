@@ -1,8 +1,13 @@
 const CatalogAdminService = (() => {
+  const OPERATION_SHEET = 'CAD_OPERACOES';
+  const SUPERVISOR_SHEET = 'CAD_SUPERVISORES';
   const PROVIDER_SHEET = 'CAD_FORNECEDORES';
+  const ACTIVITY_SHEET = 'CAD_ATIVIDADES';
+  const FUNCTION_SHEET = 'CAD_FUNCOES';
   const PRODUCT_SHEET = 'CAD_PRODUTOS';
   const LABOR_PRICE_SHEET = 'PRECOS_MO';
   const PRODUCT_PRICE_SHEET = 'PRECOS_PRODUTOS';
+
   const PROVIDER_COLUMNS = [
     'WHATSAPP_DESTINO',
     'WHATSAPP_NUMERO',
@@ -28,11 +33,12 @@ const CatalogAdminService = (() => {
     'PRECO_UNITARIO',
     'ATIVO',
   ];
+
   const DESTINATIONS = ['NENHUM', 'NUMERO', 'GRUPO'];
   const SHIFTS = ['DIURNO', 'NOTURNO'];
   const DAY_TYPES = ['UTIL', 'SABADO', 'DOMINGO_FERIADO'];
   const PRODUCT_CATEGORIES = ['ALIMENTACAO', 'BEBIDA'];
-  const ADMIN_CACHE_KEY = 'catalog_admin_v4';
+  const ADMIN_CACHE_KEY = 'catalog_admin_v5';
   const ADMIN_CACHE_SECONDS = 20;
 
   function execute(payload) {
@@ -51,9 +57,13 @@ const CatalogAdminService = (() => {
     const cached = readAdminCache_();
     if (cached) return cached;
 
-    // A leitura administrativa não precisa garantir schema em toda abertura.
-    // As validações/garantias de colunas ficam concentradas nas operações de escrita.
+    // Uma única execução administrativa entrega tudo o que a tela Cadastros precisa.
+    // Assim o frontend não dispara uma segunda chamada ao endpoint operacional.
+    const operationRows = SheetRepository.readObjects(OPERATION_SHEET);
+    const supervisorRows = SheetRepository.readObjects(SUPERVISOR_SHEET);
     const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
+    const activityRows = SheetRepository.readObjects(ACTIVITY_SHEET);
+    const functionRows = SheetRepository.readObjects(FUNCTION_SHEET);
     const productRows = SheetRepository.readObjects(PRODUCT_SHEET);
     const laborPriceRows = SheetRepository.readObjects(LABOR_PRICE_SHEET);
     const productPriceRows = SheetRepository.readObjects(PRODUCT_PRICE_SHEET);
@@ -70,8 +80,9 @@ const CatalogAdminService = (() => {
       }
     });
 
-    // Produto inativo só deve aparecer para manutenção se existir relação de preço
-    // com pelo menos um fornecedor de alimentação atualmente ativo.
+    // Produto inativo só fica visível para manutenção quando existe vínculo de preço
+    // com fornecedor de alimentação atualmente ativo. Se o fornecedor for inativado,
+    // o produto/preço daquele vínculo deixa de aparecer na visão administrativa.
     const productsLinkedToActiveProvider = {};
     productPriceRows.forEach(function (row) {
       const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
@@ -81,7 +92,20 @@ const CatalogAdminService = (() => {
       }
     });
 
+    const activeFunctions = activeNamedDtos_(functionRows, 'FUNCAO');
+
     const result = {
+      resumoAtivos: {
+        operacoes: activeCount_(operationRows),
+        supervisores: activeCount_(supervisorRows),
+        fornecedores: activeCount_(providerRows),
+        atividades: activeCount_(activityRows),
+        funcoes: activeFunctions.length,
+        produtos: activeCount_(productRows),
+      },
+
+      funcoes: activeFunctions,
+
       fornecedores: providerRows
         .map(providerAdminDto_)
         .filter(function (item) { return Boolean(item.nome); })
@@ -114,6 +138,25 @@ const CatalogAdminService = (() => {
 
     writeAdminCache_(result);
     return result;
+  }
+
+  function activeCount_(rows) {
+    return (rows || []).filter(function (row) {
+      return ValidationService.isTruthy(row.ATIVO);
+    }).length;
+  }
+
+  function activeNamedDtos_(rows, fieldName) {
+    return (rows || [])
+      .filter(function (row) {
+        return ValidationService.isTruthy(row.ATIVO);
+      })
+      .map(function (row) {
+        return { nome: ValidationService.normalizeText(row[fieldName]) };
+      })
+      .filter(function (item) {
+        return Boolean(item.nome);
+      });
   }
 
   function saveProvider_(payload) {
@@ -246,7 +289,7 @@ const CatalogAdminService = (() => {
     }
 
     ValidationService.findActive(
-      SheetRepository.readObjects('CAD_FUNCOES'),
+      SheetRepository.readObjects(FUNCTION_SHEET),
       'FUNCAO',
       role,
       'Função'
@@ -505,10 +548,8 @@ const CatalogAdminService = (() => {
 
   function readAdminCache_() {
     try {
-      const cache = CacheService.getScriptCache();
-      const cached = cache.get(ADMIN_CACHE_KEY);
-      if (!cached) return null;
-      return JSON.parse(cached);
+      const cached = CacheService.getScriptCache().get(ADMIN_CACHE_KEY);
+      return cached ? JSON.parse(cached) : null;
     } catch (error) {
       return null;
     }
