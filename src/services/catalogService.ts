@@ -18,6 +18,10 @@ import type {
 } from '../types/catalog'
 
 const CATALOGS_ENDPOINT = '/api/cadastros'
+const ACTIVE_CATALOG_CACHE_MS = 5 * 60 * 1000
+
+let activeCatalogCache: { value: CatalogosDto; expiresAt: number } | null = null
+let activeCatalogRequest: Promise<CatalogosDto> | null = null
 
 export class CatalogServiceError extends Error {
   readonly code: string
@@ -53,6 +57,10 @@ function throwApiError(
   )
 }
 
+function invalidateActiveCatalogCache() {
+  activeCatalogCache = null
+}
+
 async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
   let response: Response
   try {
@@ -68,28 +76,64 @@ async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
     throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
   }
 
-  const payload = await parseJson<{ ok: true; data: T } | { ok: false; error: { message?: string; code?: string; details?: unknown } }>(response)
+  const payload = await parseJson<
+    { ok: true; data: T } |
+    { ok: false; error: { message?: string; code?: string; details?: unknown } }
+  >(response)
   if (!response.ok || !payload.ok) throwApiError(response, payload)
+
+  invalidateActiveCatalogCache()
   return payload.data
 }
 
-export async function fetchCatalogos(signal?: AbortSignal): Promise<CatalogosDto> {
+async function requestActiveCatalogos(): Promise<CatalogosDto> {
   let response: Response
 
   try {
     response = await fetch(CATALOGS_ENDPOINT, {
       method: 'GET',
       headers: { accept: 'application/json' },
-      signal,
     })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
+  } catch {
     throw new CatalogServiceError('Não foi possível conectar ao serviço de cadastros.')
   }
 
   const payload = await parseJson<CatalogosApiResponse>(response)
   if (!response.ok || !payload.ok) throwApiError(response, payload)
+
+  activeCatalogCache = {
+    value: payload.data,
+    expiresAt: Date.now() + ACTIVE_CATALOG_CACHE_MS,
+  }
+
   return payload.data
+}
+
+export function fetchCatalogos(signal?: AbortSignal): Promise<CatalogosDto> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  if (activeCatalogCache && activeCatalogCache.expiresAt > Date.now()) {
+    return Promise.resolve(activeCatalogCache.value)
+  }
+
+  if (!activeCatalogRequest) {
+    activeCatalogRequest = requestActiveCatalogos().finally(() => {
+      activeCatalogRequest = null
+    })
+  }
+
+  if (!signal) return activeCatalogRequest
+
+  return Promise.race([
+    activeCatalogRequest,
+    new Promise<CatalogosDto>((_, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => reject(new DOMException('Aborted', 'AbortError')),
+        { once: true },
+      )
+    }),
+  ])
 }
 
 export async function fetchCatalogosAdmin(signal?: AbortSignal): Promise<CatalogosAdminDto> {
