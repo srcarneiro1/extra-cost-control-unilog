@@ -32,6 +32,8 @@ const CatalogAdminService = (() => {
   const SHIFTS = ['DIURNO', 'NOTURNO'];
   const DAY_TYPES = ['UTIL', 'SABADO', 'DOMINGO_FERIADO'];
   const PRODUCT_CATEGORIES = ['ALIMENTACAO', 'BEBIDA'];
+  const ADMIN_CACHE_KEY = 'catalog_admin_v4';
+  const ADMIN_CACHE_SECONDS = 20;
 
   function execute(payload) {
     const action = ValidationService.normalizeUpper(payload && payload.acao);
@@ -46,28 +48,72 @@ const CatalogAdminService = (() => {
   }
 
   function getAdministrativeCatalogs() {
-    ensureProviderSchema_();
-    ensureProductSchema_();
-    ensurePriceSchemas_();
+    const cached = readAdminCache_();
+    if (cached) return cached;
 
-    return {
-      fornecedores: SheetRepository.readObjects(PROVIDER_SHEET)
+    // A leitura administrativa não precisa garantir schema em toda abertura.
+    // As validações/garantias de colunas ficam concentradas nas operações de escrita.
+    const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
+    const productRows = SheetRepository.readObjects(PRODUCT_SHEET);
+    const laborPriceRows = SheetRepository.readObjects(LABOR_PRICE_SHEET);
+    const productPriceRows = SheetRepository.readObjects(PRODUCT_PRICE_SHEET);
+
+    const activeFoodProviders = {};
+    providerRows.forEach(function (row) {
+      const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
+      if (
+        provider &&
+        ValidationService.isTruthy(row.ATIVO) &&
+        ValidationService.isTruthy(row.ALIMENTACAO)
+      ) {
+        activeFoodProviders[provider] = true;
+      }
+    });
+
+    // Produto inativo só deve aparecer para manutenção se existir relação de preço
+    // com pelo menos um fornecedor de alimentação atualmente ativo.
+    const productsLinkedToActiveProvider = {};
+    productPriceRows.forEach(function (row) {
+      const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
+      const product = ValidationService.normalizeUpper(row.PRODUTO);
+      if (product && activeFoodProviders[provider]) {
+        productsLinkedToActiveProvider[product] = true;
+      }
+    });
+
+    const result = {
+      fornecedores: providerRows
         .map(providerAdminDto_)
         .filter(function (item) { return Boolean(item.nome); })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
-      produtos: SheetRepository.readObjects(PRODUCT_SHEET)
+
+      produtos: productRows
         .map(productAdminDto_)
-        .filter(function (item) { return Boolean(item.nome); })
+        .filter(function (item) {
+          if (!item.nome) return false;
+          if (item.ativo) return true;
+          return Boolean(productsLinkedToActiveProvider[ValidationService.normalizeUpper(item.nome)]);
+        })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
-      precosMaoObra: SheetRepository.readObjects(LABOR_PRICE_SHEET)
+
+      precosMaoObra: laborPriceRows
         .map(laborPriceAdminDto_)
-        .filter(function (item) { return Boolean(item.fornecedor && item.funcao && item.vigenciaInicio); })
+        .filter(function (item) {
+          return Boolean(item.fornecedor && item.funcao && item.vigenciaInicio);
+        })
         .sort(comparePriceHistory_),
-      precosProdutos: SheetRepository.readObjects(PRODUCT_PRICE_SHEET)
+
+      precosProdutos: productPriceRows
         .map(productPriceAdminDto_)
-        .filter(function (item) { return Boolean(item.fornecedor && item.produto && item.vigenciaInicio); })
+        .filter(function (item) {
+          if (!item.fornecedor || !item.produto || !item.vigenciaInicio) return false;
+          return Boolean(activeFoodProviders[ValidationService.normalizeUpper(item.fornecedor)]);
+        })
         .sort(comparePriceHistory_),
     };
+
+    writeAdminCache_(result);
+    return result;
   }
 
   function saveProvider_(payload) {
@@ -130,6 +176,7 @@ const CatalogAdminService = (() => {
       );
     }
 
+    clearAdminCache_();
     const saved = findProvider_(provider);
     return saved ? providerAdminDto_(saved.record) : providerAdminDto_(updates);
   }
@@ -169,6 +216,7 @@ const CatalogAdminService = (() => {
       );
     }
 
+    clearAdminCache_();
     const saved = findProduct_(product);
     return saved ? productAdminDto_(saved.record) : productAdminDto_(updates);
   }
@@ -230,6 +278,7 @@ const CatalogAdminService = (() => {
       textFields: ['FORNECEDOR', 'FUNCAO', 'TURNO', 'TIPO_DIA', 'VIGENCIA_INICIO', 'VIGENCIA_FIM'],
     });
 
+    clearAdminCache_();
     return laborPriceAdminDto_(record);
   }
 
@@ -286,6 +335,7 @@ const CatalogAdminService = (() => {
       textFields: ['FORNECEDOR', 'PRODUTO', 'VIGENCIA_INICIO', 'VIGENCIA_FIM', 'CATEGORIA'],
     });
 
+    clearAdminCache_();
     return productPriceAdminDto_(record);
   }
 
@@ -451,6 +501,37 @@ const CatalogAdminService = (() => {
       ValidationService.fail('Número do WhatsApp deve conter de 8 a 15 dígitos em formato internacional.');
     }
     return normalized;
+  }
+
+  function readAdminCache_() {
+    try {
+      const cache = CacheService.getScriptCache();
+      const cached = cache.get(ADMIN_CACHE_KEY);
+      if (!cached) return null;
+      return JSON.parse(cached);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeAdminCache_(value) {
+    try {
+      CacheService.getScriptCache().put(
+        ADMIN_CACHE_KEY,
+        JSON.stringify(value),
+        ADMIN_CACHE_SECONDS
+      );
+    } catch (error) {
+      // Cache é otimização; falha de cache nunca bloqueia a operação.
+    }
+  }
+
+  function clearAdminCache_() {
+    try {
+      CacheService.getScriptCache().remove(ADMIN_CACHE_KEY);
+    } catch (error) {
+      // Cache é otimização; falha de cache nunca bloqueia a operação.
+    }
   }
 
   return {
