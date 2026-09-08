@@ -109,17 +109,33 @@ export async function fetchCatalogosAdmin(signal?: AbortSignal): Promise<Catalog
   const payload = await parseJson<CatalogosAdminApiResponse>(response)
   if (!response.ok || !payload.ok) throwApiError(response, payload)
 
-  if (!Array.isArray(payload.data.precosMaoObra) || !Array.isArray(payload.data.precosProdutos)) {
+  const data = payload.data
+  const summary = data.resumoAtivos
+  const hasSummary = Boolean(
+    summary &&
+    Number.isFinite(summary.operacoes) &&
+    Number.isFinite(summary.supervisores) &&
+    Number.isFinite(summary.fornecedores) &&
+    Number.isFinite(summary.atividades) &&
+    Number.isFinite(summary.funcoes) &&
+    Number.isFinite(summary.produtos),
+  )
+
+  if (
+    !hasSummary ||
+    !Array.isArray(data.funcoes) ||
+    !Array.isArray(data.fornecedores) ||
+    !Array.isArray(data.produtos) ||
+    !Array.isArray(data.precosMaoObra) ||
+    !Array.isArray(data.precosProdutos)
+  ) {
     throw new CatalogServiceError(
-      'O backend de cadastros está desatualizado. Publique a versão do Apps Script compatível com tabelas de preço.',
+      'O backend de cadastros está desatualizado. Publique a versão do Apps Script compatível com o carregamento administrativo consolidado.',
       'CATALOG_ADMIN_VERSION_MISMATCH',
     )
   }
 
-  return {
-    ...payload.data,
-    produtos: Array.isArray(payload.data.produtos) ? payload.data.produtos : [],
-  }
+  return data
 }
 
 export async function saveFornecedorAdmin(input: SaveFornecedorAdminInput): Promise<FornecedorAdminDto> {
