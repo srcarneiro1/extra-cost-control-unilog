@@ -1,5 +1,22 @@
 const SheetRepository = (() => {
   const PROPERTY_SPREADSHEET_ID = 'SPREADSHEET_ID';
+  const ACTIVE_CATALOG_CACHE_KEY = 'active_catalogs_v1';
+  const ADMIN_CATALOG_CACHE_KEY = 'catalog_admin_v5';
+  const SOLICITATION_LIST_CACHE_KEYS = [
+    'admin_solicitations_list_v1_100',
+    'admin_solicitations_list_v1_500',
+  ];
+  const CATALOG_SHEETS = {
+    CAD_OPERACOES: true,
+    CAD_SUPERVISORES: true,
+    CAD_FORNECEDORES: true,
+    CAD_ATIVIDADES: true,
+    CAD_FUNCOES: true,
+    CAD_PRODUTOS: true,
+    PRECOS_MO: true,
+    PRECOS_PRODUTOS: true,
+  };
+
   let spreadsheetCache_ = null;
 
   function getSpreadsheet_() {
@@ -40,6 +57,23 @@ const SheetRepository = (() => {
     );
   }
 
+  function invalidateCaches_(sheetName) {
+    try {
+      const cache = CacheService.getScriptCache();
+
+      if (sheetName === 'SOLICITACOES') {
+        cache.removeAll(SOLICITATION_LIST_CACHE_KEYS);
+      }
+
+      if (CATALOG_SHEETS[sheetName]) {
+        cache.remove(ACTIVE_CATALOG_CACHE_KEY);
+        cache.remove(ADMIN_CATALOG_CACHE_KEY);
+      }
+    } catch (error) {
+      // Cache é apenas otimização; falha nunca bloqueia persistência.
+    }
+  }
+
   function ensureColumns(sheetName, columns) {
     const sheet = getSheet_(sheetName);
     const existingHeaders = headers_(sheet);
@@ -56,6 +90,7 @@ const SheetRepository = (() => {
     }
 
     sheet.getRange(1, startColumn, 1, missing.length).setValues([missing]);
+    invalidateCaches_(sheetName);
     return existingHeaders.concat(missing);
   }
 
@@ -106,6 +141,7 @@ const SheetRepository = (() => {
     });
 
     sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
+    invalidateCaches_(sheetName);
     return targetRow;
   }
 
@@ -157,9 +193,12 @@ const SheetRepository = (() => {
       if (textFields.indexOf(fieldName) >= 0) cell.setNumberFormat('@');
       cell.setValue(updates[fieldName]);
     });
+
+    invalidateCaches_(sheetName);
   }
 
   return {
+    getSpreadsheet: getSpreadsheet_,
     readObjects,
     readObjectsWithRowNumbers,
     appendObject,
