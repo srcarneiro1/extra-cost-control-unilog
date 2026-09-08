@@ -1,7 +1,10 @@
 const SheetRepository = (() => {
   const PROPERTY_SPREADSHEET_ID = 'SPREADSHEET_ID';
+  let spreadsheetCache_ = null;
 
   function getSpreadsheet_() {
+    if (spreadsheetCache_) return spreadsheetCache_;
+
     const spreadsheetId = PropertiesService
       .getScriptProperties()
       .getProperty(PROPERTY_SPREADSHEET_ID);
@@ -10,7 +13,8 @@ const SheetRepository = (() => {
       throw new Error('Propriedade SPREADSHEET_ID não configurada no Apps Script.');
     }
 
-    return SpreadsheetApp.openById(spreadsheetId);
+    spreadsheetCache_ = SpreadsheetApp.openById(spreadsheetId);
+    return spreadsheetCache_;
   }
 
   function getSheet_(sheetName) {
@@ -23,14 +27,17 @@ const SheetRepository = (() => {
     return sheet;
   }
 
+  function normalizeHeaders_(row) {
+    return (row || []).map(function (header) {
+      return String(header || '').trim();
+    });
+  }
+
   function headers_(sheet) {
     const lastColumn = sheet.getLastColumn();
-    return sheet
-      .getRange(1, 1, 1, lastColumn)
-      .getDisplayValues()[0]
-      .map(function (header) {
-        return String(header || '').trim();
-      });
+    return normalizeHeaders_(
+      sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0]
+    );
   }
 
   function ensureColumns(sheetName, columns) {
@@ -54,12 +61,11 @@ const SheetRepository = (() => {
 
   function readObjectsWithRowNumbers(sheetName) {
     const sheet = getSheet_(sheetName);
-    const range = sheet.getDataRange();
-    const values = range.getValues();
+    const values = sheet.getDataRange().getValues();
 
     if (!values.length || values.length === 1) return [];
 
-    const headers = headers_(sheet);
+    const headers = normalizeHeaders_(values[0]);
     return values.slice(1).map(function (row, index) {
       return {
         rowNumber: index + 2,
