@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AdminSolicitationsPage } from './components/AdminSolicitationsPage'
+import { AdminSolicitationsPage } from './components/AdminSolicitationsPageOptimized'
 import { AppShell, type AppSection } from './components/AppShell'
 import { CadastrosPage } from './components/CadastrosPage'
 
