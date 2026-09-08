@@ -3,7 +3,14 @@ import { useEffect, useRef, useState, type PropsWithChildren } from 'react'
 const BRAND_LOGO='/brand/unilog-logo-white-transparent.svg'
 const MOBILE_SIDEBAR_ID='extra-cost-mobile-sidebar'
 
-export function AppShell({children}:PropsWithChildren){
+export type AppSection='solicitacoes'|'cadastros'
+
+type Props=PropsWithChildren<{
+  section:AppSection
+  onNavigate:(section:AppSection)=>void
+}>
+
+export function AppShell({children,section,onNavigate}:Props){
   const[collapsed,setCollapsed]=useState(()=>localStorage.getItem('extra-cost:sidebar')==='collapsed')
   const[mobileOpen,setMobileOpen]=useState(false)
   const[identityEmail,setIdentityEmail]=useState('')
@@ -71,12 +78,19 @@ export function AppShell({children}:PropsWithChildren){
     })
   }
 
+  function navigate(next:AppSection){
+    onNavigate(next)
+    setMobileOpen(false)
+  }
+
   function signOut(){
     window.location.assign('/cdn-cgi/access/logout')
   }
 
   const identityLabel=identityEmail||'Administrativo'
   const avatar=(identityEmail||'A').slice(0,1).toUpperCase()
+  const pageTitle=section==='cadastros'?'Cadastros':'Solicitações'
+  const scopeTitle=section==='cadastros'?'Administrativo · Catálogos':'Administrativo · Custos extras'
 
   return <div className={`app-shell ${collapsed?'sidebar-collapsed':''}`}>
     {mobileOpen&&<button className="sidebar-backdrop" type="button" aria-label="Fechar menu de navegação" onClick={()=>setMobileOpen(false)}/>} 
@@ -89,8 +103,8 @@ export function AppShell({children}:PropsWithChildren){
 
       <nav className="sidebar-nav" aria-label="Seções do Extra Cost Control">
         <div><span className="sidebar-link sidebar-link-disabled" aria-disabled="true" title="Visão geral em construção"><span className="material-symbols-rounded" aria-hidden="true">space_dashboard</span><span className="nav-label">Visão geral</span></span></div>
-        <div><span className="sidebar-link active" aria-current="page"><span className="material-symbols-rounded" aria-hidden="true">receipt_long</span><span className="nav-label">Solicitações</span></span></div>
-        <div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><span className="sidebar-link sidebar-link-disabled" aria-disabled="true" title="Cadastros em construção"><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></span></div>
+        <div><button type="button" className={`sidebar-link ${section==='solicitacoes'?'active':''}`.trim()} aria-current={section==='solicitacoes'?'page':undefined} onClick={()=>navigate('solicitacoes')}><span className="material-symbols-rounded" aria-hidden="true">receipt_long</span><span className="nav-label">Solicitações</span></button></div>
+        <div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><button type="button" className={`sidebar-link ${section==='cadastros'?'active':''}`.trim()} aria-current={section==='cadastros'?'page':undefined} onClick={()=>navigate('cadastros')}><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></button></div>
       </nav>
 
       <div className="sidebar-user"><div className="user-avatar">{avatar}</div><div className="sidebar-user-copy" title={identityEmail||undefined}><strong>{identityLabel}</strong><span>Cloudflare Access</span></div><button type="button" onClick={signOut} title="Sair" aria-label="Sair do Extra Cost Control"><span className="material-symbols-rounded" aria-hidden="true">logout</span></button></div>
@@ -98,8 +112,8 @@ export function AppShell({children}:PropsWithChildren){
 
     <div className="workspace">
       <header className="topbar">
-        <div className="topbar-title"><button ref={mobileMenuButtonRef} type="button" className="mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Abrir menu de navegação" aria-expanded={mobileOpen} aria-controls={MOBILE_SIDEBAR_ID}><span className="material-symbols-rounded shell-menu-icon" aria-hidden="true">menu</span></button><div><span className="topbar-kicker">EXTRA COST CONTROL</span><strong>Solicitações</strong></div></div>
-        <div className="topbar-profile"><span className="topbar-scope"><small>Escopo ativo</small><strong>Administrativo · Custos extras</strong></span><span className="topbar-sync"><span className="sync-dot"/><span>Gateway conectado</span></span></div>
+        <div className="topbar-title"><button ref={mobileMenuButtonRef} type="button" className="mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Abrir menu de navegação" aria-expanded={mobileOpen} aria-controls={MOBILE_SIDEBAR_ID}><span className="material-symbols-rounded shell-menu-icon" aria-hidden="true">menu</span></button><div><span className="topbar-kicker">EXTRA COST CONTROL</span><strong>{pageTitle}</strong></div></div>
+        <div className="topbar-profile"><span className="topbar-scope"><small>Escopo ativo</small><strong>{scopeTitle}</strong></span><span className="topbar-sync"><span className="sync-dot"/><span>Gateway conectado</span></span></div>
       </header>
       <main className="content">{children}</main>
     </div>

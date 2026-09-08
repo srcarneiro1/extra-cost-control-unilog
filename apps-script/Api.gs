@@ -32,7 +32,18 @@ const Api = (() => {
       const payload = parseJsonBody_(e);
 
       if (route === 'cadastros') {
-        authorizeGateway_(payload);
+        const servicePayload = authorizeGateway_(payload);
+        const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
+        const mode = ValidationService.normalizeUpper(servicePayload && servicePayload.modo);
+
+        if (action) {
+          return JsonResponse.ok(CatalogAdminService.execute(servicePayload));
+        }
+
+        if (mode === 'ADMIN') {
+          return JsonResponse.ok(CatalogAdminService.getAdministrativeCatalogs());
+        }
+
         return JsonResponse.ok(CatalogService.getActiveCatalogs());
       }
 

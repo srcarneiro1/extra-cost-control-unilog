@@ -33,6 +33,30 @@ const SheetRepository = (() => {
       });
   }
 
+  function ensureColumns(sheetName, columns) {
+    const sheet = getSheet_(sheetName);
+    const existingHeaders = headers_(sheet);
+    const missing = (columns || []).filter(function (column) {
+      return existingHeaders.indexOf(column) === -1;
+    });
+
+    if (!missing.length) {
+      return existingHeaders;
+    }
+
+    const startColumn = sheet.getLastColumn() + 1;
+    const requiredLastColumn = startColumn + missing.length - 1;
+    if (requiredLastColumn > sheet.getMaxColumns()) {
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        requiredLastColumn - sheet.getMaxColumns()
+      );
+    }
+
+    sheet.getRange(1, startColumn, 1, missing.length).setValues([missing]);
+    return existingHeaders.concat(missing);
+  }
+
   function readObjects(sheetName) {
     const sheet = getSheet_(sheetName);
     const range = sheet.getDataRange();
@@ -153,5 +177,6 @@ const SheetRepository = (() => {
     appendObject,
     findRowByField,
     updateFields,
+    ensureColumns,
   };
 })();
