@@ -6,38 +6,27 @@ button.sidebar-link.active{background:rgba(255,255,255,.09);color:#fff}
 .catalog-page>.page-header{margin-bottom:0}
 .catalog-page>.ui-summary-metrics{margin-bottom:2px}
 .catalog-notice{margin:0}
-.catalog-admin-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.85fr);gap:var(--space-4);align-items:start;min-width:0}
-.catalog-provider-list,.catalog-editor-panel{min-width:0}
+.catalog-provider-list{min-width:0}
 .catalog-list-toolbar{padding:12px 14px;border-bottom:1px solid var(--border-default);background:var(--surface-secondary)}
 .catalog-list-toolbar .ui-search-field{width:100%}
 .catalog-table td:last-child{width:1%;white-space:nowrap}
 .catalog-badge-stack{display:flex;flex-wrap:wrap;gap:5px}
 .catalog-edit-button{min-height:34px;padding:7px 11px}
-.catalog-editor-panel{position:sticky;top:78px}
+.catalog-editor-modal-body{padding:0}
 .catalog-editor-form{display:grid;gap:14px;padding:18px}
 .catalog-editor-form>label{display:grid;gap:6px;min-width:0}
 .catalog-editor-form label>small{font-size:9px;line-height:1.45;color:var(--text-muted)}
+.catalog-editor-error{margin:0}
 .catalog-fieldset{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin:0;padding:12px;border:1px solid var(--border-default);border-radius:var(--radius-control)}
 .catalog-fieldset legend{padding:0 5px;font-size:10px;font-weight:700;color:var(--text-secondary)}
 .catalog-check{display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer}
 .catalog-check input{width:16px;min-width:16px;height:16px;min-height:16px;margin:0;padding:0}
-.catalog-editor-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}
-.catalog-editor-actions .button{min-width:120px}
 .catalog-editor-form input:disabled{background:var(--surface-secondary);color:var(--text-secondary)}
 
-@media(max-width:1100px){
-  .catalog-admin-layout{grid-template-columns:1fr}
-  .catalog-editor-panel{position:static}
-}
 @media(max-width:760px){
   .catalog-page{gap:12px}
   .catalog-list-toolbar{padding:10px}
-  .catalog-editor-form{padding:14px}
+  .catalog-editor-form{padding:16px}
   .catalog-fieldset{grid-template-columns:1fr}
-  .catalog-editor-actions{display:grid;grid-template-columns:1fr 1fr}
-  .catalog-editor-actions .button{width:100%;min-width:0}
   .catalog-table td:last-child{width:auto;white-space:normal}
-}
-@media(max-width:480px){
-  .catalog-editor-actions{grid-template-columns:1fr}
 }
