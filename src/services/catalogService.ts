@@ -5,7 +5,13 @@ import type {
   CatalogosDto,
   FornecedorAdminApiResponse,
   FornecedorAdminDto,
+  PrecoMaoObraAdminApiResponse,
+  PrecoMaoObraAdminDto,
+  PrecoProdutoAdminApiResponse,
+  PrecoProdutoAdminDto,
   SaveFornecedorAdminInput,
+  SavePrecoMaoObraAdminInput,
+  SavePrecoProdutoAdminInput,
 } from '../types/catalog'
 
 const CATALOGS_ENDPOINT = '/api/cadastros'
@@ -44,31 +50,44 @@ function throwApiError(
   )
 }
 
+async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(CATALOGS_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
+  }
+
+  const payload = await parseJson<{ ok: true; data: T } | { ok: false; error: { message?: string; code?: string; details?: unknown } }>(response)
+  if (!response.ok || !payload.ok) {
+    throwApiError(response, payload)
+  }
+  return payload.data
+}
+
 export async function fetchCatalogos(signal?: AbortSignal): Promise<CatalogosDto> {
   let response: Response
 
   try {
     response = await fetch(CATALOGS_ENDPOINT, {
       method: 'GET',
-      headers: {
-        accept: 'application/json',
-      },
+      headers: { accept: 'application/json' },
       signal,
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw error
-    }
-
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new CatalogServiceError('Não foi possível conectar ao serviço de cadastros.')
   }
 
   const payload = await parseJson<CatalogosApiResponse>(response)
-
-  if (!response.ok || !payload.ok) {
-    throwApiError(response, payload)
-  }
-
+  if (!response.ok || !payload.ok) throwApiError(response, payload)
   return payload.data
 }
 
@@ -78,52 +97,32 @@ export async function fetchCatalogosAdmin(signal?: AbortSignal): Promise<Catalog
   try {
     response = await fetch(`${CATALOGS_ENDPOINT}?mode=admin`, {
       method: 'GET',
-      headers: {
-        accept: 'application/json',
-      },
+      headers: { accept: 'application/json' },
       signal,
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw error
-    }
-
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
   }
 
   const payload = await parseJson<CatalogosAdminApiResponse>(response)
-  if (!response.ok || !payload.ok) {
-    throwApiError(response, payload)
-  }
-
+  if (!response.ok || !payload.ok) throwApiError(response, payload)
   return payload.data
 }
 
-export async function saveFornecedorAdmin(
-  input: SaveFornecedorAdminInput,
-): Promise<FornecedorAdminDto> {
-  let response: Response
-
-  try {
-    response = await fetch(CATALOGS_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        acao: 'SALVAR_FORNECEDOR',
-        ...input,
-      }),
-    })
-  } catch {
-    throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
-  }
-
-  const payload = await parseJson<FornecedorAdminApiResponse>(response)
-  if (!response.ok || !payload.ok) {
-    throwApiError(response, payload)
-  }
-
-  return payload.data
+export async function saveFornecedorAdmin(input: SaveFornecedorAdminInput): Promise<FornecedorAdminDto> {
+  return postAdmin<FornecedorAdminDto>({ acao: 'SALVAR_FORNECEDOR', ...input })
 }
+
+export async function savePrecoMaoObraAdmin(input: SavePrecoMaoObraAdminInput): Promise<PrecoMaoObraAdminDto> {
+  return postAdmin<PrecoMaoObraAdminDto>({ acao: 'SALVAR_PRECO_MO', ...input })
+}
+
+export async function savePrecoProdutoAdmin(input: SavePrecoProdutoAdminInput): Promise<PrecoProdutoAdminDto> {
+  return postAdmin<PrecoProdutoAdminDto>({ acao: 'SALVAR_PRECO_PRODUTO', ...input })
+}
+
+export type _CatalogResponseGuards =
+  | FornecedorAdminApiResponse
+  | PrecoMaoObraAdminApiResponse
+  | PrecoProdutoAdminApiResponse
