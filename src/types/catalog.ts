@@ -1,5 +1,7 @@
 export type TipoSolicitacao = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
 export type WhatsappDestino = 'NENHUM' | 'NUMERO' | 'GRUPO'
+export type CategoriaProduto = 'ALIMENTACAO' | 'BEBIDA'
+export type TipoDia = 'UTIL' | 'SABADO' | 'DOMINGO_FERIADO'
 
 export interface CatalogoNomeDto {
   nome: string
@@ -23,11 +25,30 @@ export interface FornecedorAdminDto {
   whatsappGrupoLink: string
 }
 
-export type CategoriaProduto = 'ALIMENTACAO' | 'BEBIDA'
-
 export interface ProdutoDto {
   nome: string
   categoria: CategoriaProduto
+}
+
+export interface PrecoMaoObraAdminDto {
+  fornecedor: string
+  funcao: string
+  turno: 'DIURNO' | 'NOTURNO'
+  tipoDia: TipoDia
+  vigenciaInicio: string
+  vigenciaFim: string
+  precoUnitario: number
+  ativo: boolean
+}
+
+export interface PrecoProdutoAdminDto {
+  fornecedor: string
+  produto: string
+  categoria: CategoriaProduto
+  vigenciaInicio: string
+  vigenciaFim: string
+  precoUnitario: number
+  ativo: boolean
 }
 
 export interface CatalogosDto {
@@ -41,6 +62,8 @@ export interface CatalogosDto {
 
 export interface CatalogosAdminDto {
   fornecedores: FornecedorAdminDto[]
+  precosMaoObra: PrecoMaoObraAdminDto[]
+  precosProdutos: PrecoProdutoAdminDto[]
 }
 
 export interface SaveFornecedorAdminInput {
@@ -51,6 +74,22 @@ export interface SaveFornecedorAdminInput {
   whatsappDestino: WhatsappDestino
   whatsappNumero?: string
   whatsappGrupoLink?: string
+}
+
+export interface SavePrecoMaoObraAdminInput {
+  fornecedor: string
+  funcao: string
+  turno: 'DIURNO' | 'NOTURNO'
+  tipoDia: TipoDia
+  vigenciaInicio: string
+  precoUnitario: number
+}
+
+export interface SavePrecoProdutoAdminInput {
+  fornecedor: string
+  produto: string
+  vigenciaInicio: string
+  precoUnitario: number
 }
 
 export interface ApiErrorDto {
@@ -83,6 +122,26 @@ export type FornecedorAdminApiResponse =
   | {
       ok: true
       data: FornecedorAdminDto
+    }
+  | {
+      ok: false
+      error: ApiErrorDto
+    }
+
+export type PrecoMaoObraAdminApiResponse =
+  | {
+      ok: true
+      data: PrecoMaoObraAdminDto
+    }
+  | {
+      ok: false
+      error: ApiErrorDto
+    }
+
+export type PrecoProdutoAdminApiResponse =
+  | {
+      ok: true
+      data: PrecoProdutoAdminDto
     }
   | {
       ok: false
