@@ -1,5 +1,6 @@
 const CatalogAdminService = (() => {
   const PROVIDER_SHEET = 'CAD_FORNECEDORES';
+  const PRODUCT_SHEET = 'CAD_PRODUTOS';
   const LABOR_PRICE_SHEET = 'PRECOS_MO';
   const PRODUCT_PRICE_SHEET = 'PRECOS_PRODUTOS';
   const PROVIDER_COLUMNS = [
@@ -7,6 +8,7 @@ const CatalogAdminService = (() => {
     'WHATSAPP_NUMERO',
     'WHATSAPP_GRUPO_LINK',
   ];
+  const PRODUCT_COLUMNS = ['PRODUTO', 'CATEGORIA', 'ATIVO'];
   const LABOR_PRICE_COLUMNS = [
     'FORNECEDOR',
     'FUNCAO',
@@ -29,12 +31,14 @@ const CatalogAdminService = (() => {
   const DESTINATIONS = ['NENHUM', 'NUMERO', 'GRUPO'];
   const SHIFTS = ['DIURNO', 'NOTURNO'];
   const DAY_TYPES = ['UTIL', 'SABADO', 'DOMINGO_FERIADO'];
+  const PRODUCT_CATEGORIES = ['ALIMENTACAO', 'BEBIDA'];
 
   function execute(payload) {
     const action = ValidationService.normalizeUpper(payload && payload.acao);
 
     if (action === 'LISTAR') return getAdministrativeCatalogs();
     if (action === 'SALVAR_FORNECEDOR') return saveProvider_(payload || {});
+    if (action === 'SALVAR_PRODUTO') return saveProduct_(payload || {});
     if (action === 'SALVAR_PRECO_MO') return saveLaborPrice_(payload || {});
     if (action === 'SALVAR_PRECO_PRODUTO') return saveProductPrice_(payload || {});
 
@@ -43,11 +47,16 @@ const CatalogAdminService = (() => {
 
   function getAdministrativeCatalogs() {
     ensureProviderSchema_();
+    ensureProductSchema_();
     ensurePriceSchemas_();
 
     return {
       fornecedores: SheetRepository.readObjects(PROVIDER_SHEET)
         .map(providerAdminDto_)
+        .filter(function (item) { return Boolean(item.nome); })
+        .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
+      produtos: SheetRepository.readObjects(PRODUCT_SHEET)
+        .map(productAdminDto_)
         .filter(function (item) { return Boolean(item.nome); })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
       precosMaoObra: SheetRepository.readObjects(LABOR_PRICE_SHEET)
@@ -123,6 +132,45 @@ const CatalogAdminService = (() => {
 
     const saved = findProvider_(provider);
     return saved ? providerAdminDto_(saved.record) : providerAdminDto_(updates);
+  }
+
+  function saveProduct_(payload) {
+    ensureProductSchema_();
+
+    const product = ValidationService.normalizeUpper(
+      ValidationService.requiredText(payload.produto, 'Produto')
+    );
+    const category = ValidationService.enumValue(
+      payload.categoria,
+      'Categoria do produto',
+      PRODUCT_CATEGORIES
+    );
+    const active = payload.ativo !== false;
+
+    const updates = {
+      PRODUTO: product,
+      CATEGORIA: category,
+      ATIVO: active ? 'SIM' : 'NAO',
+    };
+
+    const existing = findProduct_(product);
+    if (existing) {
+      SheetRepository.updateFields(
+        PRODUCT_SHEET,
+        existing.rowNumber,
+        updates,
+        { textFields: ['PRODUTO', 'CATEGORIA'] }
+      );
+    } else {
+      SheetRepository.appendObject(
+        PRODUCT_SHEET,
+        updates,
+        { textFields: ['PRODUTO', 'CATEGORIA'] }
+      );
+    }
+
+    const saved = findProduct_(product);
+    return saved ? productAdminDto_(saved.record) : productAdminDto_(updates);
   }
 
   function saveLaborPrice_(payload) {
@@ -208,7 +256,7 @@ const CatalogAdminService = (() => {
     }
 
     const productRow = ValidationService.findActive(
-      SheetRepository.readObjects('CAD_PRODUTOS'),
+      SheetRepository.readObjects(PRODUCT_SHEET),
       'PRODUTO',
       product,
       'Produto'
@@ -216,7 +264,7 @@ const CatalogAdminService = (() => {
     const category = ValidationService.enumValue(
       productRow.CATEGORIA,
       'Categoria do produto',
-      ['ALIMENTACAO', 'BEBIDA']
+      PRODUCT_CATEGORIES
     );
 
     closeCurrentVersion_(PRODUCT_PRICE_SHEET, {
@@ -277,6 +325,10 @@ const CatalogAdminService = (() => {
     SheetRepository.ensureColumns(PROVIDER_SHEET, PROVIDER_COLUMNS);
   }
 
+  function ensureProductSchema_() {
+    SheetRepository.ensureColumns(PRODUCT_SHEET, PRODUCT_COLUMNS);
+  }
+
   function ensurePriceSchemas_() {
     SheetRepository.ensureColumns(LABOR_PRICE_SHEET, LABOR_PRICE_COLUMNS);
     SheetRepository.ensureColumns(PRODUCT_PRICE_SHEET, PRODUCT_PRICE_COLUMNS);
@@ -291,6 +343,17 @@ const CatalogAdminService = (() => {
 
     if (!matched) return null;
     return SheetRepository.findRowByField(PROVIDER_SHEET, 'FORNECEDOR', matched.FORNECEDOR);
+  }
+
+  function findProduct_(product) {
+    const rows = SheetRepository.readObjects(PRODUCT_SHEET);
+    const normalized = ValidationService.normalizeUpper(product);
+    const matched = rows.find(function (row) {
+      return ValidationService.normalizeUpper(row.PRODUTO) === normalized;
+    });
+
+    if (!matched) return null;
+    return SheetRepository.findRowByField(PRODUCT_SHEET, 'PRODUTO', matched.PRODUTO);
   }
 
   function providerAdminDto_(row) {
@@ -310,6 +373,14 @@ const CatalogAdminService = (() => {
       whatsappDestino: destination,
       whatsappNumero: number,
       whatsappGrupoLink: groupLink,
+    };
+  }
+
+  function productAdminDto_(row) {
+    return {
+      nome: ValidationService.normalizeText(row.PRODUTO),
+      categoria: ValidationService.normalizeUpper(row.CATEGORIA),
+      ativo: ValidationService.isTruthy(row.ATIVO),
     };
   }
 
