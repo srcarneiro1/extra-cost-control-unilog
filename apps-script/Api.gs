@@ -20,6 +20,10 @@ const Api = (() => {
         return JsonResponse.unauthorized('Consulta administrativa disponível somente pelo gateway protegido.');
       }
 
+      if (route === 'dashboard') {
+        return JsonResponse.unauthorized('Dashboard disponível somente pelo gateway protegido.');
+      }
+
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
       return handleError_(error);
@@ -59,6 +63,11 @@ const Api = (() => {
       if (route === 'solicitacoes_admin') {
         const servicePayload = authorizeGateway_(payload);
         return JsonResponse.ok(AdministrativeSolicitationQueryService.execute(servicePayload));
+      }
+
+      if (route === 'dashboard') {
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(DashboardService.getDashboard(servicePayload));
       }
 
       if (route === 'triagem') {
