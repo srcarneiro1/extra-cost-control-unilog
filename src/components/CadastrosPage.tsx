@@ -148,7 +148,7 @@ export function CadastrosPage() {
   const [productPriceDraft, setProductPriceDraft] = useState<ProductPriceDraft>(emptyProductPriceDraft)
 
   const loadedScopesRef = useRef(new Set<CatalogAdminScope>())
-  const requestSequenceRef = useRef(0)
+  const activeLoadingRequestRef = useRef(0)
 
   function applyScope(data: CatalogosAdminScopeDto) {
     if (data.resumoAtivos) setSummary(data.resumoAtivos)
@@ -161,10 +161,11 @@ export function CadastrosPage() {
 
   async function loadScope(scope: CatalogAdminScope, options?: { force?: boolean; signal?: AbortSignal; background?: boolean }) {
     const force = Boolean(options?.force)
+    const background = Boolean(options?.background)
     if (!force && loadedScopesRef.current.has(scope)) return
 
-    const requestId = ++requestSequenceRef.current
-    if (!options?.background) setLoadingScope(scope)
+    const requestId = background ? 0 : ++activeLoadingRequestRef.current
+    if (!background) setLoadingScope(scope)
     setLoadError('')
 
     try {
@@ -175,7 +176,7 @@ export function CadastrosPage() {
       if (error instanceof DOMException && error.name === 'AbortError') return
       setLoadError(error instanceof Error ? error.message : 'Não foi possível carregar os cadastros.')
     } finally {
-      if (!options?.background && requestId === requestSequenceRef.current) setLoadingScope(null)
+      if (!background && requestId === activeLoadingRequestRef.current) setLoadingScope(null)
     }
   }
 
