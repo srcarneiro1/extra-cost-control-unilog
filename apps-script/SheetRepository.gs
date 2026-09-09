@@ -139,17 +139,26 @@ const SheetRepository = (() => {
   }
 
   function readLastObjects(sheetName, limit) {
+    return readObjectsWindowFromEnd(sheetName, 0, limit);
+  }
+
+  function readObjectsWindowFromEnd(sheetName, offset, limit) {
     const sheet = getSheet_(sheetName);
     const lastRow = sheet.getLastRow();
     const lastColumn = sheet.getLastColumn();
+    const normalizedOffset = Math.max(0, Number(offset) || 0);
     const requested = Math.max(0, Number(limit) || 0);
 
     if (lastRow <= 1 || requested <= 0 || lastColumn <= 0) return [];
 
-    const headers = headers_(sheet);
     const dataRowCount = lastRow - 1;
-    const take = Math.min(requested, dataRowCount);
-    const startRow = lastRow - take + 1;
+    if (normalizedOffset >= dataRowCount) return [];
+
+    const endRow = lastRow - normalizedOffset;
+    const available = dataRowCount - normalizedOffset;
+    const take = Math.min(requested, available);
+    const startRow = endRow - take + 1;
+    const headers = headers_(sheet);
     const values = sheet.getRange(startRow, 1, take, lastColumn).getValues();
     const result = [];
 
@@ -245,6 +254,7 @@ const SheetRepository = (() => {
     readObjects,
     readObjectsWithRowNumbers,
     readLastObjects,
+    readObjectsWindowFromEnd,
     getDataRowCount,
     appendObject,
     findRowByField,

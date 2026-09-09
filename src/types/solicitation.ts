@@ -36,10 +36,37 @@ export interface AdministrativeSolicitationListItem {
   divergencia: boolean | null
 }
 
+export interface AdministrativeSolicitationSummary {
+  total: number
+  aguardandoTriagem: number
+  aguardandoRealizado: number
+  divergencias: number
+}
+
+export interface AdministrativeSolicitationListQuery {
+  pagina?: number
+  tamanhoPagina?: number
+  busca?: string
+  tipo?: string
+  status?: string
+  anoRegistro?: string
+  mesRegistro?: string
+  dataRegistro?: string
+}
+
 export interface AdministrativeSolicitationListResponse {
   total: number
   limite: number
+  pagina: number
+  tamanhoPagina: number
+  totalPaginas: number
+  resumo: AdministrativeSolicitationSummary | null
   itens: AdministrativeSolicitationListItem[]
+}
+
+export interface AdministrativeSolicitationMetadata {
+  resumo: AdministrativeSolicitationSummary
+  datasRegistro: string[]
 }
 
 export interface AdministrativeSolicitationDetail {

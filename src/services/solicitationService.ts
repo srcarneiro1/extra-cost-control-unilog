@@ -1,6 +1,8 @@
 import type {
   AdministrativeSolicitationDetail,
+  AdministrativeSolicitationListQuery,
   AdministrativeSolicitationListResponse,
+  AdministrativeSolicitationMetadata,
 } from '../types/solicitation'
 
 interface ApiSuccess<T> {
@@ -19,9 +21,11 @@ interface ApiFailure {
 
 type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 
-const ADMIN_LIST_CACHE_MS = 5 * 60 * 1000
-const adminListCache = new Map<number, { value: AdministrativeSolicitationListResponse; expiresAt: number }>()
-const adminListRequests = new Map<number, Promise<AdministrativeSolicitationListResponse>>()
+const ADMIN_LIST_CACHE_MS = 30 * 1000
+const adminListCache = new Map<string, { value: AdministrativeSolicitationListResponse; expiresAt: number }>()
+const adminListRequests = new Map<string, Promise<AdministrativeSolicitationListResponse>>()
+let metadataCache: { value: AdministrativeSolicitationMetadata; expiresAt: number } | null = null
+let metadataRequest: Promise<AdministrativeSolicitationMetadata> | null = null
 
 export class SolicitationServiceError extends Error {
   readonly code: string
@@ -78,6 +82,7 @@ async function getRequest<T>(url: string, signal?: AbortSignal): Promise<T> {
 
 function invalidateAdministrativeListCache() {
   adminListCache.clear()
+  metadataCache = null
 }
 
 async function postRequest<T>(url: string, body: Record<string, unknown>): Promise<T> {
@@ -101,42 +106,96 @@ async function postRequest<T>(url: string, body: Record<string, unknown>): Promi
   return result
 }
 
-function requestAdministrativeSolicitations(limit: number): Promise<AdministrativeSolicitationListResponse> {
-  const request = getRequest<AdministrativeSolicitationListResponse>(
-    `/api/solicitacoes?limite=${encodeURIComponent(String(limit))}`,
-  )
+function buildAdministrativeListUrl(query: AdministrativeSolicitationListQuery): string {
+  const params = new URLSearchParams()
+  params.set('pagina', String(query.pagina || 1))
+  params.set('tamanhoPagina', String(query.tamanhoPagina || 20))
+
+  if (query.busca?.trim()) params.set('busca', query.busca.trim())
+  if (query.tipo && query.tipo !== 'TODOS') params.set('tipo', query.tipo)
+  if (query.status && query.status !== 'TODOS') params.set('status', query.status)
+  if (query.anoRegistro && query.anoRegistro !== 'TODOS') params.set('anoRegistro', query.anoRegistro)
+  if (query.mesRegistro && query.mesRegistro !== 'TODOS') params.set('mesRegistro', query.mesRegistro)
+  if (query.dataRegistro && query.dataRegistro !== 'TODOS') params.set('dataRegistro', query.dataRegistro)
+
+  return `/api/solicitacoes?${params.toString()}`
+}
+
+function requestAdministrativeSolicitations(
+  key: string,
+  query: AdministrativeSolicitationListQuery,
+): Promise<AdministrativeSolicitationListResponse> {
+  const request = getRequest<AdministrativeSolicitationListResponse>(buildAdministrativeListUrl(query))
     .then((value) => {
-      adminListCache.set(limit, {
+      adminListCache.set(key, {
         value,
         expiresAt: Date.now() + ADMIN_LIST_CACHE_MS,
       })
       return value
     })
     .finally(() => {
-      adminListRequests.delete(limit)
+      adminListRequests.delete(key)
     })
 
-  adminListRequests.set(limit, request)
+  adminListRequests.set(key, request)
   return request
 }
 
 export function fetchAdministrativeSolicitations(
-  limit = 100,
+  query: AdministrativeSolicitationListQuery = {},
   signal?: AbortSignal,
 ): Promise<AdministrativeSolicitationListResponse> {
   if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
 
-  const cached = adminListCache.get(limit)
+  const key = buildAdministrativeListUrl(query)
+  const cached = adminListCache.get(key)
   if (cached && cached.expiresAt > Date.now()) {
     return Promise.resolve(cached.value)
   }
 
-  const sharedRequest = adminListRequests.get(limit) || requestAdministrativeSolicitations(limit)
+  const sharedRequest = adminListRequests.get(key) || requestAdministrativeSolicitations(key, query)
   if (!signal) return sharedRequest
 
   return Promise.race([
     sharedRequest,
     new Promise<AdministrativeSolicitationListResponse>((_, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => reject(new DOMException('Aborted', 'AbortError')),
+        { once: true },
+      )
+    }),
+  ])
+}
+
+export function fetchAdministrativeSolicitationMetadata(
+  signal?: AbortSignal,
+): Promise<AdministrativeSolicitationMetadata> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  if (metadataCache && metadataCache.expiresAt > Date.now()) {
+    return Promise.resolve(metadataCache.value)
+  }
+
+  if (!metadataRequest) {
+    metadataRequest = getRequest<AdministrativeSolicitationMetadata>('/api/solicitacoes?metadata=1')
+      .then((value) => {
+        metadataCache = {
+          value,
+          expiresAt: Date.now() + ADMIN_LIST_CACHE_MS,
+        }
+        return value
+      })
+      .finally(() => {
+        metadataRequest = null
+      })
+  }
+
+  if (!signal) return metadataRequest
+
+  return Promise.race([
+    metadataRequest,
+    new Promise<AdministrativeSolicitationMetadata>((_, reject) => {
       signal.addEventListener(
         'abort',
         () => reject(new DOMException('Aborted', 'AbortError')),

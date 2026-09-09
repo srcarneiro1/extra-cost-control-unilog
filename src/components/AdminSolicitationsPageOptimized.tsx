@@ -17,12 +17,14 @@ import {
 import { fetchCatalogos } from '../services/catalogService'
 import {
   fetchAdministrativeSolicitationDetail,
+  fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
 } from '../services/solicitationService'
 import type { CatalogosDto } from '../types/catalog'
 import type {
   AdministrativeSolicitationDetail,
   AdministrativeSolicitationListItem,
+  AdministrativeSolicitationMetadata,
 } from '../types/solicitation'
 
 const money = new Intl.NumberFormat('pt-BR', {
@@ -45,13 +47,21 @@ const monthLabels = [
   'Dezembro',
 ]
 
-const statusOrder = [
+const statusOptions = [
   'Aguardando triagem',
   'Aguardando realizado',
   'Triagem concluída',
   'Com divergência',
   'Concluído',
 ]
+
+const statusQueryMap: Record<string, string> = {
+  'Aguardando triagem': 'AGUARDANDO_TRIAGEM',
+  'Aguardando realizado': 'AGUARDANDO_REALIZADO',
+  'Triagem concluída': 'TRIAGEM_CONCLUIDA',
+  'Com divergência': 'COM_DIVERGENCIA',
+  Concluído: 'CONCLUIDO',
+}
 
 function formatMoney(value: number | null) {
   return value == null ? '—' : money.format(value)
@@ -68,12 +78,6 @@ function formatDateTime(value: string) {
   const date = formatDate(value)
   const time = value.length >= 16 ? value.slice(11, 16) : ''
   return time ? `${date} ${time}` : date
-}
-
-function registrationParts(value: string) {
-  const date = value.slice(0, 10)
-  const [year, month] = date.split('-')
-  return { date, year: year || '', month: month || '' }
 }
 
 function typeLabel(value: string) {
@@ -105,15 +109,19 @@ export function AdminSolicitationsPage() {
   const [items, setItems] = useState<AdministrativeSolicitationListItem[]>([])
   const [detail, setDetail] = useState<AdministrativeSolicitationDetail | null>(null)
   const [catalogs, setCatalogs] = useState<CatalogosDto | null>(null)
+  const [metadata, setMetadata] = useState<AdministrativeSolicitationMetadata | null>(null)
 
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('TODOS')
   const [statusFilter, setStatusFilter] = useState('TODOS')
   const [registrationYear, setRegistrationYear] = useState('TODOS')
   const [registrationMonth, setRegistrationMonth] = useState('TODOS')
   const [registrationDate, setRegistrationDate] = useState('TODOS')
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -125,14 +133,30 @@ export function AdminSolicitationsPage() {
   const detailRequestsRef = useRef(new Map<string, Promise<AdministrativeSolicitationDetail>>())
   const activeDetailRequestRef = useRef(0)
   const catalogRequestRef = useRef<Promise<CatalogosDto> | null>(null)
+  const listRequestRef = useRef(0)
 
   function notify(tone: Notice['tone'], message: string) {
     setNotice({ tone, message })
   }
 
+  function listQuery(page = currentPage) {
+    return {
+      pagina: page,
+      tamanhoPagina: pageSize,
+      busca: debouncedSearch,
+      tipo: typeFilter,
+      status: statusFilter === 'TODOS' ? 'TODOS' : statusQueryMap[statusFilter],
+      anoRegistro: registrationYear,
+      mesRegistro: registrationMonth,
+      dataRegistro: registrationDate,
+    }
+  }
+
   async function refreshItems() {
-    const response = await fetchAdministrativeSolicitations(500)
+    const response = await fetchAdministrativeSolicitations(listQuery())
     setItems(response.itens)
+    setTotal(response.total)
+    setTotalPages(response.totalPaginas)
   }
 
   function requestCatalogs(signal?: AbortSignal) {
@@ -256,23 +280,50 @@ export function AdminSolicitationsPage() {
     setDetailLoading(false)
   }
 
+  async function refreshMetadata() {
+    const loaded = await fetchAdministrativeSolicitationMetadata()
+    setMetadata(loaded)
+  }
+
   async function handleWorkflowChanged(idSolicitacao: string, message: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao)])
+    await Promise.all([refreshItems(), refreshDetail(idSolicitacao), refreshMetadata()])
     notify('success', message)
   }
 
   async function handleCorrectionSaved(idSolicitacao: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao)])
+    await Promise.all([refreshItems(), refreshDetail(idSolicitacao), refreshMetadata()])
     notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
   }
 
   useEffect(() => {
-    const controller = new AbortController()
+    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 350)
+    return () => window.clearTimeout(timeout)
+  }, [search])
 
-    // A lista governa somente o loading principal. O catálogo é auxiliar e carrega
-    // em paralelo, sem manter a fila administrativa presa ao Apps Script.
-    void fetchAdministrativeSolicitations(500, controller.signal)
-      .then((response) => setItems(response.itens))
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [
+    debouncedSearch,
+    typeFilter,
+    statusFilter,
+    registrationYear,
+    registrationMonth,
+    registrationDate,
+    pageSize,
+  ])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const requestId = ++listRequestRef.current
+    setLoading(true)
+
+    void fetchAdministrativeSolicitations(listQuery(), controller.signal)
+      .then((response) => {
+        if (requestId !== listRequestRef.current) return
+        setItems(response.itens)
+        setTotal(response.total)
+        setTotalPages(response.totalPaginas)
+      })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return
         notify(
@@ -280,22 +331,42 @@ export function AdminSolicitationsPage() {
           error instanceof Error ? error.message : 'Erro ao carregar solicitações.',
         )
       })
-      .finally(() => setLoading(false))
-
-    void requestCatalogs(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      notify(
-        'error',
-        error instanceof Error
-          ? `Solicitações carregadas. Cadastros auxiliares indisponíveis: ${error.message}`
-          : 'Solicitações carregadas, mas os cadastros auxiliares não puderam ser carregados.',
-      )
-    })
+      .finally(() => {
+        if (requestId === listRequestRef.current) setLoading(false)
+      })
 
     return () => controller.abort()
-    // O carregamento inicial deve ocorrer somente na montagem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [
+    currentPage,
+    pageSize,
+    debouncedSearch,
+    typeFilter,
+    statusFilter,
+    registrationYear,
+    registrationMonth,
+    registrationDate,
+  ])
+
+  useEffect(() => {
+    if (loading || metadata) return
+
+    const controller = new AbortController()
+
+    void fetchAdministrativeSolicitationMetadata(controller.signal)
+      .then(setMetadata)
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        notify(
+          'error',
+          error instanceof Error
+            ? `Fila carregada. Metadados indisponíveis: ${error.message}`
+            : 'Fila carregada, mas os metadados não puderam ser carregados.',
+        )
+      })
+
+    return () => controller.abort()
+  }, [loading, metadata])
 
   useEffect(() => {
     if (!notice) return
@@ -308,109 +379,42 @@ export function AdminSolicitationsPage() {
 
   const registrationYears = useMemo(
     () =>
-      Array.from(
-        new Set(items.map((item) => registrationParts(item.dataCriacao).year).filter(Boolean)),
-      ).sort((left, right) => right.localeCompare(left)),
-    [items],
+      Array.from(new Set((metadata?.datasRegistro || []).map((date) => date.slice(0, 4))))
+        .filter(Boolean)
+        .sort((left, right) => right.localeCompare(left)),
+    [metadata],
   )
 
   const registrationMonths = useMemo(() => {
     if (registrationYear === 'TODOS') return []
     return Array.from(
       new Set(
-        items
-          .filter((item) => registrationParts(item.dataCriacao).year === registrationYear)
-          .map((item) => registrationParts(item.dataCriacao).month)
-          .filter(Boolean),
+        (metadata?.datasRegistro || [])
+          .filter((date) => date.slice(0, 4) === registrationYear)
+          .map((date) => date.slice(5, 7)),
       ),
     ).sort((left, right) => Number(left) - Number(right))
-  }, [items, registrationYear])
+  }, [metadata, registrationYear])
 
   const registrationDates = useMemo(() => {
     if (registrationYear === 'TODOS' || registrationMonth === 'TODOS') return []
-    return Array.from(
-      new Set(
-        items
-          .filter((item) => {
-            const parts = registrationParts(item.dataCriacao)
-            return parts.year === registrationYear && parts.month === registrationMonth
-          })
-          .map((item) => registrationParts(item.dataCriacao).date)
-          .filter(Boolean),
-      ),
-    ).sort((left, right) => right.localeCompare(left))
-  }, [items, registrationYear, registrationMonth])
+    return (metadata?.datasRegistro || [])
+      .filter(
+        (date) =>
+          date.slice(0, 4) === registrationYear &&
+          date.slice(5, 7) === registrationMonth,
+      )
+      .sort((left, right) => right.localeCompare(left))
+  }, [metadata, registrationYear, registrationMonth])
 
-  const periodItems = useMemo(
-    () =>
-      items.filter((item) => {
-        const parts = registrationParts(item.dataCriacao)
-        return (
-          (registrationYear === 'TODOS' || parts.year === registrationYear) &&
-          (registrationMonth === 'TODOS' || parts.month === registrationMonth) &&
-          (registrationDate === 'TODOS' || parts.date === registrationDate)
-        )
-      }),
-    [items, registrationYear, registrationMonth, registrationDate],
-  )
-
-  const preStatusItems = useMemo(() => {
-    const query = search.trim().toUpperCase()
-    return periodItems.filter((item) => {
-      const textMatches =
-        !query ||
-        [
-          item.idSolicitacao,
-          item.operacao,
-          item.supervisor,
-          item.fornecedor,
-          item.usuarioCriacao,
-        ].some((value) => value.toUpperCase().includes(query))
-      const typeMatches = typeFilter === 'TODOS' || item.tipoSolicitacao === typeFilter
-      return textMatches && typeMatches
-    })
-  }, [periodItems, search, typeFilter])
-
-  const availableStatuses = useMemo(() => {
-    const present = new Set(preStatusItems.map((item) => statusInfo(item).label))
-    return statusOrder.filter((status) => present.has(status))
-  }, [preStatusItems])
-
-  useEffect(() => {
-    if (statusFilter !== 'TODOS' && !availableStatuses.includes(statusFilter)) {
-      setStatusFilter('TODOS')
-    }
-  }, [availableStatuses, statusFilter])
-
-  const filteredItems = useMemo(
-    () =>
-      preStatusItems.filter(
-        (item) => statusFilter === 'TODOS' || statusInfo(item).label === statusFilter,
-      ),
-    [preStatusItems, statusFilter],
-  )
-
-  const metrics = useMemo(
-    () => ({
-      total: periodItems.length,
-      pending: periodItems.filter((item) => !item.triagemConcluida).length,
-      awaiting: periodItems.filter(
-        (item) =>
-          item.tipoSolicitacao === 'MAO_DE_OBRA' &&
-          item.triagemConcluida &&
-          !item.realizadoRegistrado,
-      ).length,
-      divergences: periodItems.filter((item) => item.divergencia).length,
-    }),
-    [periodItems],
-  )
+  const metrics = metadata?.resumo
 
   const summary: SummaryMetricItem[] = [
     {
       key: 'all',
       label: 'Total',
-      value: metrics.total,
-      detail: 'no período de registro',
+      value: metrics?.total ?? '—',
+      detail: 'na base completa',
       icon: 'dataset',
       tone: 'neutral',
       active: statusFilter === 'TODOS',
@@ -419,57 +423,34 @@ export function AdminSolicitationsPage() {
     {
       key: 'triage',
       label: 'Aguardando triagem',
-      value: metrics.pending,
-      detail: 'exigem definição administrativa',
+      value: metrics?.aguardandoTriagem ?? '—',
+      detail: 'na base completa',
       icon: 'pending_actions',
       tone: 'info',
       active: statusFilter === 'Aguardando triagem',
-      onClick: metrics.pending > 0 ? () => setStatusFilter('Aguardando triagem') : undefined,
+      onClick: () => setStatusFilter('Aguardando triagem'),
     },
     {
       key: 'actual',
       label: 'Aguardando realizado',
-      value: metrics.awaiting,
-      detail: 'mão de obra já precificada',
+      value: metrics?.aguardandoRealizado ?? '—',
+      detail: 'na base completa',
       icon: 'groups',
       tone: 'warning',
       active: statusFilter === 'Aguardando realizado',
-      onClick: metrics.awaiting > 0 ? () => setStatusFilter('Aguardando realizado') : undefined,
+      onClick: () => setStatusFilter('Aguardando realizado'),
     },
     {
       key: 'div',
       label: 'Com divergência',
-      value: metrics.divergences,
-      detail: 'solicitado x comparecido',
+      value: metrics?.divergencias ?? '—',
+      detail: 'na base completa',
       icon: 'error',
       tone: 'danger',
       active: statusFilter === 'Com divergência',
-      onClick: metrics.divergences > 0 ? () => setStatusFilter('Com divergência') : undefined,
+      onClick: () => setStatusFilter('Com divergência'),
     },
   ]
-
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [
-    search,
-    typeFilter,
-    statusFilter,
-    registrationYear,
-    registrationMonth,
-    registrationDate,
-    pageSize,
-  ])
-
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages)
-  }, [currentPage, totalPages])
-
-  const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredItems.slice(start, start + pageSize)
-  }, [filteredItems, currentPage, pageSize])
 
   const hasActiveFilters =
     Boolean(search.trim()) ||
@@ -499,8 +480,8 @@ export function AdminSolicitationsPage() {
     setRegistrationDate('TODOS')
   }
 
-  const pageStart = filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const pageEnd = Math.min(currentPage * pageSize, filteredItems.length)
+  const pageStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const pageEnd = Math.min(currentPage * pageSize, total)
 
   return (
     <section className="admin-page">
@@ -536,8 +517,8 @@ export function AdminSolicitationsPage() {
         <PanelHeader
           eyebrow="REGISTROS"
           title="Fila administrativa"
-          description={`${filteredItems.length} registro(s) após filtros · período baseado na data de registro, não na data operacional.`}
-          trailing={<Chip>{periodItems.length} no período</Chip>}
+          description={`${total} registro(s) após filtros · busca e filtros aplicados sobre toda a base.`}
+          trailing={<Chip>{total} encontrados</Chip>}
         />
 
         <PageToolbar
@@ -608,7 +589,7 @@ export function AdminSolicitationsPage() {
                 aria-label="Situação da solicitação"
               >
                 <option value="TODOS">Todas as situações</option>
-                {availableStatuses.map((status) => (
+                {statusOptions.map((status) => (
                   <option key={status} value={status}>{status}</option>
                 ))}
               </select>
@@ -628,7 +609,7 @@ export function AdminSolicitationsPage() {
         <div className="admin-results">
           {loading ? (
             <Skeleton lines={7} />
-          ) : filteredItems.length === 0 ? (
+          ) : items.length === 0 ? (
             <EmptyState
               title="Nenhuma solicitação encontrada"
               description="A busca atual não possui registros. Ajuste a busca ou limpe os filtros."
@@ -650,7 +631,7 @@ export function AdminSolicitationsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedItems.map((item) => {
+                  {items.map((item) => {
                     const status = statusInfo(item)
                     return (
                       <tr key={item.idSolicitacao}>
@@ -698,7 +679,7 @@ export function AdminSolicitationsPage() {
           )}
         </div>
 
-        {!loading && filteredItems.length > 0 && (
+        {!loading && total > 0 && (
           <footer className="admin-pagination">
             <div className="admin-pagination-size">
               <span>Registros por página</span>
@@ -714,7 +695,7 @@ export function AdminSolicitationsPage() {
             </div>
 
             <span className="admin-pagination-range">
-              {pageStart}–{pageEnd} de {filteredItems.length}
+              {pageStart}–{pageEnd} de {total}
             </span>
 
             <div className="admin-pagination-nav" aria-label="Navegação de páginas">
@@ -722,7 +703,7 @@ export function AdminSolicitationsPage() {
                 type="button"
                 className="icon-button"
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                disabled={currentPage <= 1}
+                disabled={currentPage <= 1 || loading}
                 aria-label="Página anterior"
               >
                 <span className="material-symbols-rounded" aria-hidden="true">chevron_left</span>
@@ -732,7 +713,7 @@ export function AdminSolicitationsPage() {
                 type="button"
                 className="icon-button"
                 onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                disabled={currentPage >= totalPages}
+                disabled={currentPage >= totalPages || loading}
                 aria-label="Próxima página"
               >
                 <span className="material-symbols-rounded" aria-hidden="true">chevron_right</span>
