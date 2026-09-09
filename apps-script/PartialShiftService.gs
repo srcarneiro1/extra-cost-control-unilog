@@ -2,6 +2,8 @@ const PartialShiftService = (() => {
   const SHEET_SOLICITACOES = 'SOLICITACOES';
   const SHEET_EXCECOES = 'EXCECOES_JORNADA_MO';
   const FULL_SHIFT_HOURS = 9;
+  const ROW_CACHE_PREFIX = 'partial_shift_rows_v1_';
+  const ROW_CACHE_SECONDS = 20;
   const HEADERS = [
     'ID_EXCECAO',
     'ID_SOLICITACAO',
@@ -94,6 +96,7 @@ const PartialShiftService = (() => {
       });
 
       const startRow = appendBatch_(exceptionSheet, records);
+      clearRowsCache_(solicitationId);
       let realValue;
 
       try {
@@ -112,6 +115,7 @@ const PartialShiftService = (() => {
         exceptionSheet
           .getRange(startRow, 1, records.length, HEADERS.length)
           .clearContent();
+        clearRowsCache_(solicitationId);
         throw error;
       }
 
@@ -302,10 +306,49 @@ const PartialShiftService = (() => {
 
   function activeRows_(solicitationId) {
     const target = ValidationService.normalizeText(solicitationId);
-    return SheetRepository.readObjects(SHEET_EXCECOES).filter(function (row) {
+    const cached = readRowsCache_(target);
+    if (cached) return cached;
+
+    const rows = SheetRepository.readObjects(SHEET_EXCECOES).filter(function (row) {
       return ValidationService.normalizeText(row.ID_SOLICITACAO) === target &&
         ValidationService.isTruthy(row.ATIVO);
     });
+
+    writeRowsCache_(target, rows);
+    return rows;
+  }
+
+  function cacheKey_(solicitationId) {
+    return ROW_CACHE_PREFIX + String(solicitationId || '').trim();
+  }
+
+  function readRowsCache_(solicitationId) {
+    try {
+      const cached = CacheService.getScriptCache().get(cacheKey_(solicitationId));
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeRowsCache_(solicitationId, rows) {
+    try {
+      CacheService.getScriptCache().put(
+        cacheKey_(solicitationId),
+        JSON.stringify(rows),
+        ROW_CACHE_SECONDS
+      );
+    } catch (error) {
+      // Cache é apenas otimização.
+    }
+  }
+
+  function clearRowsCache_(solicitationId) {
+    try {
+      CacheService.getScriptCache().remove(cacheKey_(solicitationId));
+    } catch (error) {
+      // Cache é apenas otimização.
+    }
   }
 
   function validateWorkedHours_(value, label) {
@@ -328,15 +371,7 @@ const PartialShiftService = (() => {
   }
 
   function ensureSheet_() {
-    const spreadsheetId = PropertiesService
-      .getScriptProperties()
-      .getProperty('SPREADSHEET_ID');
-
-    if (!spreadsheetId) {
-      throw new Error('Propriedade SPREADSHEET_ID não configurada no Apps Script.');
-    }
-
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    const spreadsheet = SheetRepository.getSpreadsheet();
     let sheet = spreadsheet.getSheetByName(SHEET_EXCECOES);
 
     if (!sheet) {
