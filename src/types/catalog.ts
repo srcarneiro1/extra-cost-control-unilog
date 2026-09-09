@@ -2,6 +2,7 @@ export type TipoSolicitacao = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
 export type WhatsappDestino = 'NENHUM' | 'NUMERO' | 'GRUPO'
 export type CategoriaProduto = 'ALIMENTACAO' | 'BEBIDA'
 export type TipoDia = 'UTIL' | 'SABADO' | 'DOMINGO_FERIADO'
+export type CatalogAdminScope = 'RESUMO' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
 
 export interface CatalogoNomeDto {
   nome: string
@@ -84,6 +85,15 @@ export interface CatalogosAdminDto {
   precosProdutos: PrecoProdutoAdminDto[]
 }
 
+export interface CatalogosAdminScopeDto {
+  resumoAtivos?: CatalogosAdminResumoDto
+  funcoes?: CatalogoNomeDto[]
+  fornecedores?: FornecedorAdminDto[]
+  produtos?: ProdutoAdminDto[]
+  precosMaoObra?: PrecoMaoObraAdminDto[]
+  precosProdutos?: PrecoProdutoAdminDto[]
+}
+
 export interface SaveFornecedorAdminInput {
   fornecedor: string
   maoDeObra: boolean
@@ -136,6 +146,16 @@ export type CatalogosAdminApiResponse =
   | {
       ok: true
       data: CatalogosAdminDto
+    }
+  | {
+      ok: false
+      error: ApiErrorDto
+    }
+
+export type CatalogosAdminScopeApiResponse =
+  | {
+      ok: true
+      data: CatalogosAdminScopeDto
     }
   | {
       ok: false
