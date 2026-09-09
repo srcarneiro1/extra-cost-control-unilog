@@ -4,7 +4,7 @@ import { prefetchCatalogoAdminScope } from '../services/catalogService'
 const BRAND_LOGO='/brand/unilog-logo-white-transparent.svg'
 const MOBILE_SIDEBAR_ID='extra-cost-mobile-sidebar'
 
-export type AppSection='solicitacoes'|'cadastros'
+export type AppSection='dashboard'|'solicitacoes'|'cadastros'
 
 type Props=PropsWithChildren<{
   section:AppSection
@@ -96,8 +96,8 @@ export function AppShell({children,section,onNavigate}:Props){
 
   const identityLabel=identityEmail||'Administrativo'
   const avatar=(identityEmail||'A').slice(0,1).toUpperCase()
-  const pageTitle=section==='cadastros'?'Cadastros':'Solicitações'
-  const scopeTitle=section==='cadastros'?'Administrativo · Catálogos':'Administrativo · Custos extras'
+  const pageTitle=section==='dashboard'?'Visão geral':section==='cadastros'?'Cadastros':'Solicitações'
+  const scopeTitle=section==='dashboard'?'Executivo · Custos extras':section==='cadastros'?'Administrativo · Catálogos':'Administrativo · Custos extras'
 
   return <div className={`app-shell ${collapsed?'sidebar-collapsed':''}`}>
     {mobileOpen&&<button className="sidebar-backdrop" type="button" aria-label="Fechar menu de navegação" onClick={()=>setMobileOpen(false)}/>} 
@@ -109,7 +109,7 @@ export function AppShell({children,section,onNavigate}:Props){
       </div>
 
       <nav className="sidebar-nav" aria-label="Seções do Extra Cost Control">
-        <div><span className="sidebar-link sidebar-link-disabled" aria-disabled="true" title="Visão geral em construção"><span className="material-symbols-rounded" aria-hidden="true">space_dashboard</span><span className="nav-label">Visão geral</span></span></div>
+        <div><button type="button" className={`sidebar-link ${section==='dashboard'?'active':''}`.trim()} aria-current={section==='dashboard'?'page':undefined} onClick={()=>navigate('dashboard')}><span className="material-symbols-rounded" aria-hidden="true">space_dashboard</span><span className="nav-label">Visão geral</span></button></div>
         <div><button type="button" className={`sidebar-link ${section==='solicitacoes'?'active':''}`.trim()} aria-current={section==='solicitacoes'?'page':undefined} onClick={()=>navigate('solicitacoes')}><span className="material-symbols-rounded" aria-hidden="true">receipt_long</span><span className="nav-label">Solicitações</span></button></div>
         <div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><button type="button" className={`sidebar-link ${section==='cadastros'?'active':''}`.trim()} aria-current={section==='cadastros'?'page':undefined} onPointerEnter={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onFocus={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onClick={()=>navigate('cadastros')}><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></button></div>
       </nav>
