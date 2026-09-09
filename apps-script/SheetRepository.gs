@@ -64,6 +64,19 @@ const SheetRepository = (() => {
     );
   }
 
+  function rowToObject_(headers, row) {
+    return headers.reduce(function (record, header, columnIndex) {
+      if (header) record[header] = row[columnIndex] == null ? '' : row[columnIndex];
+      return record;
+    }, {});
+  }
+
+  function hasRecordValue_(record) {
+    return Object.keys(record).some(function (key) {
+      return record[key] !== '' && record[key] !== null;
+    });
+  }
+
   function invalidateCaches_(sheetName) {
     try {
       const cache = CacheService.getScriptCache();
@@ -112,15 +125,10 @@ const SheetRepository = (() => {
     return values.slice(1).map(function (row, index) {
       return {
         rowNumber: index + 2,
-        record: headers.reduce(function (record, header, columnIndex) {
-          if (header) record[header] = row[columnIndex] == null ? '' : row[columnIndex];
-          return record;
-        }, {}),
+        record: rowToObject_(headers, row),
       };
     }).filter(function (item) {
-      return Object.keys(item.record).some(function (key) {
-        return item.record[key] !== '' && item.record[key] !== null;
-      });
+      return hasRecordValue_(item.record);
     });
   }
 
@@ -128,6 +136,33 @@ const SheetRepository = (() => {
     return readObjectsWithRowNumbers(sheetName).map(function (item) {
       return item.record;
     });
+  }
+
+  function readLastObjects(sheetName, limit) {
+    const sheet = getSheet_(sheetName);
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    const requested = Math.max(0, Number(limit) || 0);
+
+    if (lastRow <= 1 || requested <= 0 || lastColumn <= 0) return [];
+
+    const headers = headers_(sheet);
+    const dataRowCount = lastRow - 1;
+    const take = Math.min(requested, dataRowCount);
+    const startRow = lastRow - take + 1;
+    const values = sheet.getRange(startRow, 1, take, lastColumn).getValues();
+    const result = [];
+
+    for (let index = values.length - 1; index >= 0; index -= 1) {
+      const record = rowToObject_(headers, values[index]);
+      if (hasRecordValue_(record)) result.push(record);
+    }
+
+    return result;
+  }
+
+  function getDataRowCount(sheetName) {
+    return Math.max(0, getSheet_(sheetName).getLastRow() - 1);
   }
 
   function appendObject(sheetName, record, options) {
@@ -155,33 +190,35 @@ const SheetRepository = (() => {
 
   function findRowByField(sheetName, fieldName, value) {
     const sheet = getSheet_(sheetName);
-    const values = sheet.getDataRange().getValues();
-
-    if (!values.length || values.length === 1) return null;
-
-    const headers = normalizeHeaders_(values[0]);
+    const headers = headers_(sheet);
     const fieldIndex = headers.indexOf(fieldName);
 
     if (fieldIndex < 0) {
       throw new Error('Campo não encontrado na aba ' + sheetName + ': ' + fieldName);
     }
 
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return null;
+
     const target = String(value == null ? '' : value).trim();
+    if (!target) return null;
 
-    for (let index = 1; index < values.length; index += 1) {
-      const rowValues = values[index];
-      if (String(rowValues[fieldIndex] == null ? '' : rowValues[fieldIndex]).trim() === target) {
-        return {
-          rowNumber: index + 1,
-          record: headers.reduce(function (record, header, columnIndex) {
-            if (header) record[header] = rowValues[columnIndex] == null ? '' : rowValues[columnIndex];
-            return record;
-          }, {}),
-        };
-      }
-    }
+    const searchRange = sheet.getRange(2, fieldIndex + 1, lastRow - 1, 1);
+    const matchedCell = searchRange
+      .createTextFinder(target)
+      .matchEntireCell(true)
+      .matchCase(true)
+      .findNext();
 
-    return null;
+    if (!matchedCell) return null;
+
+    const rowNumber = matchedCell.getRow();
+    const rowValues = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+
+    return {
+      rowNumber: rowNumber,
+      record: rowToObject_(headers, rowValues),
+    };
   }
 
   function updateFields(sheetName, rowNumber, updates, options) {
@@ -207,6 +244,8 @@ const SheetRepository = (() => {
     getSpreadsheet: getSpreadsheet_,
     readObjects,
     readObjectsWithRowNumbers,
+    readLastObjects,
+    getDataRowCount,
     appendObject,
     findRowByField,
     updateFields,
