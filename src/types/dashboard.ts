@@ -34,6 +34,29 @@ export interface DashboardKpis {
   divergenciasComparecimento: number
 }
 
+export interface DashboardProjection {
+  totalDias: number
+  diasDecorridos: number
+  diasRestantes: number
+  ritmoDiarioRealizado: number | null
+  metaEsperadaAteHoje: number | null
+  exposicaoConhecidaMaoObra: number
+  projecaoTendenciaMaoObra: number | null
+  projecaoFinalMaoObra: number | null
+  percentualMetaProjetado: number | null
+  desvioProjetadoMeta: number | null
+}
+
+export type DashboardMetaStatus = 'DENTRO_DA_META' | 'NO_LIMITE_DA_META' | 'FORA_DA_META' | 'SEM_PROJECAO'
+
+export interface DashboardMetaAlert {
+  status: DashboardMetaStatus
+  titulo: string
+  mensagem: string
+  percentualMetaProjetado: number | null
+  desvioProjetadoMeta: number | null
+}
+
 export interface DashboardBreakdownItem {
   chave: string
   previsto: number
@@ -48,6 +71,13 @@ export interface DashboardDailyItem {
   realizado: number
 }
 
+export interface DashboardProjectionPoint {
+  data: string
+  realizadoAcumulado: number | null
+  metaEsperada: number | null
+  projecao: number | null
+}
+
 export interface DashboardResponse {
   competencia: string
   periodoInicio: string
@@ -55,6 +85,8 @@ export interface DashboardResponse {
   metaEscopo: 'GLOBAL_COMPETENCIA'
   filtros: DashboardFilterOptions
   kpis: DashboardKpis
+  projecao: DashboardProjection
+  alertaMeta: DashboardMetaAlert
   porTipo: DashboardBreakdownItem[]
   porOperacao: DashboardBreakdownItem[]
   porFornecedor: DashboardBreakdownItem[]
@@ -62,4 +94,5 @@ export interface DashboardResponse {
   porResponsavelCusto: DashboardBreakdownItem[]
   porAtividade: DashboardBreakdownItem[]
   evolucaoDiaria: DashboardDailyItem[]
+  evolucaoMetaProjecao: DashboardProjectionPoint[]
 }
