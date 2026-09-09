@@ -142,10 +142,15 @@ function requestAdministrativeSolicitations(
 }
 
 export function fetchAdministrativeSolicitations(
-  query: AdministrativeSolicitationListQuery = {},
+  queryOrLimit: AdministrativeSolicitationListQuery | number = {},
   signal?: AbortSignal,
 ): Promise<AdministrativeSolicitationListResponse> {
   if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  const query: AdministrativeSolicitationListQuery =
+    typeof queryOrLimit === 'number'
+      ? { tamanhoPagina: queryOrLimit }
+      : queryOrLimit
 
   const key = buildAdministrativeListUrl(query)
   const cached = adminListCache.get(key)
