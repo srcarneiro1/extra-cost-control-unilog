@@ -269,8 +269,8 @@ export function AdminSolicitationsPage() {
   useEffect(() => {
     const controller = new AbortController()
 
-    // A lista governa somente o loading principal. O catálogo é auxiliar e carrega
-    // em paralelo, sem manter a fila administrativa presa ao Apps Script.
+    // Na primeira abertura, somente a fila administrativa é necessária.
+    // Cadastros auxiliares são carregados sob demanda ao abrir/editar uma solicitação.
     void fetchAdministrativeSolicitations(500, controller.signal)
       .then((response) => setItems(response.itens))
       .catch((error) => {
@@ -281,16 +281,6 @@ export function AdminSolicitationsPage() {
         )
       })
       .finally(() => setLoading(false))
-
-    void requestCatalogs(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      notify(
-        'error',
-        error instanceof Error
-          ? `Solicitações carregadas. Cadastros auxiliares indisponíveis: ${error.message}`
-          : 'Solicitações carregadas, mas os cadastros auxiliares não puderam ser carregados.',
-      )
-    })
 
     return () => controller.abort()
     // O carregamento inicial deve ocorrer somente na montagem.
