@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
 import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton, SummaryMetrics } from './ui/Primitives'
 import {
-  fetchCatalogosAdmin,
+  fetchCatalogoAdminScope,
   saveFornecedorAdmin,
   saveProdutoAdmin,
   savePrecoMaoObraAdmin,
   savePrecoProdutoAdmin,
 } from '../services/catalogService'
 import type {
-  CatalogosAdminDto,
+  CatalogAdminScope,
+  CatalogosAdminResumoDto,
+  CatalogosAdminScopeDto,
   CategoriaProduto,
   FornecedorAdminDto,
   PrecoMaoObraAdminDto,
@@ -118,9 +120,19 @@ function priceStatus(item: { ativo: boolean; vigenciaFim: string }) {
   return { label: 'Vigente', tone: 'success' as const }
 }
 
+function sectionScope(section: CatalogSection): CatalogAdminScope {
+  return section
+}
+
 export function CadastrosPage() {
-  const [adminCatalogs, setAdminCatalogs] = useState<CatalogosAdminDto | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [summary, setSummary] = useState<CatalogosAdminResumoDto | null>(null)
+  const [functions, setFunctions] = useState<{ nome: string }[]>([])
+  const [providerRows, setProviderRows] = useState<FornecedorAdminDto[]>([])
+  const [productRows, setProductRows] = useState<ProdutoAdminDto[]>([])
+  const [laborPriceRows, setLaborPriceRows] = useState<PrecoMaoObraAdminDto[]>([])
+  const [productPriceRows, setProductPriceRows] = useState<PrecoProdutoAdminDto[]>([])
+
+  const [loadingScope, setLoadingScope] = useState<CatalogAdminScope | null>('FORNECEDORES')
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [editorError, setEditorError] = useState('')
@@ -135,58 +147,73 @@ export function CadastrosPage() {
   const [laborDraft, setLaborDraft] = useState<LaborPriceDraft>(emptyLaborPriceDraft)
   const [productPriceDraft, setProductPriceDraft] = useState<ProductPriceDraft>(emptyProductPriceDraft)
 
-  async function loadCatalogs(signal?: AbortSignal) {
-    setLoading(true)
+  const loadedScopesRef = useRef(new Set<CatalogAdminScope>())
+  const requestSequenceRef = useRef(0)
+
+  function applyScope(data: CatalogosAdminScopeDto) {
+    if (data.resumoAtivos) setSummary(data.resumoAtivos)
+    if (data.funcoes) setFunctions(data.funcoes)
+    if (data.fornecedores) setProviderRows(data.fornecedores)
+    if (data.produtos) setProductRows(data.produtos)
+    if (data.precosMaoObra) setLaborPriceRows(data.precosMaoObra)
+    if (data.precosProdutos) setProductPriceRows(data.precosProdutos)
+  }
+
+  async function loadScope(scope: CatalogAdminScope, options?: { force?: boolean; signal?: AbortSignal; background?: boolean }) {
+    const force = Boolean(options?.force)
+    if (!force && loadedScopesRef.current.has(scope)) return
+
+    const requestId = ++requestSequenceRef.current
+    if (!options?.background) setLoadingScope(scope)
     setLoadError('')
+
     try {
-      setAdminCatalogs(await fetchCatalogosAdmin(signal))
-    } catch (loadError) {
-      if (loadError instanceof DOMException && loadError.name === 'AbortError') return
-      setLoadError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar os cadastros.')
+      const data = await fetchCatalogoAdminScope(scope, options?.signal)
+      applyScope(data)
+      loadedScopesRef.current.add(scope)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setLoadError(error instanceof Error ? error.message : 'Não foi possível carregar os cadastros.')
     } finally {
-      setLoading(false)
+      if (!options?.background && requestId === requestSequenceRef.current) setLoadingScope(null)
     }
   }
 
   useEffect(() => {
     const controller = new AbortController()
-    void loadCatalogs(controller.signal)
+    void loadScope('FORNECEDORES', { signal: controller.signal })
+    void loadScope('RESUMO', { signal: controller.signal, background: true })
     return () => controller.abort()
   }, [])
 
   const normalizedSearch = search.trim().toUpperCase()
 
   const providers = useMemo(() => {
-    const rows = adminCatalogs?.fornecedores || []
-    if (!normalizedSearch) return rows
-    return rows.filter((item) => `${item.nome} ${destinationLabel(item)}`.toUpperCase().includes(normalizedSearch))
-  }, [adminCatalogs, normalizedSearch])
+    if (!normalizedSearch) return providerRows
+    return providerRows.filter((item) => `${item.nome} ${destinationLabel(item)}`.toUpperCase().includes(normalizedSearch))
+  }, [providerRows, normalizedSearch])
 
   const products = useMemo(() => {
-    const rows = adminCatalogs?.produtos || []
-    if (!normalizedSearch) return rows
-    return rows.filter((item) => `${item.nome} ${item.categoria}`.toUpperCase().includes(normalizedSearch))
-  }, [adminCatalogs, normalizedSearch])
+    if (!normalizedSearch) return productRows
+    return productRows.filter((item) => `${item.nome} ${item.categoria}`.toUpperCase().includes(normalizedSearch))
+  }, [productRows, normalizedSearch])
 
   const laborPrices = useMemo(() => {
-    const rows = adminCatalogs?.precosMaoObra || []
-    if (!normalizedSearch) return rows
-    return rows.filter((item) =>
+    if (!normalizedSearch) return laborPriceRows
+    return laborPriceRows.filter((item) =>
       `${item.fornecedor} ${item.funcao} ${item.turno} ${item.tipoDia}`.toUpperCase().includes(normalizedSearch),
     )
-  }, [adminCatalogs, normalizedSearch])
+  }, [laborPriceRows, normalizedSearch])
 
   const productPrices = useMemo(() => {
-    const rows = adminCatalogs?.precosProdutos || []
-    if (!normalizedSearch) return rows
-    return rows.filter((item) =>
+    if (!normalizedSearch) return productPriceRows
+    return productPriceRows.filter((item) =>
       `${item.fornecedor} ${item.produto} ${item.categoria}`.toUpperCase().includes(normalizedSearch),
     )
-  }, [adminCatalogs, normalizedSearch])
+  }, [productPriceRows, normalizedSearch])
 
-  const laborProviders = (adminCatalogs?.fornecedores || []).filter((item) => item.maoDeObra)
-  const foodProviders = (adminCatalogs?.fornecedores || []).filter((item) => item.alimentacao)
-  const summary = adminCatalogs?.resumoAtivos
+  const laborProviders = providerRows.filter((item) => item.maoDeObra)
+  const foodProviders = providerRows.filter((item) => item.alimentacao)
 
   const metrics = [
     { key: 'operacoes', label: 'Operações', value: summary?.operacoes ?? '—', icon: 'warehouse' },
@@ -196,6 +223,9 @@ export function CadastrosPage() {
     { key: 'funcoes', label: 'Funções', value: summary?.funcoes ?? '—', icon: 'engineering' },
     { key: 'produtos', label: 'Produtos ativos', value: summary?.produtos ?? '—', icon: 'inventory_2' },
   ]
+
+  const activeScope = sectionScope(section)
+  const activeLoading = loadingScope === activeScope
 
   function resetMessages() {
     setNotice('')
@@ -208,6 +238,7 @@ export function CadastrosPage() {
     setSearch('')
     setNotice('')
     setEditorError('')
+    void loadScope(sectionScope(nextSection))
   }
 
   function openNew() {
@@ -275,6 +306,12 @@ export function CadastrosPage() {
     setReactivatingPrice(false)
   }
 
+  async function reloadAfterSave() {
+    loadedScopesRef.current.clear()
+    await loadScope(activeScope, { force: true })
+    void loadScope('RESUMO', { force: true, background: true })
+  }
+
   async function handleSave() {
     setSaving(true)
     setEditorError('')
@@ -339,7 +376,7 @@ export function CadastrosPage() {
 
       setEditorOpen(false)
       setReactivatingPrice(false)
-      await loadCatalogs()
+      await reloadAfterSave()
     } catch (saveError) {
       setEditorError(saveError instanceof Error ? saveError.message : 'Não foi possível salvar o cadastro.')
     } finally {
@@ -360,7 +397,7 @@ export function CadastrosPage() {
       <PageHeader
         eyebrow="ADMINISTRAÇÃO"
         title="Cadastros"
-        description="Mantenha fornecedores, produtos e tabelas de preço com rastreabilidade. Cadastros podem ser reativados; preços voltam por nova vigência, sem reescrever histórico."
+        description="Mantenha fornecedores, produtos e tabelas de preço com rastreabilidade. Cada seção é carregada somente quando necessária."
         actions={<button className="button button-primary" type="button" onClick={openNew}><span className="material-symbols-rounded" aria-hidden="true">add</span>{pageActionLabel}</button>}
       />
 
@@ -370,16 +407,16 @@ export function CadastrosPage() {
       <SummaryMetrics items={metrics} ariaLabel="Catálogos ativos" />
 
       <div className="catalog-section-tabs" role="tablist" aria-label="Tipos de cadastro">
-        <button type="button" className={section === 'FORNECEDORES' ? 'is-active' : ''} onClick={() => changeSection('FORNECEDORES')}>Fornecedores</button>
-        <button type="button" className={section === 'PRODUTOS' ? 'is-active' : ''} onClick={() => changeSection('PRODUTOS')}>Produtos</button>
-        <button type="button" className={section === 'PRECOS_MO' ? 'is-active' : ''} onClick={() => changeSection('PRECOS_MO')}>Preços de mão de obra</button>
-        <button type="button" className={section === 'PRECOS_PRODUTOS' ? 'is-active' : ''} onClick={() => changeSection('PRECOS_PRODUTOS')}>Preços de produtos</button>
+        <button type="button" role="tab" aria-selected={section === 'FORNECEDORES'} className={section === 'FORNECEDORES' ? 'is-active' : ''} onClick={() => changeSection('FORNECEDORES')}>Fornecedores</button>
+        <button type="button" role="tab" aria-selected={section === 'PRODUTOS'} className={section === 'PRODUTOS' ? 'is-active' : ''} onClick={() => changeSection('PRODUTOS')}>Produtos</button>
+        <button type="button" role="tab" aria-selected={section === 'PRECOS_MO'} className={section === 'PRECOS_MO' ? 'is-active' : ''} onClick={() => changeSection('PRECOS_MO')}>Preços de mão de obra</button>
+        <button type="button" role="tab" aria-selected={section === 'PRECOS_PRODUTOS'} className={section === 'PRECOS_PRODUTOS' ? 'is-active' : ''} onClick={() => changeSection('PRECOS_PRODUTOS')}>Preços de produtos</button>
       </div>
 
-      {section === 'FORNECEDORES' && <ProviderPanel loading={loading} items={providers} search={search} setSearch={setSearch} onEdit={editProvider} />}
-      {section === 'PRODUTOS' && <ProductPanel loading={loading} items={products} search={search} setSearch={setSearch} onEdit={editProduct} />}
-      {section === 'PRECOS_MO' && <LaborPricePanel loading={loading} items={laborPrices} search={search} setSearch={setSearch} onVersion={openLaborVersion} />}
-      {section === 'PRECOS_PRODUTOS' && <ProductPricePanel loading={loading} items={productPrices} search={search} setSearch={setSearch} onVersion={openProductPriceVersion} />}
+      {section === 'FORNECEDORES' && <ProviderPanel loading={activeLoading} items={providers} search={search} setSearch={setSearch} onEdit={editProvider} />}
+      {section === 'PRODUTOS' && <ProductPanel loading={activeLoading} items={products} search={search} setSearch={setSearch} onEdit={editProduct} />}
+      {section === 'PRECOS_MO' && <LaborPricePanel loading={activeLoading} items={laborPrices} search={search} setSearch={setSearch} onVersion={openLaborVersion} />}
+      {section === 'PRECOS_PRODUTOS' && <ProductPricePanel loading={activeLoading} items={productPrices} search={search} setSearch={setSearch} onVersion={openProductPriceVersion} />}
 
       <Modal
         open={editorOpen}
@@ -397,8 +434,8 @@ export function CadastrosPage() {
           {editorError && <div className="admin-alert catalog-editor-error" role="alert">{editorError}</div>}
           {section === 'FORNECEDORES' && <ProviderForm draft={providerDraft} setDraft={setProviderDraft} editingExisting={editingExisting} />}
           {section === 'PRODUTOS' && <ProductForm draft={catalogProductDraft} setDraft={setCatalogProductDraft} editingExisting={editingExisting} />}
-          {section === 'PRECOS_MO' && <LaborPriceForm draft={laborDraft} setDraft={setLaborDraft} functions={adminCatalogs?.funcoes || []} providers={laborProviders} />}
-          {section === 'PRECOS_PRODUTOS' && <ProductPriceForm draft={productPriceDraft} setDraft={setProductPriceDraft} products={adminCatalogs?.produtos || []} providers={foodProviders} />}
+          {section === 'PRECOS_MO' && <LaborPriceForm draft={laborDraft} setDraft={setLaborDraft} functions={functions} providers={laborProviders} />}
+          {section === 'PRECOS_PRODUTOS' && <ProductPriceForm draft={productPriceDraft} setDraft={setProductPriceDraft} products={productRows} providers={foodProviders} />}
         </div>
       </Modal>
     </div>
@@ -451,18 +488,18 @@ function saveButtonLabel(section: CatalogSection, editing: boolean, reactivating
   return reactivating ? 'Reativar com nova vigência' : 'Criar nova vigência'
 }
 
-function ProviderForm({ draft, setDraft, editingExisting }: { draft: ProviderDraft; setDraft: React.Dispatch<React.SetStateAction<ProviderDraft>>; editingExisting: boolean }) {
+function ProviderForm({ draft, setDraft, editingExisting }: { draft: ProviderDraft; setDraft: Dispatch<SetStateAction<ProviderDraft>>; editingExisting: boolean }) {
   return <><label>Fornecedor<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value.toUpperCase() }))} placeholder="Ex.: MULT" />{editingExisting && <small>Para trocar o nome, crie um novo fornecedor e inative o anterior.</small>}</label><fieldset className="catalog-fieldset"><legend>Atende</legend><label className="catalog-check"><input type="checkbox" checked={draft.maoDeObra} onChange={(event) => setDraft((current) => ({ ...current, maoDeObra: event.target.checked }))} /><span>Mão de obra</span></label><label className="catalog-check"><input type="checkbox" checked={draft.alimentacao} onChange={(event) => setDraft((current) => ({ ...current, alimentacao: event.target.checked }))} /><span>Alimentação / bebida</span></label></fieldset><label>Destino do WhatsApp<select value={draft.whatsappDestino} onChange={(event) => setDraft((current) => ({ ...current, whatsappDestino: event.target.value as WhatsappDestino }))}><option value="NENHUM">Não configurado</option><option value="NUMERO">Número individual</option><option value="GRUPO">Grupo do WhatsApp</option></select></label>{draft.whatsappDestino === 'NUMERO' && <label>Número do WhatsApp<input inputMode="tel" value={draft.whatsappNumero} onChange={(event) => setDraft((current) => ({ ...current, whatsappNumero: event.target.value }))} placeholder="Ex.: 5527999999999" /></label>}{draft.whatsappDestino === 'GRUPO' && <label>Link de convite do grupo<input type="url" value={draft.whatsappGrupoLink} onChange={(event) => setDraft((current) => ({ ...current, whatsappGrupoLink: event.target.value }))} placeholder="https://chat.whatsapp.com/..." /></label>}<label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label></>
 }
 
-function ProductForm({ draft, setDraft, editingExisting }: { draft: ProductDraft; setDraft: React.Dispatch<React.SetStateAction<ProductDraft>>; editingExisting: boolean }) {
+function ProductForm({ draft, setDraft, editingExisting }: { draft: ProductDraft; setDraft: Dispatch<SetStateAction<ProductDraft>>; editingExisting: boolean }) {
   return <><label>Produto<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value.toUpperCase() }))} placeholder="Ex.: MARMITA P" />{editingExisting && <small>O nome fica imutável para preservar referências históricas.</small>}</label><label>Categoria<select value={draft.categoria} onChange={(event) => setDraft((current) => ({ ...current, categoria: event.target.value as CategoriaProduto }))}><option value="ALIMENTACAO">Alimentação</option><option value="BEBIDA">Bebida</option></select></label><label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label><div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">info</span><p>Produto ativo só aparece no fluxo operacional quando também existe fornecedor ativo e preço ativo/vigente elegível.</p></div></>
 }
 
-function LaborPriceForm({ draft, setDraft, functions, providers }: { draft: LaborPriceDraft; setDraft: React.Dispatch<React.SetStateAction<LaborPriceDraft>>; functions: { nome: string }[]; providers: FornecedorAdminDto[] }) {
+function LaborPriceForm({ draft, setDraft, functions, providers }: { draft: LaborPriceDraft; setDraft: Dispatch<SetStateAction<LaborPriceDraft>>; functions: { nome: string }[]; providers: FornecedorAdminDto[] }) {
   return <><div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label><label>Função<select value={draft.funcao} onChange={(event) => setDraft((current) => ({ ...current, funcao: event.target.value, turno: event.target.value === 'AUXILIAR OPERACIONAL' ? 'DIURNO' : current.turno }))}><option value="">Selecione</option>{functions.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}</select></label></div><div className="catalog-form-grid"><label>Turno<select value={draft.turno} disabled={draft.funcao === 'AUXILIAR OPERACIONAL'} onChange={(event) => setDraft((current) => ({ ...current, turno: event.target.value as 'DIURNO' | 'NOTURNO' }))}><option value="DIURNO">Diurno</option><option value="NOTURNO">Noturno</option></select></label><label>Tipo de dia<select value={draft.tipoDia} onChange={(event) => setDraft((current) => ({ ...current, tipoDia: event.target.value as TipoDia }))}><option value="UTIL">Dia útil</option><option value="SABADO">Sábado</option><option value="DOMINGO_FERIADO">Domingo / feriado</option></select></label></div><div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div><div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">history</span><p>Reativação de preço sempre cria nova vigência. Fornecedor e função precisam estar ativos para salvar.</p></div></>
 }
 
-function ProductPriceForm({ draft, setDraft, products, providers }: { draft: ProductPriceDraft; setDraft: React.Dispatch<React.SetStateAction<ProductPriceDraft>>; products: ProdutoAdminDto[]; providers: FornecedorAdminDto[] }) {
+function ProductPriceForm({ draft, setDraft, products, providers }: { draft: ProductPriceDraft; setDraft: Dispatch<SetStateAction<ProductPriceDraft>>; products: ProdutoAdminDto[]; providers: FornecedorAdminDto[] }) {
   return <><div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label><label>Produto<select value={draft.produto} onChange={(event) => setDraft((current) => ({ ...current, produto: event.target.value }))}><option value="">Selecione</option>{products.map((item) => <option key={item.nome} value={item.nome} disabled={!item.ativo}>{item.nome} · {categoryLabel(item.categoria)}{!item.ativo ? ' · INATIVO' : ''}</option>)}</select></label></div><div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div><div className="catalog-version-note"><span className="material-symbols-rounded" aria-hidden="true">history</span><p>Reativação cria uma nova vigência. Se fornecedor ou produto estiver inativo, reative o cadastro correspondente antes de salvar o preço.</p></div></>
 }
