@@ -80,6 +80,27 @@ async function getRequest<T>(url: string, signal?: AbortSignal): Promise<T> {
   return parseResponse<T>(response)
 }
 
+async function postReadRequest<T>(url: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+  let response: Response
+
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    throw new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+  }
+
+  return parseResponse<T>(response)
+}
+
 function invalidateAdministrativeListCache() {
   adminListCache.clear()
   metadataCache = null
@@ -183,7 +204,11 @@ export function fetchAdministrativeSolicitationMetadata(
   }
 
   if (!metadataRequest) {
-    metadataRequest = getRequest<AdministrativeSolicitationMetadata>('/api/solicitacoes?metadata=1')
+    metadataRequest = postReadRequest<AdministrativeSolicitationMetadata>(
+      '/api/solicitacoes?admin=1',
+      { acao: 'METADADOS' },
+      signal,
+    )
       .then((value) => {
         metadataCache = {
           value,
