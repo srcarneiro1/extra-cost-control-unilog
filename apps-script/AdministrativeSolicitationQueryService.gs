@@ -5,6 +5,8 @@ const AdministrativeSolicitationQueryService = (() => {
     DETAIL: 'DETALHAR',
   });
   const TYPE_LABOR = 'MAO_DE_OBRA';
+  const LIST_CACHE_PREFIX = 'admin_solicitations_list_v1_';
+  const LIST_CACHE_SECONDS = 20;
 
   function execute(payload) {
     const input = payload || {};
@@ -21,21 +23,25 @@ const AdministrativeSolicitationQueryService = (() => {
 
   function list_(input) {
     const limit = normalizeLimit_(input.limite);
+    const cached = readListCache_(limit);
+    if (cached) return cached;
+
     const rows = SheetRepository.readObjects(SHEET_SOLICITACOES);
 
-    const items = rows
-      .slice()
-      .sort(function (left, right) {
-        return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
-      })
-      .slice(0, limit)
-      .map(toListItem_);
-
-    return {
+    const result = {
       total: rows.length,
       limite: limit,
-      itens: items,
+      itens: rows
+        .slice()
+        .sort(function (left, right) {
+          return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
+        })
+        .slice(0, limit)
+        .map(toListItem_),
     };
+
+    writeListCache_(limit, result);
+    return result;
   }
 
   function detail_(input) {
@@ -216,6 +222,31 @@ const AdministrativeSolicitationQueryService = (() => {
 
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  }
+
+  function cacheKey_(limit) {
+    return LIST_CACHE_PREFIX + String(limit);
+  }
+
+  function readListCache_(limit) {
+    try {
+      const cached = CacheService.getScriptCache().get(cacheKey_(limit));
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeListCache_(limit, value) {
+    try {
+      CacheService.getScriptCache().put(
+        cacheKey_(limit),
+        JSON.stringify(value),
+        LIST_CACHE_SECONDS
+      );
+    } catch (error) {
+      // Cache é apenas otimização.
+    }
   }
 
   return {

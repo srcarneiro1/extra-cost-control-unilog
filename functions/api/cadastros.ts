@@ -96,11 +96,16 @@ async function proxyCatalogRequest(
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const adminMode = url.searchParams.get('mode') === 'admin';
+  const scope = String(url.searchParams.get('scope') || '').trim().toUpperCase();
 
   return proxyCatalogRequest(
     context.request,
     context.env,
-    adminMode ? { modo: 'ADMIN' } : {},
+    adminMode
+      ? scope
+        ? { modo: 'ADMIN_SCOPE', escopo: scope }
+        : { modo: 'ADMIN' }
+      : {},
   );
 };
 

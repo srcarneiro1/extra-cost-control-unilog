@@ -1,14 +1,36 @@
 import type {
+  CatalogAdminScope,
   CatalogosAdminApiResponse,
   CatalogosAdminDto,
+  CatalogosAdminScopeApiResponse,
+  CatalogosAdminScopeDto,
   CatalogosApiResponse,
   CatalogosDto,
   FornecedorAdminApiResponse,
   FornecedorAdminDto,
+  ProdutoAdminApiResponse,
+  ProdutoAdminDto,
+  PrecoMaoObraAdminApiResponse,
+  PrecoMaoObraAdminDto,
+  PrecoProdutoAdminApiResponse,
+  PrecoProdutoAdminDto,
   SaveFornecedorAdminInput,
+  SaveProdutoAdminInput,
+  SavePrecoMaoObraAdminInput,
+  SavePrecoProdutoAdminInput,
 } from '../types/catalog'
 
 const CATALOGS_ENDPOINT = '/api/cadastros'
+const ACTIVE_CATALOG_CACHE_MS = 5 * 60 * 1000
+const ADMIN_CATALOG_CACHE_MS = 5 * 60 * 1000
+const ADMIN_SCOPE_CACHE_MS = 5 * 60 * 1000
+
+let activeCatalogCache: { value: CatalogosDto; expiresAt: number } | null = null
+let activeCatalogRequest: Promise<CatalogosDto> | null = null
+let adminCatalogCache: { value: CatalogosAdminDto; expiresAt: number } | null = null
+let adminCatalogRequest: Promise<CatalogosAdminDto> | null = null
+const adminScopeCache = new Map<CatalogAdminScope, { value: CatalogosAdminScopeDto; expiresAt: number }>()
+const adminScopeRequests = new Map<CatalogAdminScope, Promise<CatalogosAdminScopeDto>>()
 
 export class CatalogServiceError extends Error {
   readonly code: string
@@ -44,66 +66,14 @@ function throwApiError(
   )
 }
 
-export async function fetchCatalogos(signal?: AbortSignal): Promise<CatalogosDto> {
-  let response: Response
-
-  try {
-    response = await fetch(CATALOGS_ENDPOINT, {
-      method: 'GET',
-      headers: {
-        accept: 'application/json',
-      },
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw error
-    }
-
-    throw new CatalogServiceError('Não foi possível conectar ao serviço de cadastros.')
-  }
-
-  const payload = await parseJson<CatalogosApiResponse>(response)
-
-  if (!response.ok || !payload.ok) {
-    throwApiError(response, payload)
-  }
-
-  return payload.data
+function invalidateCatalogCaches() {
+  activeCatalogCache = null
+  adminCatalogCache = null
+  adminScopeCache.clear()
 }
 
-export async function fetchCatalogosAdmin(signal?: AbortSignal): Promise<CatalogosAdminDto> {
+async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
   let response: Response
-
-  try {
-    response = await fetch(`${CATALOGS_ENDPOINT}?mode=admin`, {
-      method: 'GET',
-      headers: {
-        accept: 'application/json',
-      },
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw error
-    }
-
-    throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
-  }
-
-  const payload = await parseJson<CatalogosAdminApiResponse>(response)
-  if (!response.ok || !payload.ok) {
-    throwApiError(response, payload)
-  }
-
-  return payload.data
-}
-
-export async function saveFornecedorAdmin(
-  input: SaveFornecedorAdminInput,
-): Promise<FornecedorAdminDto> {
-  let response: Response
-
   try {
     response = await fetch(CATALOGS_ENDPOINT, {
       method: 'POST',
@@ -111,19 +81,227 @@ export async function saveFornecedorAdmin(
         accept: 'application/json',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        acao: 'SALVAR_FORNECEDOR',
-        ...input,
-      }),
+      body: JSON.stringify(body),
     })
   } catch {
     throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
   }
 
-  const payload = await parseJson<FornecedorAdminApiResponse>(response)
-  if (!response.ok || !payload.ok) {
-    throwApiError(response, payload)
+  const payload = await parseJson<
+    { ok: true; data: T } |
+    { ok: false; error: { message?: string; code?: string; details?: unknown } }
+  >(response)
+  if (!response.ok || !payload.ok) throwApiError(response, payload)
+
+  invalidateCatalogCaches()
+  return payload.data
+}
+
+async function requestActiveCatalogos(): Promise<CatalogosDto> {
+  let response: Response
+
+  try {
+    response = await fetch(CATALOGS_ENDPOINT, {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+    })
+  } catch {
+    throw new CatalogServiceError('Não foi possível conectar ao serviço de cadastros.')
+  }
+
+  const payload = await parseJson<CatalogosApiResponse>(response)
+  if (!response.ok || !payload.ok) throwApiError(response, payload)
+
+  activeCatalogCache = {
+    value: payload.data,
+    expiresAt: Date.now() + ACTIVE_CATALOG_CACHE_MS,
   }
 
   return payload.data
 }
+
+export function fetchCatalogos(signal?: AbortSignal): Promise<CatalogosDto> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  if (activeCatalogCache && activeCatalogCache.expiresAt > Date.now()) {
+    return Promise.resolve(activeCatalogCache.value)
+  }
+
+  if (!activeCatalogRequest) {
+    activeCatalogRequest = requestActiveCatalogos().finally(() => {
+      activeCatalogRequest = null
+    })
+  }
+
+  if (!signal) return activeCatalogRequest
+
+  return Promise.race([
+    activeCatalogRequest,
+    new Promise<CatalogosDto>((_, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => reject(new DOMException('Aborted', 'AbortError')),
+        { once: true },
+      )
+    }),
+  ])
+}
+
+function validateAdminCatalogos(data: CatalogosAdminDto): CatalogosAdminDto {
+  const summary = data.resumoAtivos
+  const hasSummary = Boolean(
+    summary &&
+    Number.isFinite(summary.operacoes) &&
+    Number.isFinite(summary.supervisores) &&
+    Number.isFinite(summary.fornecedores) &&
+    Number.isFinite(summary.atividades) &&
+    Number.isFinite(summary.funcoes) &&
+    Number.isFinite(summary.produtos),
+  )
+
+  if (
+    !hasSummary ||
+    !Array.isArray(data.funcoes) ||
+    !Array.isArray(data.fornecedores) ||
+    !Array.isArray(data.produtos) ||
+    !Array.isArray(data.precosMaoObra) ||
+    !Array.isArray(data.precosProdutos)
+  ) {
+    throw new CatalogServiceError(
+      'O backend de cadastros está desatualizado. Publique a versão do Apps Script compatível com o carregamento administrativo consolidado.',
+      'CATALOG_ADMIN_VERSION_MISMATCH',
+    )
+  }
+
+  return data
+}
+
+async function requestAdminCatalogos(): Promise<CatalogosAdminDto> {
+  let response: Response
+
+  try {
+    response = await fetch(`${CATALOGS_ENDPOINT}?mode=admin`, {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+    })
+  } catch {
+    throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
+  }
+
+  const payload = await parseJson<CatalogosAdminApiResponse>(response)
+  if (!response.ok || !payload.ok) throwApiError(response, payload)
+
+  const data = validateAdminCatalogos(payload.data)
+  adminCatalogCache = {
+    value: data,
+    expiresAt: Date.now() + ADMIN_CATALOG_CACHE_MS,
+  }
+  return data
+}
+
+export function fetchCatalogosAdmin(signal?: AbortSignal): Promise<CatalogosAdminDto> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  if (adminCatalogCache && adminCatalogCache.expiresAt > Date.now()) {
+    return Promise.resolve(adminCatalogCache.value)
+  }
+
+  if (!adminCatalogRequest) {
+    adminCatalogRequest = requestAdminCatalogos().finally(() => {
+      adminCatalogRequest = null
+    })
+  }
+
+  if (!signal) return adminCatalogRequest
+
+  return Promise.race([
+    adminCatalogRequest,
+    new Promise<CatalogosAdminDto>((_, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => reject(new DOMException('Aborted', 'AbortError')),
+        { once: true },
+      )
+    }),
+  ])
+}
+
+async function requestAdminScope(scope: CatalogAdminScope): Promise<CatalogosAdminScopeDto> {
+  let response: Response
+  try {
+    response = await fetch(
+      `${CATALOGS_ENDPOINT}?mode=admin&scope=${encodeURIComponent(scope)}`,
+      { method: 'GET', headers: { accept: 'application/json' } },
+    )
+  } catch {
+    throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
+  }
+
+  const payload = await parseJson<CatalogosAdminScopeApiResponse>(response)
+  if (!response.ok || !payload.ok) throwApiError(response, payload)
+
+  adminScopeCache.set(scope, {
+    value: payload.data,
+    expiresAt: Date.now() + ADMIN_SCOPE_CACHE_MS,
+  })
+  return payload.data
+}
+
+export function fetchCatalogoAdminScope(
+  scope: CatalogAdminScope,
+  signal?: AbortSignal,
+): Promise<CatalogosAdminScopeDto> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  const cached = adminScopeCache.get(scope)
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value)
+
+  let request = adminScopeRequests.get(scope)
+  if (!request) {
+    request = requestAdminScope(scope).finally(() => {
+      adminScopeRequests.delete(scope)
+    })
+    adminScopeRequests.set(scope, request)
+  }
+
+  if (!signal) return request
+
+  return Promise.race([
+    request,
+    new Promise<CatalogosAdminScopeDto>((_, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => reject(new DOMException('Aborted', 'AbortError')),
+        { once: true },
+      )
+    }),
+  ])
+}
+
+export function prefetchCatalogoAdminScope(scope: CatalogAdminScope): void {
+  const cached = adminScopeCache.get(scope)
+  if (cached && cached.expiresAt > Date.now()) return
+  void fetchCatalogoAdminScope(scope).catch(() => undefined)
+}
+
+export async function saveFornecedorAdmin(input: SaveFornecedorAdminInput): Promise<FornecedorAdminDto> {
+  return postAdmin<FornecedorAdminDto>({ acao: 'SALVAR_FORNECEDOR', ...input })
+}
+
+export async function saveProdutoAdmin(input: SaveProdutoAdminInput): Promise<ProdutoAdminDto> {
+  return postAdmin<ProdutoAdminDto>({ acao: 'SALVAR_PRODUTO', ...input })
+}
+
+export async function savePrecoMaoObraAdmin(input: SavePrecoMaoObraAdminInput): Promise<PrecoMaoObraAdminDto> {
+  return postAdmin<PrecoMaoObraAdminDto>({ acao: 'SALVAR_PRECO_MO', ...input })
+}
+
+export async function savePrecoProdutoAdmin(input: SavePrecoProdutoAdminInput): Promise<PrecoProdutoAdminDto> {
+  return postAdmin<PrecoProdutoAdminDto>({ acao: 'SALVAR_PRECO_PRODUTO', ...input })
+}
+
+export type _CatalogResponseGuards =
+  | FornecedorAdminApiResponse
+  | ProdutoAdminApiResponse
+  | PrecoMaoObraAdminApiResponse
+  | PrecoProdutoAdminApiResponse

@@ -13,8 +13,14 @@ const CatalogService = (() => {
     FOOD: 'ALIMENTACAO_BEBIDA',
   });
 
+  const ACTIVE_CATALOG_CACHE_KEY = 'active_catalogs_v1';
+  const ACTIVE_CATALOG_CACHE_SECONDS = 60;
+
   function getActiveCatalogs() {
-    return {
+    const cached = readCache_();
+    if (cached) return cached;
+
+    const result = {
       operacoes: namedDtos_(SHEETS.operacoes, 'OPERACAO'),
       supervisores: namedDtos_(SHEETS.supervisores, 'SUPERVISOR'),
       fornecedores: providerDtos_(),
@@ -22,6 +28,9 @@ const CatalogService = (() => {
       funcoes: namedDtos_(SHEETS.funcoes, 'FUNCAO'),
       produtos: productDtos_(),
     };
+
+    writeCache_(result);
+    return result;
   }
 
   function namedDtos_(sheetName, fieldName) {
@@ -88,6 +97,27 @@ const CatalogService = (() => {
       .filter(function (row) {
         return ValidationService.isTruthy(row.ATIVO);
       });
+  }
+
+  function readCache_() {
+    try {
+      const cached = CacheService.getScriptCache().get(ACTIVE_CATALOG_CACHE_KEY);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeCache_(value) {
+    try {
+      CacheService.getScriptCache().put(
+        ACTIVE_CATALOG_CACHE_KEY,
+        JSON.stringify(value),
+        ACTIVE_CATALOG_CACHE_SECONDS
+      );
+    } catch (error) {
+      // Cache é apenas otimização.
+    }
   }
 
   return {
