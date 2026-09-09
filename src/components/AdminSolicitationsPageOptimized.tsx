@@ -349,6 +349,8 @@ export function AdminSolicitationsPage() {
   ])
 
   useEffect(() => {
+    if (loading || metadata) return
+
     const controller = new AbortController()
 
     void fetchAdministrativeSolicitationMetadata(controller.signal)
@@ -364,7 +366,7 @@ export function AdminSolicitationsPage() {
       })
 
     return () => controller.abort()
-  }, [])
+  }, [loading, metadata])
 
   useEffect(() => {
     if (!notice) return
