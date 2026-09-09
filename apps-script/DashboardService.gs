@@ -5,6 +5,7 @@ const DashboardService = (() => {
   const DEFAULT_META_SPREADSHEET_ID = '1zKqgj45d1mNa_EFftvOiIXZMA8rOV5G2EVmvoRO5aXM';
   const TYPE_LABOR = 'MAO_DE_OBRA';
   const TYPE_SNACKS = 'ALIMENTACAO_BEBIDA';
+  const DAY_MS = 24 * 60 * 60 * 1000;
 
   function getDashboard(payload) {
     const input = payload || {};
@@ -20,6 +21,8 @@ const DashboardService = (() => {
     const metaRows = readMetaRows_();
     const metaValue = filters.tipo === TYPE_SNACKS ? null : metaForCompetence_(metaRows, selectedCompetence);
     const period = competencePeriod_(selectedCompetence);
+    const kpis = summarize_(filteredRows, metaValue);
+    const projection = projection_(filteredRows, kpis.realizadoMaoObra, metaValue, period);
 
     return {
       competencia: selectedCompetence,
@@ -27,7 +30,9 @@ const DashboardService = (() => {
       periodoFim: DateService.toIsoDate(period.end),
       metaEscopo: 'GLOBAL_COMPETENCIA',
       filtros: filterOptions_(allRows, periodRows, metaRows),
-      kpis: summarize_(filteredRows, metaValue),
+      kpis: kpis,
+      projecao: projection,
+      alertaMeta: metaAlert_(projection),
       porTipo: group_(filteredRows, function (record) {
         return typeLabel_(record.TIPO_SOLICITACAO);
       }),
@@ -37,6 +42,7 @@ const DashboardService = (() => {
       porResponsavelCusto: group_(filteredRows, function (record) { return record.RESPONSAVEL_CUSTO; }),
       porAtividade: group_(filteredRows, function (record) { return record.ATIVIDADE; }),
       evolucaoDiaria: daily_(filteredRows),
+      evolucaoMetaProjecao: projectionSeries_(filteredRows, metaValue, projection, period),
     };
   }
 
@@ -54,13 +60,18 @@ const DashboardService = (() => {
 
   function normalizeFilters_(input) {
     return {
-      operacao: ValidationService.normalizeUpper(input.operacao || ''),
-      supervisor: ValidationService.normalizeUpper(input.supervisor || ''),
-      fornecedor: ValidationService.normalizeUpper(input.fornecedor || ''),
-      tipo: ValidationService.normalizeUpper(input.tipo || ''),
-      responsavelCusto: ValidationService.normalizeUpper(input.responsavelCusto || ''),
-      atividade: ValidationService.normalizeUpper(input.atividade || ''),
+      operacao: normalizedFilter_(input.operacao),
+      supervisor: normalizedFilter_(input.supervisor),
+      fornecedor: normalizedFilter_(input.fornecedor),
+      tipo: normalizedFilter_(input.tipo),
+      responsavelCusto: normalizedFilter_(input.responsavelCusto),
+      atividade: normalizedFilter_(input.atividade),
     };
+  }
+
+  function normalizedFilter_(value) {
+    const normalized = ValidationService.normalizeUpper(value || '');
+    return normalized === 'TODOS' ? '' : normalized;
   }
 
   function matchesFilters_(record, filters) {
@@ -111,6 +122,180 @@ const DashboardService = (() => {
       totalSolicitacoes: (rows || []).length,
       divergenciasComparecimento: divergenciasComparecimento,
     };
+  }
+
+  function projection_(rows, realizadoMaoObra, metaValue, period) {
+    const timeline = timeline_(period);
+    const exposure = knownLaborExposure_(rows);
+    const pace = timeline.elapsedDays > 0 ? realizadoMaoObra / timeline.elapsedDays : null;
+    const trend = pace == null
+      ? null
+      : realizadoMaoObra + pace * timeline.remainingDays;
+    const finalProjection = trend == null
+      ? (exposure > 0 ? exposure : null)
+      : Math.max(trend, exposure);
+    const expectedMeta = metaValue == null
+      ? null
+      : metaValue * (timeline.elapsedDays / timeline.totalDays);
+    const projectedPercent = metaValue && finalProjection != null
+      ? (finalProjection / metaValue) * 100
+      : null;
+    const projectedDelta = metaValue != null && finalProjection != null
+      ? finalProjection - metaValue
+      : null;
+
+    return {
+      totalDias: timeline.totalDays,
+      diasDecorridos: timeline.elapsedDays,
+      diasRestantes: timeline.remainingDays,
+      ritmoDiarioRealizado: pace == null ? null : round2_(pace),
+      metaEsperadaAteHoje: expectedMeta == null ? null : round2_(expectedMeta),
+      exposicaoConhecidaMaoObra: round2_(exposure),
+      projecaoTendenciaMaoObra: trend == null ? null : round2_(trend),
+      projecaoFinalMaoObra: finalProjection == null ? null : round2_(finalProjection),
+      percentualMetaProjetado: projectedPercent == null ? null : round2_(projectedPercent),
+      desvioProjetadoMeta: projectedDelta == null ? null : round2_(projectedDelta),
+    };
+  }
+
+  function knownLaborExposure_(rows) {
+    return (rows || []).reduce(function (sum, record) {
+      if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) return sum;
+      return sum + (hasValue_(record.VALOR_REAL)
+        ? number_(record.VALOR_REAL)
+        : number_(record.VALOR_PREVISTO));
+    }, 0);
+  }
+
+  function metaAlert_(projection) {
+    const percent = projection.percentualMetaProjetado;
+    if (percent == null || projection.projecaoFinalMaoObra == null) {
+      return {
+        status: 'SEM_PROJECAO',
+        titulo: 'Sem projeção disponível',
+        mensagem: 'Ainda não há base suficiente para comparar a projeção de mão de obra com a meta da competência.',
+        percentualMetaProjetado: null,
+        desvioProjetadoMeta: null,
+      };
+    }
+
+    if (percent <= 95) {
+      return {
+        status: 'DENTRO_DA_META',
+        titulo: 'Dentro da meta',
+        mensagem: 'Mantido o ritmo atual, a competência deve encerrar dentro da meta.',
+        percentualMetaProjetado: projection.percentualMetaProjetado,
+        desvioProjetadoMeta: projection.desvioProjetadoMeta,
+      };
+    }
+
+    if (percent <= 100) {
+      return {
+        status: 'NO_LIMITE_DA_META',
+        titulo: 'No limite da meta',
+        mensagem: 'Mantido o ritmo atual, a competência deve encerrar próxima ao limite da meta.',
+        percentualMetaProjetado: projection.percentualMetaProjetado,
+        desvioProjetadoMeta: projection.desvioProjetadoMeta,
+      };
+    }
+
+    return {
+      status: 'FORA_DA_META',
+      titulo: 'Fora da meta',
+      mensagem: 'Mantido o ritmo atual, a projeção supera a meta em ' + formatCurrency_(Math.max(projection.desvioProjetadoMeta || 0, 0)) + '.',
+      percentualMetaProjetado: projection.percentualMetaProjetado,
+      desvioProjetadoMeta: projection.desvioProjetadoMeta,
+    };
+  }
+
+  function projectionSeries_(rows, metaValue, projection, period) {
+    const laborByDay = {};
+    (rows || []).forEach(function (record) {
+      if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) return;
+      const date = safeDate_(record.DATA_OPERACIONAL);
+      if (!date) return;
+      laborByDay[date] = (laborByDay[date] || 0) + number_(record.VALOR_REAL);
+    });
+
+    const points = [];
+    const totalDays = projection.totalDias;
+    const elapsedDays = projection.diasDecorridos;
+    const remainingDays = projection.diasRestantes;
+    const projectionFinal = projection.projecaoFinalMaoObra;
+    let accumulated = 0;
+
+    for (let index = 0; index < totalDays; index += 1) {
+      const date = addDays_(period.start, index);
+      const iso = DateService.toIsoDate(date);
+      accumulated += number_(laborByDay[iso]);
+      const dayNumber = index + 1;
+      const realizedVisible = dayNumber <= elapsedDays ? round2_(accumulated) : null;
+      const expected = metaValue == null ? null : round2_(metaValue * (dayNumber / totalDays));
+      let projected = null;
+
+      if (projectionFinal != null) {
+        if (elapsedDays === 0) {
+          projected = round2_(projectionFinal * (dayNumber / totalDays));
+        } else if (dayNumber === elapsedDays) {
+          projected = round2_(accumulated);
+        } else if (dayNumber > elapsedDays && remainingDays > 0) {
+          const futureIndex = dayNumber - elapsedDays;
+          projected = round2_(accumulated + ((projectionFinal - accumulated) * (futureIndex / remainingDays)));
+        } else if (elapsedDays === totalDays && dayNumber === totalDays) {
+          projected = round2_(projectionFinal);
+        }
+      }
+
+      points.push({
+        data: iso,
+        realizadoAcumulado: realizedVisible,
+        metaEsperada: expected,
+        projecao: projected,
+      });
+    }
+
+    return points;
+  }
+
+  function timeline_(period) {
+    const today = dateOnlyToday_();
+    const totalDays = dayDiff_(period.start, period.end) + 1;
+    let elapsedDays = 0;
+
+    if (today >= dayKey_(period.start) && today <= dayKey_(period.end)) {
+      elapsedDays = dayDiff_(period.start, parseIsoDate_(today)) + 1;
+    } else if (today > dayKey_(period.end)) {
+      elapsedDays = totalDays;
+    }
+
+    return {
+      totalDays: totalDays,
+      elapsedDays: elapsedDays,
+      remainingDays: Math.max(totalDays - elapsedDays, 0),
+    };
+  }
+
+  function dateOnlyToday_() {
+    return Utilities.formatDate(new Date(), DateService.TIMEZONE, 'yyyy-MM-dd');
+  }
+
+  function dayKey_(date) {
+    return Utilities.formatDate(date, DateService.TIMEZONE, 'yyyy-MM-dd');
+  }
+
+  function parseIsoDate_(iso) {
+    const parts = String(iso).split('-');
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0, 0);
+  }
+
+  function dayDiff_(start, end) {
+    const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+    const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+    return Math.round((endUtc - startUtc) / DAY_MS);
+  }
+
+  function addDays_(date, amount) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount, 12, 0, 0, 0);
   }
 
   function group_(rows, keyFn) {
@@ -278,6 +463,11 @@ const DashboardService = (() => {
     } catch (error) {
       return '';
     }
+  }
+
+  function formatCurrency_(value) {
+    const number = round2_(value);
+    return 'R$ ' + number.toFixed(2).replace('.', ',');
   }
 
   function hasValue_(value) {

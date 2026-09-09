@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchDashboard } from '../services/dashboardService'
 import type {
   DashboardBreakdownItem,
+  DashboardProjectionPoint,
   DashboardQuery,
   DashboardResponse,
   DashboardTypeFilter,
 } from '../types/dashboard'
 
 type DashboardTab = 'executiva' | 'analytics'
+type MetricTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
 
 const MONTHS = [
   ['01', 'Janeiro'], ['02', 'Fevereiro'], ['03', 'Março'], ['04', 'Abril'],
@@ -63,7 +65,7 @@ function MetricCard({
   label: string
   value: string
   detail: string
-  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info'
+  tone?: MetricTone
 }) {
   return (
     <article className={`dashboard-metric dashboard-metric-${tone}`}>
@@ -112,6 +114,84 @@ function HorizontalRanking({
         ))}
       </div>
       <div className="dashboard-legend"><span><i className="legend-planned" />Previsto</span><span><i className="legend-real" />Realizado</span></div>
+    </section>
+  )
+}
+
+function buildPath(
+  points: DashboardProjectionPoint[],
+  field: 'realizadoAcumulado' | 'metaEsperada' | 'projecao',
+  maxValue: number,
+  width: number,
+  height: number,
+  padding: number,
+) {
+  let path = ''
+  let drawing = false
+  const usableWidth = width - padding * 2
+  const usableHeight = height - padding * 2
+  const denominator = Math.max(points.length - 1, 1)
+
+  points.forEach((point, index) => {
+    const value = point[field]
+    if (value == null) {
+      drawing = false
+      return
+    }
+    const x = padding + (index / denominator) * usableWidth
+    const y = padding + usableHeight - (value / maxValue) * usableHeight
+    path += `${drawing ? ' L' : ' M'} ${x.toFixed(1)} ${y.toFixed(1)}`
+    drawing = true
+  })
+
+  return path
+}
+
+function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
+  const width = 920
+  const height = 300
+  const padding = 38
+  const maxValue = Math.max(
+    ...points.flatMap((point) => [point.realizadoAcumulado || 0, point.metaEsperada || 0, point.projecao || 0]),
+    1,
+  )
+  const realizedPath = buildPath(points, 'realizadoAcumulado', maxValue, width, height, padding)
+  const expectedPath = buildPath(points, 'metaEsperada', maxValue, width, height, padding)
+  const projectionPath = buildPath(points, 'projecao', maxValue, width, height, padding)
+  const labels = points.length ? [points[0], points[Math.floor((points.length - 1) / 2)], points[points.length - 1]] : []
+
+  return (
+    <section className="dashboard-card dashboard-projection-card">
+      <div className="dashboard-card-header">
+        <div>
+          <span className="ui-eyebrow">META E TENDÊNCIA</span>
+          <h2>Realizado × Meta esperada × Projeção</h2>
+          <p>Acumulado de mão de obra ao longo da competência 21–20.</p>
+        </div>
+      </div>
+      {points.length ? (
+        <div className="dashboard-chart-wrap">
+          <svg className="dashboard-projection-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Gráfico acumulado de realizado, meta esperada e projeção de mão de obra">
+            {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+              const y = padding + (height - padding * 2) * (1 - ratio)
+              return <line key={ratio} x1={padding} x2={width - padding} y1={y} y2={y} className="dashboard-chart-grid" />
+            })}
+            <path d={expectedPath} className="dashboard-chart-line dashboard-chart-expected" />
+            <path d={projectionPath} className="dashboard-chart-line dashboard-chart-projection" />
+            <path d={realizedPath} className="dashboard-chart-line dashboard-chart-realized" />
+          </svg>
+          <div className="dashboard-chart-axis">
+            {labels.map((point) => <span key={point.data}>{shortDate(point.data).slice(0, 5)}</span>)}
+          </div>
+          <div className="dashboard-chart-legend">
+            <span><i className="chart-legend-realized" />Realizado</span>
+            <span><i className="chart-legend-expected" />Meta esperada</span>
+            <span><i className="chart-legend-projection" />Projeção</span>
+          </div>
+        </div>
+      ) : (
+        <div className="ui-empty-state"><div><strong>Sem série para exibir</strong></div></div>
+      )}
     </section>
   )
 }
@@ -170,8 +250,8 @@ export function DashboardPage() {
   const kpis = data?.kpis
   const totalPlanned = (kpis?.previstoMaoObra || 0) + (kpis?.previstoLanches || 0)
   const totalReal = (kpis?.realizadoMaoObra || 0) + (kpis?.realizadoLanches || 0)
-  const differenceTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
-  const metaTone = kpis?.atingimentoMetaPercentual == null
+  const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
+  const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null
     ? 'neutral'
     : kpis.atingimentoMetaPercentual > 100
       ? 'danger'
@@ -241,6 +321,14 @@ export function DashboardPage() {
                 <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta da competência, sem rateio por dimensão" tone="neutral" />
                 <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
               </div>
+
+              <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}>
+                <div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div>
+                <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{data.alertaMeta.mensagem}</p></div>
+                <div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div>
+              </section>
+
+              <ProjectionChart points={data.evolucaoMetaProjecao} />
 
               <div className="dashboard-two-columns">
                 <HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} />
