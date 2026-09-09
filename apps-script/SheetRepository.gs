@@ -12,6 +12,7 @@ const SheetRepository = (() => {
   const SOLICITATION_LIST_CACHE_KEYS = [
     'admin_solicitations_list_v1_100',
     'admin_solicitations_list_v1_500',
+    'admin_solicitations_metadata_v2',
   ];
   const CATALOG_SHEETS = {
     CAD_OPERACOES: true,
