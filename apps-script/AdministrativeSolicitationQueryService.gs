@@ -6,6 +6,8 @@ const AdministrativeSolicitationQueryService = (() => {
     METADATA: 'METADADOS',
   });
   const TYPE_LABOR = 'MAO_DE_OBRA';
+  const METADATA_CACHE_KEY = 'admin_solicitations_metadata_v2';
+  const METADATA_CACHE_SECONDS = 300;
 
   function execute(payload) {
     const input = payload || {};
@@ -29,6 +31,7 @@ const AdministrativeSolicitationQueryService = (() => {
 
     let total;
     let rows;
+    let summary = null;
 
     if (!hasFilters) {
       total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
@@ -39,9 +42,12 @@ const AdministrativeSolicitationQueryService = (() => {
       );
     } else {
       const allRows = SheetRepository.readObjects(SHEET_SOLICITACOES);
-      const filteredRows = allRows
+      const periodRows = allRows.filter(function (record) {
+        return matchesPeriod_(record, filters);
+      });
+      const filteredRows = periodRows
         .filter(function (record) {
-          return matchesFilters_(record, filters);
+          return matchesNonPeriodFilters_(record, filters);
         })
         .sort(function (left, right) {
           return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
@@ -49,6 +55,8 @@ const AdministrativeSolicitationQueryService = (() => {
 
       total = filteredRows.length;
       rows = filteredRows.slice(offset, offset + pageSize);
+      summary = summarize_(periodRows);
+      writeMetadataCache_(buildMetadata_(allRows));
     }
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -59,7 +67,7 @@ const AdministrativeSolicitationQueryService = (() => {
       pagina: page,
       tamanhoPagina: pageSize,
       totalPaginas: totalPages,
-      resumo: null,
+      resumo: summary,
       itens: rows
         .slice()
         .sort(function (left, right) {
@@ -70,19 +78,37 @@ const AdministrativeSolicitationQueryService = (() => {
   }
 
   function metadata_() {
-    const rows = SheetRepository.readObjects(SHEET_SOLICITACOES);
+    const cached = readMetadataCache_();
+    if (cached) return cached;
+
+    const result = buildMetadata_(SheetRepository.readObjects(SHEET_SOLICITACOES));
+    writeMetadataCache_(result);
+    return result;
+  }
+
+  function buildMetadata_(rows) {
     const dates = {};
+    (rows || []).forEach(function (record) {
+      const date = dateOnly_(record.DATA_CRIACAO);
+      if (date) dates[date] = true;
+    });
+
+    return {
+      resumo: summarize_(rows || []),
+      datasRegistro: Object.keys(dates).sort().reverse(),
+    };
+  }
+
+  function summarize_(rows) {
     const summary = {
-      total: rows.length,
+      total: (rows || []).length,
       aguardandoTriagem: 0,
       aguardandoRealizado: 0,
       divergencias: 0,
     };
 
-    rows.forEach(function (record) {
+    (rows || []).forEach(function (record) {
       const indicators = indicators_(record);
-      const date = dateOnly_(record.DATA_CRIACAO);
-      if (date) dates[date] = true;
 
       if (!indicators.triagemConcluida) summary.aguardandoTriagem += 1;
       if (
@@ -95,10 +121,7 @@ const AdministrativeSolicitationQueryService = (() => {
       if (indicators.divergencia) summary.divergencias += 1;
     });
 
-    return {
-      resumo: summary,
-      datasRegistro: Object.keys(dates).sort().reverse(),
-    };
+    return summary;
   }
 
   function detail_(input) {
@@ -142,15 +165,19 @@ const AdministrativeSolicitationQueryService = (() => {
     );
   }
 
-  function matchesFilters_(record, filters) {
+  function matchesPeriod_(record, filters) {
     const date = dateOnly_(record.DATA_CRIACAO);
     const year = date ? date.slice(0, 4) : '';
     const month = date ? date.slice(5, 7) : '';
-    const indicators = indicators_(record);
 
     if (filters.anoRegistro && year !== filters.anoRegistro) return false;
     if (filters.mesRegistro && month !== filters.mesRegistro) return false;
     if (filters.dataRegistro && date !== filters.dataRegistro) return false;
+    return true;
+  }
+
+  function matchesNonPeriodFilters_(record, filters) {
+    const indicators = indicators_(record);
 
     if (
       filters.tipo &&
@@ -357,6 +384,27 @@ const AdministrativeSolicitationQueryService = (() => {
     }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  }
+
+  function readMetadataCache_() {
+    try {
+      const cached = CacheService.getScriptCache().get(METADATA_CACHE_KEY);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeMetadataCache_(value) {
+    try {
+      CacheService.getScriptCache().put(
+        METADATA_CACHE_KEY,
+        JSON.stringify(value),
+        METADATA_CACHE_SECONDS
+      );
+    } catch (error) {
+      // Cache é apenas otimização.
+    }
   }
 
   return {
