@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react'
+import { prefetchCatalogosAdmin } from '../services/catalogService'
 
 const BRAND_LOGO='/brand/unilog-logo-white-transparent.svg'
 const MOBILE_SIDEBAR_ID='extra-cost-mobile-sidebar'
@@ -30,6 +31,12 @@ export function AppShell({children,section,onNavigate}:Props){
       .catch(()=>undefined)
     return()=>{active=false}
   },[])
+
+  useEffect(()=>{
+    if(section!=='solicitacoes')return
+    const timeout=window.setTimeout(()=>prefetchCatalogosAdmin(),1200)
+    return()=>window.clearTimeout(timeout)
+  },[section])
 
   useEffect(()=>{
     if(wasMobileOpen.current&&!mobileOpen)mobileMenuButtonRef.current?.focus()
@@ -104,7 +111,7 @@ export function AppShell({children,section,onNavigate}:Props){
       <nav className="sidebar-nav" aria-label="Seções do Extra Cost Control">
         <div><span className="sidebar-link sidebar-link-disabled" aria-disabled="true" title="Visão geral em construção"><span className="material-symbols-rounded" aria-hidden="true">space_dashboard</span><span className="nav-label">Visão geral</span></span></div>
         <div><button type="button" className={`sidebar-link ${section==='solicitacoes'?'active':''}`.trim()} aria-current={section==='solicitacoes'?'page':undefined} onClick={()=>navigate('solicitacoes')}><span className="material-symbols-rounded" aria-hidden="true">receipt_long</span><span className="nav-label">Solicitações</span></button></div>
-        <div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><button type="button" className={`sidebar-link ${section==='cadastros'?'active':''}`.trim()} aria-current={section==='cadastros'?'page':undefined} onClick={()=>navigate('cadastros')}><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></button></div>
+        <div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><button type="button" className={`sidebar-link ${section==='cadastros'?'active':''}`.trim()} aria-current={section==='cadastros'?'page':undefined} onPointerEnter={prefetchCatalogosAdmin} onFocus={prefetchCatalogosAdmin} onClick={()=>navigate('cadastros')}><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></button></div>
       </nav>
 
       <div className="sidebar-user"><div className="user-avatar">{avatar}</div><div className="sidebar-user-copy" title={identityEmail||undefined}><strong>{identityLabel}</strong><span>Cloudflare Access</span></div><button type="button" onClick={signOut} title="Sair" aria-label="Sair do Extra Cost Control"><span className="material-symbols-rounded" aria-hidden="true">logout</span></button></div>
