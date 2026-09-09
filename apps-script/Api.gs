@@ -40,6 +40,10 @@ const Api = (() => {
           return JsonResponse.ok(CatalogAdminService.execute(servicePayload));
         }
 
+        if (mode === 'ADMIN_SCOPE') {
+          return JsonResponse.ok(CatalogAdminQueryService.getScope(servicePayload));
+        }
+
         if (mode === 'ADMIN') {
           return JsonResponse.ok(CatalogAdminService.getAdministrativeCatalogs());
         }
