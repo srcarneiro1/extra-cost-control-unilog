@@ -78,6 +78,10 @@ async function proxyToAppsScript(
   );
 }
 
+function optionalParam(url: URL, name: string): string {
+  return String(url.searchParams.get(name) || '').trim();
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   const identity = await authorizeGatewayRequest(request, env);
@@ -96,18 +100,40 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const url = new URL(request.url);
-  const idSolicitacao = String(url.searchParams.get('id') || '').trim();
-  const limite = String(url.searchParams.get('limite') || '').trim();
+  const idSolicitacao = optionalParam(url, 'id');
+  const metadata = optionalParam(url, 'metadata');
 
-  const payload: Record<string, unknown> = idSolicitacao
-    ? {
-        acao: 'DETALHAR',
-        idSolicitacao,
-      }
-    : {
-        acao: 'LISTAR',
-        ...(limite ? { limite } : {}),
-      };
+  let payload: Record<string, unknown>;
+
+  if (idSolicitacao) {
+    payload = {
+      acao: 'DETALHAR',
+      idSolicitacao,
+    };
+  } else if (metadata === '1') {
+    payload = { acao: 'METADADOS' };
+  } else {
+    const pagina = optionalParam(url, 'pagina');
+    const tamanhoPagina = optionalParam(url, 'tamanhoPagina') || optionalParam(url, 'limite');
+    const busca = optionalParam(url, 'busca');
+    const tipo = optionalParam(url, 'tipo');
+    const status = optionalParam(url, 'status');
+    const anoRegistro = optionalParam(url, 'anoRegistro');
+    const mesRegistro = optionalParam(url, 'mesRegistro');
+    const dataRegistro = optionalParam(url, 'dataRegistro');
+
+    payload = {
+      acao: 'LISTAR',
+      ...(pagina ? { pagina } : {}),
+      ...(tamanhoPagina ? { tamanhoPagina } : {}),
+      ...(busca ? { busca } : {}),
+      ...(tipo ? { tipo } : {}),
+      ...(status ? { status } : {}),
+      ...(anoRegistro ? { anoRegistro } : {}),
+      ...(mesRegistro ? { mesRegistro } : {}),
+      ...(dataRegistro ? { dataRegistro } : {}),
+    };
+  }
 
   return proxyToAppsScript(env, 'solicitacoes_admin', payload);
 };
