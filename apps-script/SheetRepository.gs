@@ -2,6 +2,13 @@ const SheetRepository = (() => {
   const PROPERTY_SPREADSHEET_ID = 'SPREADSHEET_ID';
   const ACTIVE_CATALOG_CACHE_KEY = 'active_catalogs_v1';
   const ADMIN_CATALOG_CACHE_KEY = 'catalog_admin_v5';
+  const ADMIN_SCOPE_CACHE_KEYS = [
+    'catalog_admin_scope_v1_RESUMO',
+    'catalog_admin_scope_v1_FORNECEDORES',
+    'catalog_admin_scope_v1_PRODUTOS',
+    'catalog_admin_scope_v1_PRECOS_MO',
+    'catalog_admin_scope_v1_PRECOS_PRODUTOS',
+  ];
   const SOLICITATION_LIST_CACHE_KEYS = [
     'admin_solicitations_list_v1_100',
     'admin_solicitations_list_v1_500',
@@ -68,6 +75,7 @@ const SheetRepository = (() => {
       if (CATALOG_SHEETS[sheetName]) {
         cache.remove(ACTIVE_CATALOG_CACHE_KEY);
         cache.remove(ADMIN_CATALOG_CACHE_KEY);
+        cache.removeAll(ADMIN_SCOPE_CACHE_KEYS);
       }
     } catch (error) {
       // Cache é apenas otimização; falha nunca bloqueia persistência.
