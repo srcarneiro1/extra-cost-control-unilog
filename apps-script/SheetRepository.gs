@@ -147,26 +147,24 @@ const SheetRepository = (() => {
 
   function findRowByField(sheetName, fieldName, value) {
     const sheet = getSheet_(sheetName);
-    const headers = headers_(sheet);
+    const values = sheet.getDataRange().getValues();
+
+    if (!values.length || values.length === 1) return null;
+
+    const headers = normalizeHeaders_(values[0]);
     const fieldIndex = headers.indexOf(fieldName);
 
     if (fieldIndex < 0) {
       throw new Error('Campo não encontrado na aba ' + sheetName + ': ' + fieldName);
     }
 
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return null;
-
     const target = String(value == null ? '' : value).trim();
-    const columnValues = sheet.getRange(2, fieldIndex + 1, lastRow - 1, 1).getDisplayValues();
 
-    for (let index = 0; index < columnValues.length; index += 1) {
-      if (String(columnValues[index][0] || '').trim() === target) {
-        const rowNumber = index + 2;
-        const rowValues = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
-
+    for (let index = 1; index < values.length; index += 1) {
+      const rowValues = values[index];
+      if (String(rowValues[fieldIndex] == null ? '' : rowValues[fieldIndex]).trim() === target) {
         return {
-          rowNumber: rowNumber,
+          rowNumber: index + 1,
           record: headers.reduce(function (record, header, columnIndex) {
             if (header) record[header] = rowValues[columnIndex] == null ? '' : rowValues[columnIndex];
             return record;
