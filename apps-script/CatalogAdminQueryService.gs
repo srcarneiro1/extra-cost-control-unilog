@@ -19,25 +19,31 @@ const CatalogAdminQueryService = (() => {
   const DESTINATIONS = ['NENHUM', 'NUMERO', 'GRUPO'];
   const CACHE_PREFIX = 'catalog_admin_scope_v1_';
   const CACHE_SECONDS = 60;
+  const PRICE_PAGINATION_THRESHOLD = 50;
+  const PRICE_PAGE_SIZE = 25;
 
   function getScope(payload) {
+    const input = payload || {};
     const scope = ValidationService.enumValue(
-      payload && payload.escopo,
+      input.escopo,
       'Escopo do cadastro',
       Object.keys(SCOPES).map(function (key) { return SCOPES[key]; })
     );
 
-    const cached = readCache_(scope);
-    if (cached) return cached;
+    const isPriceScope = scope === SCOPES.LABOR_PRICES || scope === SCOPES.PRODUCT_PRICES;
+    if (!isPriceScope) {
+      const cached = readCache_(scope);
+      if (cached) return cached;
+    }
 
     let result;
     if (scope === SCOPES.SUMMARY) result = summary_();
     if (scope === SCOPES.PROVIDERS) result = providers_();
     if (scope === SCOPES.PRODUCTS) result = products_();
-    if (scope === SCOPES.LABOR_PRICES) result = laborPrices_();
-    if (scope === SCOPES.PRODUCT_PRICES) result = productPrices_();
+    if (scope === SCOPES.LABOR_PRICES) result = laborPrices_(input);
+    if (scope === SCOPES.PRODUCT_PRICES) result = productPrices_(input);
 
-    writeCache_(scope, result);
+    if (!isPriceScope) writeCache_(scope, result);
     return result;
   }
 
@@ -83,10 +89,22 @@ const CatalogAdminQueryService = (() => {
     };
   }
 
-  function laborPrices_() {
+  function laborPrices_(input) {
     const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
     const functionRows = SheetRepository.readObjects(FUNCTION_SHEET);
-    const laborPriceRows = SheetRepository.readObjects(LABOR_PRICE_SHEET);
+    const search = ValidationService.normalizeUpper(input.busca || '');
+    const laborPriceRows = SheetRepository.readObjects(LABOR_PRICE_SHEET)
+      .map(laborPriceAdminDto_)
+      .filter(function (item) {
+        if (!item.fornecedor || !item.funcao || !item.vigenciaInicio) return false;
+        if (!search) return true;
+        return [item.fornecedor, item.funcao, item.turno, item.tipoDia]
+          .map(function (value) { return ValidationService.normalizeUpper(value || ''); })
+          .some(function (value) { return value.indexOf(search) !== -1; });
+      })
+      .sort(comparePriceHistory_);
+
+    const paged = paginatePrices_(laborPriceRows, input);
 
     return {
       funcoes: activeNamedDtos_(functionRows, 'FUNCAO'),
@@ -94,21 +112,32 @@ const CatalogAdminQueryService = (() => {
         .map(providerAdminDto_)
         .filter(function (item) { return Boolean(item.nome); })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
-      precosMaoObra: laborPriceRows
-        .map(laborPriceAdminDto_)
-        .filter(function (item) {
-          return Boolean(item.fornecedor && item.funcao && item.vigenciaInicio);
-        })
-        .sort(comparePriceHistory_),
+      precosMaoObra: paged.items,
+      paginacao: paged.pagination,
     };
   }
 
-  function productPrices_() {
+  function productPrices_(input) {
     const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
     const productRows = SheetRepository.readObjects(PRODUCT_SHEET);
     const productPriceRows = SheetRepository.readObjects(PRODUCT_PRICE_SHEET);
     const activeFoodProviders = activeFoodProviders_(providerRows);
     const linkedProducts = productsLinkedToActiveProvider_(productPriceRows, activeFoodProviders);
+    const search = ValidationService.normalizeUpper(input.busca || '');
+
+    const priceDtos = productPriceRows
+      .map(productPriceAdminDto_)
+      .filter(function (item) {
+        if (!item.fornecedor || !item.produto || !item.vigenciaInicio) return false;
+        if (!activeFoodProviders[ValidationService.normalizeUpper(item.fornecedor)]) return false;
+        if (!search) return true;
+        return [item.fornecedor, item.produto, item.categoria]
+          .map(function (value) { return ValidationService.normalizeUpper(value || ''); })
+          .some(function (value) { return value.indexOf(search) !== -1; });
+      })
+      .sort(comparePriceHistory_);
+
+    const paged = paginatePrices_(priceDtos, input);
 
     return {
       fornecedores: providerRows
@@ -123,14 +152,42 @@ const CatalogAdminQueryService = (() => {
           return Boolean(linkedProducts[ValidationService.normalizeUpper(item.nome)]);
         })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
-      precosProdutos: productPriceRows
-        .map(productPriceAdminDto_)
-        .filter(function (item) {
-          if (!item.fornecedor || !item.produto || !item.vigenciaInicio) return false;
-          return Boolean(activeFoodProviders[ValidationService.normalizeUpper(item.fornecedor)]);
-        })
-        .sort(comparePriceHistory_),
+      precosProdutos: paged.items,
+      paginacao: paged.pagination,
     };
+  }
+
+  function paginatePrices_(items, input) {
+    const total = items.length;
+    const paginated = total > PRICE_PAGINATION_THRESHOLD;
+    const pageSize = paginated ? normalizePageSize_(input.tamanhoPagina) : Math.max(total, 1);
+    const totalPages = paginated ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+    const requestedPage = normalizePage_(input.pagina);
+    const page = Math.min(requestedPage, totalPages);
+    const start = (page - 1) * pageSize;
+
+    return {
+      items: paginated ? items.slice(start, start + pageSize) : items,
+      pagination: {
+        total: total,
+        pagina: page,
+        tamanhoPagina: paginated ? pageSize : total,
+        totalPaginas: totalPages,
+        paginado: paginated,
+      },
+    };
+  }
+
+  function normalizePage_(value) {
+    if (value === '' || value == null) return 1;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+  }
+
+  function normalizePageSize_(value) {
+    if (value === '' || value == null) return PRICE_PAGE_SIZE;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, 100) : PRICE_PAGE_SIZE;
   }
 
   function activeFoodProviders_(providerRows) {

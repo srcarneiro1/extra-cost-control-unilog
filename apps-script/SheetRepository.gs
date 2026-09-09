@@ -12,6 +12,7 @@ const SheetRepository = (() => {
   const SOLICITATION_LIST_CACHE_KEYS = [
     'admin_solicitations_list_v1_100',
     'admin_solicitations_list_v1_500',
+    'admin_solicitations_metadata_v2',
   ];
   const CATALOG_SHEETS = {
     CAD_OPERACOES: true,
@@ -170,6 +171,68 @@ const SheetRepository = (() => {
     return result;
   }
 
+  function monthKey_(value) {
+    if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
+      return Utilities.formatDate(value, DateService.TIMEZONE, 'yyyy-MM');
+    }
+
+    const text = String(value == null ? '' : value).trim();
+    if (!text) return '';
+    if (/^\d{4}-\d{2}/.test(text)) return text.slice(0, 7);
+
+    try {
+      return DateService.toIsoDate(value).slice(0, 7);
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function readObjectsForMonthFromEnd(sheetName, dateField, year, month) {
+    const sheet = getSheet_(sheetName);
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    if (lastRow <= 1 || lastColumn <= 0) return [];
+
+    const headers = headers_(sheet);
+    if (headers.indexOf(dateField) < 0) {
+      throw new Error('Campo não encontrado na aba ' + sheetName + ': ' + dateField);
+    }
+
+    const targetMonth = String(year || '').padStart(4, '0') + '-' + String(month || '').padStart(2, '0');
+    const chunkSize = 200;
+    const result = [];
+    let endRow = lastRow;
+    let finished = false;
+
+    while (endRow >= 2 && !finished) {
+      const startRow = Math.max(2, endRow - chunkSize + 1);
+      const take = endRow - startRow + 1;
+      const values = sheet.getRange(startRow, 1, take, lastColumn).getValues();
+
+      for (let index = values.length - 1; index >= 0; index -= 1) {
+        const record = rowToObject_(headers, values[index]);
+        if (!hasRecordValue_(record)) continue;
+
+        const recordMonth = monthKey_(record[dateField]);
+        if (!recordMonth) continue;
+
+        if (recordMonth === targetMonth) {
+          result.push(record);
+          continue;
+        }
+
+        if (recordMonth < targetMonth) {
+          finished = true;
+          break;
+        }
+      }
+
+      endRow = startRow - 1;
+    }
+
+    return result;
+  }
+
   function getDataRowCount(sheetName) {
     return Math.max(0, getSheet_(sheetName).getLastRow() - 1);
   }
@@ -255,6 +318,7 @@ const SheetRepository = (() => {
     readObjectsWithRowNumbers,
     readLastObjects,
     readObjectsWindowFromEnd,
+    readObjectsForMonthFromEnd,
     getDataRowCount,
     appendObject,
     findRowByField,

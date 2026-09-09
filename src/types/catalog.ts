@@ -85,6 +85,20 @@ export interface CatalogosAdminDto {
   precosProdutos: PrecoProdutoAdminDto[]
 }
 
+export interface CatalogAdminPaginationDto {
+  total: number
+  pagina: number
+  tamanhoPagina: number
+  totalPaginas: number
+  paginado: boolean
+}
+
+export interface CatalogAdminScopeQuery {
+  pagina?: number
+  tamanhoPagina?: number
+  busca?: string
+}
+
 export interface CatalogosAdminScopeDto {
   resumoAtivos?: CatalogosAdminResumoDto
   funcoes?: CatalogoNomeDto[]
@@ -92,6 +106,7 @@ export interface CatalogosAdminScopeDto {
   produtos?: ProdutoAdminDto[]
   precosMaoObra?: PrecoMaoObraAdminDto[]
   precosProdutos?: PrecoProdutoAdminDto[]
+  paginacao?: CatalogAdminPaginationDto
 }
 
 export interface SaveFornecedorAdminInput {
@@ -133,71 +148,29 @@ export interface ApiErrorDto {
 }
 
 export type CatalogosApiResponse =
-  | {
-      ok: true
-      data: CatalogosDto
-    }
-  | {
-      ok: false
-      error: ApiErrorDto
-    }
+  | { ok: true; data: CatalogosDto }
+  | { ok: false; error: ApiErrorDto }
 
 export type CatalogosAdminApiResponse =
-  | {
-      ok: true
-      data: CatalogosAdminDto
-    }
-  | {
-      ok: false
-      error: ApiErrorDto
-    }
+  | { ok: true; data: CatalogosAdminDto }
+  | { ok: false; error: ApiErrorDto }
 
 export type CatalogosAdminScopeApiResponse =
-  | {
-      ok: true
-      data: CatalogosAdminScopeDto
-    }
-  | {
-      ok: false
-      error: ApiErrorDto
-    }
+  | { ok: true; data: CatalogosAdminScopeDto }
+  | { ok: false; error: ApiErrorDto }
 
 export type FornecedorAdminApiResponse =
-  | {
-      ok: true
-      data: FornecedorAdminDto
-    }
-  | {
-      ok: false
-      error: ApiErrorDto
-    }
+  | { ok: true; data: FornecedorAdminDto }
+  | { ok: false; error: ApiErrorDto }
 
 export type ProdutoAdminApiResponse =
-  | {
-      ok: true
-      data: ProdutoAdminDto
-    }
-  | {
-      ok: false
-      error: ApiErrorDto
-    }
+  | { ok: true; data: ProdutoAdminDto }
+  | { ok: false; error: ApiErrorDto }
 
 export type PrecoMaoObraAdminApiResponse =
-  | {
-      ok: true
-      data: PrecoMaoObraAdminDto
-    }
-  | {
-      ok: false
-      error: ApiErrorDto
-    }
+  | { ok: true; data: PrecoMaoObraAdminDto }
+  | { ok: false; error: ApiErrorDto }
 
 export type PrecoProdutoAdminApiResponse =
-  | {
-      ok: true
-      data: PrecoProdutoAdminDto
-    }
-  | {
-      ok: false
-      error: ApiErrorDto
-    }
+  | { ok: true; data: PrecoProdutoAdminDto }
+  | { ok: false; error: ApiErrorDto }

@@ -93,17 +93,30 @@ async function proxyCatalogRequest(
   );
 }
 
+function optionalParam(url: URL, name: string): string {
+  return String(url.searchParams.get(name) || '').trim();
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const adminMode = url.searchParams.get('mode') === 'admin';
-  const scope = String(url.searchParams.get('scope') || '').trim().toUpperCase();
+  const scope = optionalParam(url, 'scope').toUpperCase();
+  const pagina = optionalParam(url, 'pagina');
+  const tamanhoPagina = optionalParam(url, 'tamanhoPagina');
+  const busca = optionalParam(url, 'busca');
 
   return proxyCatalogRequest(
     context.request,
     context.env,
     adminMode
       ? scope
-        ? { modo: 'ADMIN_SCOPE', escopo: scope }
+        ? {
+            modo: 'ADMIN_SCOPE',
+            escopo: scope,
+            ...(pagina ? { pagina } : {}),
+            ...(tamanhoPagina ? { tamanhoPagina } : {}),
+            ...(busca ? { busca } : {}),
+          }
         : { modo: 'ADMIN' }
       : {},
   );

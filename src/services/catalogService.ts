@@ -1,5 +1,6 @@
 import type {
   CatalogAdminScope,
+  CatalogAdminScopeQuery,
   CatalogosAdminApiResponse,
   CatalogosAdminDto,
   CatalogosAdminScopeApiResponse,
@@ -29,8 +30,8 @@ let activeCatalogCache: { value: CatalogosDto; expiresAt: number } | null = null
 let activeCatalogRequest: Promise<CatalogosDto> | null = null
 let adminCatalogCache: { value: CatalogosAdminDto; expiresAt: number } | null = null
 let adminCatalogRequest: Promise<CatalogosAdminDto> | null = null
-const adminScopeCache = new Map<CatalogAdminScope, { value: CatalogosAdminScopeDto; expiresAt: number }>()
-const adminScopeRequests = new Map<CatalogAdminScope, Promise<CatalogosAdminScopeDto>>()
+const adminScopeCache = new Map<string, { value: CatalogosAdminScopeDto; expiresAt: number }>()
+const adminScopeRequests = new Map<string, Promise<CatalogosAdminScopeDto>>()
 
 export class CatalogServiceError extends Error {
   readonly code: string
@@ -138,11 +139,7 @@ export function fetchCatalogos(signal?: AbortSignal): Promise<CatalogosDto> {
   return Promise.race([
     activeCatalogRequest,
     new Promise<CatalogosDto>((_, reject) => {
-      signal.addEventListener(
-        'abort',
-        () => reject(new DOMException('Aborted', 'AbortError')),
-        { once: true },
-      )
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     }),
   ])
 }
@@ -217,22 +214,30 @@ export function fetchCatalogosAdmin(signal?: AbortSignal): Promise<CatalogosAdmi
   return Promise.race([
     adminCatalogRequest,
     new Promise<CatalogosAdminDto>((_, reject) => {
-      signal.addEventListener(
-        'abort',
-        () => reject(new DOMException('Aborted', 'AbortError')),
-        { once: true },
-      )
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     }),
   ])
 }
 
-async function requestAdminScope(scope: CatalogAdminScope): Promise<CatalogosAdminScopeDto> {
+function adminScopeUrl(scope: CatalogAdminScope, query: CatalogAdminScopeQuery): string {
+  const params = new URLSearchParams({ mode: 'admin', scope })
+  if (query.pagina) params.set('pagina', String(query.pagina))
+  if (query.tamanhoPagina) params.set('tamanhoPagina', String(query.tamanhoPagina))
+  if (query.busca?.trim()) params.set('busca', query.busca.trim())
+  return `${CATALOGS_ENDPOINT}?${params.toString()}`
+}
+
+async function requestAdminScope(
+  key: string,
+  scope: CatalogAdminScope,
+  query: CatalogAdminScopeQuery,
+): Promise<CatalogosAdminScopeDto> {
   let response: Response
   try {
-    response = await fetch(
-      `${CATALOGS_ENDPOINT}?mode=admin&scope=${encodeURIComponent(scope)}`,
-      { method: 'GET', headers: { accept: 'application/json' } },
-    )
+    response = await fetch(adminScopeUrl(scope, query), {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+    })
   } catch {
     throw new CatalogServiceError('Não foi possível conectar ao cadastro administrativo.')
   }
@@ -240,7 +245,7 @@ async function requestAdminScope(scope: CatalogAdminScope): Promise<CatalogosAdm
   const payload = await parseJson<CatalogosAdminScopeApiResponse>(response)
   if (!response.ok || !payload.ok) throwApiError(response, payload)
 
-  adminScopeCache.set(scope, {
+  adminScopeCache.set(key, {
     value: payload.data,
     expiresAt: Date.now() + ADMIN_SCOPE_CACHE_MS,
   })
@@ -249,37 +254,39 @@ async function requestAdminScope(scope: CatalogAdminScope): Promise<CatalogosAdm
 
 export function fetchCatalogoAdminScope(
   scope: CatalogAdminScope,
+  queryOrSignal: CatalogAdminScopeQuery | AbortSignal = {},
   signal?: AbortSignal,
 ): Promise<CatalogosAdminScopeDto> {
-  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+  const query = queryOrSignal instanceof AbortSignal ? {} : queryOrSignal
+  const requestSignal = queryOrSignal instanceof AbortSignal ? queryOrSignal : signal
 
-  const cached = adminScopeCache.get(scope)
+  if (requestSignal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  const key = adminScopeUrl(scope, query)
+  const cached = adminScopeCache.get(key)
   if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value)
 
-  let request = adminScopeRequests.get(scope)
+  let request = adminScopeRequests.get(key)
   if (!request) {
-    request = requestAdminScope(scope).finally(() => {
-      adminScopeRequests.delete(scope)
+    request = requestAdminScope(key, scope, query).finally(() => {
+      adminScopeRequests.delete(key)
     })
-    adminScopeRequests.set(scope, request)
+    adminScopeRequests.set(key, request)
   }
 
-  if (!signal) return request
+  if (!requestSignal) return request
 
   return Promise.race([
     request,
     new Promise<CatalogosAdminScopeDto>((_, reject) => {
-      signal.addEventListener(
-        'abort',
-        () => reject(new DOMException('Aborted', 'AbortError')),
-        { once: true },
-      )
+      requestSignal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     }),
   ])
 }
 
 export function prefetchCatalogoAdminScope(scope: CatalogAdminScope): void {
-  const cached = adminScopeCache.get(scope)
+  const key = adminScopeUrl(scope, {})
+  const cached = adminScopeCache.get(key)
   if (cached && cached.expiresAt > Date.now()) return
   void fetchCatalogoAdminScope(scope).catch(() => undefined)
 }
