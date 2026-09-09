@@ -26,17 +26,17 @@ const AdministrativeSolicitationQueryService = (() => {
     const cached = readListCache_(limit);
     if (cached) return cached;
 
-    const rows = SheetRepository.readObjects(SHEET_SOLICITACOES);
+    const total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
+    const rows = SheetRepository.readLastObjects(SHEET_SOLICITACOES, limit);
 
     const result = {
-      total: rows.length,
+      total: total,
       limite: limit,
       itens: rows
         .slice()
         .sort(function (left, right) {
           return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
         })
-        .slice(0, limit)
         .map(toListItem_),
     };
 
