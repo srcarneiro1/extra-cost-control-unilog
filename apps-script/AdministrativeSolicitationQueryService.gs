@@ -40,6 +40,24 @@ const AdministrativeSolicitationQueryService = (() => {
         offset,
         pageSize
       );
+    } else if (isCurrentMonthFilter_(filters)) {
+      const periodRows = SheetRepository.readObjectsForMonthFromEnd(
+        SHEET_SOLICITACOES,
+        'DATA_CRIACAO',
+        filters.anoRegistro,
+        filters.mesRegistro
+      );
+      const filteredRows = periodRows
+        .filter(function (record) {
+          return matchesNonPeriodFilters_(record, filters);
+        })
+        .sort(function (left, right) {
+          return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
+        });
+
+      total = filteredRows.length;
+      rows = filteredRows.slice(offset, offset + pageSize);
+      summary = summarize_(periodRows);
     } else {
       const allRows = SheetRepository.readObjects(SHEET_SOLICITACOES);
       const periodRows = allRows.filter(function (record) {
@@ -163,6 +181,15 @@ const AdministrativeSolicitationQueryService = (() => {
       filters.mesRegistro ||
       filters.dataRegistro
     );
+  }
+
+  function isCurrentMonthFilter_(filters) {
+    if (!filters.anoRegistro || !filters.mesRegistro || filters.dataRegistro) return false;
+
+    const currentYear = Utilities.formatDate(new Date(), DateService.TIMEZONE, 'yyyy');
+    const currentMonth = Utilities.formatDate(new Date(), DateService.TIMEZONE, 'MM');
+
+    return filters.anoRegistro === currentYear && filters.mesRegistro === currentMonth;
   }
 
   function matchesPeriod_(record, filters) {
