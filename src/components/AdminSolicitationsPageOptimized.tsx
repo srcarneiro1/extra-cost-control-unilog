@@ -131,7 +131,7 @@ export function AdminSolicitationsPage() {
   }
 
   async function refreshItems() {
-    const response = await fetchAdministrativeSolicitations(500)
+    const response = await fetchAdministrativeSolicitations(20)
     setItems(response.itens)
   }
 
@@ -269,9 +269,8 @@ export function AdminSolicitationsPage() {
   useEffect(() => {
     const controller = new AbortController()
 
-    // Na primeira abertura, somente a fila administrativa é necessária.
-    // Cadastros auxiliares são carregados sob demanda ao abrir/editar uma solicitação.
-    void fetchAdministrativeSolicitations(500, controller.signal)
+    // Teste isolado: 20 registros para separar volume de dados do cold start do Apps Script.
+    void fetchAdministrativeSolicitations(20, controller.signal)
       .then((response) => setItems(response.itens))
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return
