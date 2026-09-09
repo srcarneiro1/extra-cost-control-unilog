@@ -29,7 +29,7 @@ const DashboardService = (() => {
       periodoInicio: DateService.toIsoDate(period.start),
       periodoFim: DateService.toIsoDate(period.end),
       metaEscopo: 'GLOBAL_COMPETENCIA',
-      filtros: filterOptions_(allRows, periodRows, metaRows),
+      filtros: filterOptions_(allRows, periodRows, selectedCompetence),
       kpis: kpis,
       projecao: projection,
       alertaMeta: metaAlert_(projection),
@@ -350,19 +350,23 @@ const DashboardService = (() => {
     });
   }
 
-  function filterOptions_(allRows, periodRows, metaRows) {
+  function filterOptions_(allRows, periodRows, selectedCompetence) {
     const years = {};
+    const months = {};
+    const selectedYear = String(selectedCompetence || '').slice(0, 4);
+
     (allRows || []).forEach(function (record) {
       const competence = competenceOf_(record);
-      if (/^\d{4}-\d{2}$/.test(competence)) years[competence.slice(0, 4)] = true;
-    });
-    (metaRows || []).forEach(function (item) {
-      if (/^\d{4}-\d{2}$/.test(item.competencia)) years[item.competencia.slice(0, 4)] = true;
+      if (!/^\d{4}-\d{2}$/.test(competence)) return;
+      const year = competence.slice(0, 4);
+      const month = competence.slice(5, 7);
+      years[year] = true;
+      if (year === selectedYear) months[month] = true;
     });
 
     return {
       anos: Object.keys(years).sort().reverse(),
-      mesesCompetencia: ['01','02','03','04','05','06','07','08','09','10','11','12'],
+      mesesCompetencia: Object.keys(months).sort(),
       operacoes: distinct_(periodRows, 'OPERACAO'),
       supervisores: distinct_(periodRows, 'SUPERVISOR'),
       fornecedores: distinct_(periodRows, 'FORNECEDOR'),
