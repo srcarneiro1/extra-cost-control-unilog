@@ -3,35 +3,63 @@ const AdministrativeSolicitationQueryService = (() => {
   const ACTIONS = Object.freeze({
     LIST: 'LISTAR',
     DETAIL: 'DETALHAR',
+    METADATA: 'METADADOS',
   });
   const TYPE_LABOR = 'MAO_DE_OBRA';
-  const LIST_CACHE_PREFIX = 'admin_solicitations_list_v1_';
-  const LIST_CACHE_SECONDS = 20;
 
   function execute(payload) {
     const input = payload || {};
     const action = ValidationService.enumValue(
       input.acao || ACTIONS.LIST,
       'Ação da consulta',
-      [ACTIONS.LIST, ACTIONS.DETAIL]
+      [ACTIONS.LIST, ACTIONS.DETAIL, ACTIONS.METADATA]
     );
 
-    return action === ACTIONS.DETAIL
-      ? detail_(input)
-      : list_(input);
+    if (action === ACTIONS.DETAIL) return detail_(input);
+    if (action === ACTIONS.METADATA) return metadata_();
+    return list_(input);
   }
 
   function list_(input) {
-    const limit = normalizeLimit_(input.limite);
-    const cached = readListCache_(limit);
-    if (cached) return cached;
+    const pageSize = normalizePageSize_(input.tamanhoPagina || input.limite);
+    const page = normalizePage_(input.pagina);
+    const offset = (page - 1) * pageSize;
+    const filters = normalizeFilters_(input);
+    const hasFilters = hasFilters_(filters);
 
-    const total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
-    const rows = SheetRepository.readLastObjects(SHEET_SOLICITACOES, limit);
+    let total;
+    let rows;
 
-    const result = {
+    if (!hasFilters) {
+      total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
+      rows = SheetRepository.readObjectsWindowFromEnd(
+        SHEET_SOLICITACOES,
+        offset,
+        pageSize
+      );
+    } else {
+      const allRows = SheetRepository.readObjects(SHEET_SOLICITACOES);
+      const filteredRows = allRows
+        .filter(function (record) {
+          return matchesFilters_(record, filters);
+        })
+        .sort(function (left, right) {
+          return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
+        });
+
+      total = filteredRows.length;
+      rows = filteredRows.slice(offset, offset + pageSize);
+    }
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return {
       total: total,
-      limite: limit,
+      limite: pageSize,
+      pagina: page,
+      tamanhoPagina: pageSize,
+      totalPaginas: totalPages,
+      resumo: null,
       itens: rows
         .slice()
         .sort(function (left, right) {
@@ -39,9 +67,38 @@ const AdministrativeSolicitationQueryService = (() => {
         })
         .map(toListItem_),
     };
+  }
 
-    writeListCache_(limit, result);
-    return result;
+  function metadata_() {
+    const rows = SheetRepository.readObjects(SHEET_SOLICITACOES);
+    const dates = {};
+    const summary = {
+      total: rows.length,
+      aguardandoTriagem: 0,
+      aguardandoRealizado: 0,
+      divergencias: 0,
+    };
+
+    rows.forEach(function (record) {
+      const indicators = indicators_(record);
+      const date = dateOnly_(record.DATA_CRIACAO);
+      if (date) dates[date] = true;
+
+      if (!indicators.triagemConcluida) summary.aguardandoTriagem += 1;
+      if (
+        ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) === TYPE_LABOR &&
+        indicators.triagemConcluida &&
+        !indicators.realizadoRegistrado
+      ) {
+        summary.aguardandoRealizado += 1;
+      }
+      if (indicators.divergencia) summary.divergencias += 1;
+    });
+
+    return {
+      resumo: summary,
+      datasRegistro: Object.keys(dates).sort().reverse(),
+    };
   }
 
   function detail_(input) {
@@ -61,6 +118,80 @@ const AdministrativeSolicitationQueryService = (() => {
     }
 
     return toDetail_(found.record);
+  }
+
+  function normalizeFilters_(input) {
+    return {
+      busca: ValidationService.normalizeUpper(input.busca || ''),
+      tipo: ValidationService.normalizeUpper(input.tipo || ''),
+      status: ValidationService.normalizeUpper(input.status || ''),
+      anoRegistro: ValidationService.normalizeText(input.anoRegistro || ''),
+      mesRegistro: ValidationService.normalizeText(input.mesRegistro || ''),
+      dataRegistro: ValidationService.normalizeText(input.dataRegistro || ''),
+    };
+  }
+
+  function hasFilters_(filters) {
+    return Boolean(
+      filters.busca ||
+      filters.tipo ||
+      filters.status ||
+      filters.anoRegistro ||
+      filters.mesRegistro ||
+      filters.dataRegistro
+    );
+  }
+
+  function matchesFilters_(record, filters) {
+    const date = dateOnly_(record.DATA_CRIACAO);
+    const year = date ? date.slice(0, 4) : '';
+    const month = date ? date.slice(5, 7) : '';
+    const indicators = indicators_(record);
+
+    if (filters.anoRegistro && year !== filters.anoRegistro) return false;
+    if (filters.mesRegistro && month !== filters.mesRegistro) return false;
+    if (filters.dataRegistro && date !== filters.dataRegistro) return false;
+
+    if (
+      filters.tipo &&
+      ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== filters.tipo
+    ) {
+      return false;
+    }
+
+    if (filters.status && statusKey_(record, indicators) !== filters.status) {
+      return false;
+    }
+
+    if (filters.busca) {
+      const haystack = [
+        record.ID_SOLICITACAO,
+        record.OPERACAO,
+        record.SUPERVISOR,
+        record.FORNECEDOR,
+        record.USUARIO_CRIACAO,
+      ].map(function (value) {
+        return ValidationService.normalizeUpper(value || '');
+      });
+
+      const matched = haystack.some(function (value) {
+        return value.indexOf(filters.busca) !== -1;
+      });
+
+      if (!matched) return false;
+    }
+
+    return true;
+  }
+
+  function statusKey_(record, indicators) {
+    if (!indicators.triagemConcluida) return 'AGUARDANDO_TRIAGEM';
+    if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) {
+      return 'TRIAGEM_CONCLUIDA';
+    }
+    if (!indicators.realizadoRegistrado) return 'AGUARDANDO_REALIZADO';
+    if (indicators.divergencia) return 'COM_DIVERGENCIA';
+    return 'CONCLUIDO';
   }
 
   function toListItem_(record) {
@@ -175,15 +306,22 @@ const AdministrativeSolicitationQueryService = (() => {
     };
   }
 
-  function normalizeLimit_(value) {
-    if (value === '' || value == null) return 100;
-
+  function normalizePageSize_(value) {
+    if (value === '' || value == null) return 20;
     const parsed = Number(value);
     if (!Number.isInteger(parsed) || parsed <= 0) {
-      ValidationService.fail('Limite deve ser um número inteiro maior que zero.');
+      ValidationService.fail('Tamanho da página deve ser um número inteiro maior que zero.');
     }
+    return Math.min(parsed, 100);
+  }
 
-    return Math.min(parsed, 500);
+  function normalizePage_(value) {
+    if (value === '' || value == null) return 1;
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      ValidationService.fail('Página deve ser um número inteiro maior que zero.');
+    }
+    return parsed;
   }
 
   function text_(value) {
@@ -207,11 +345,9 @@ const AdministrativeSolicitationQueryService = (() => {
 
   function dateTime_(value) {
     if (!hasValue_(value)) return '';
-
     if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
       return Utilities.formatDate(value, DateService.TIMEZONE, "yyyy-MM-dd'T'HH:mm:ss");
     }
-
     return text_(value);
   }
 
@@ -219,34 +355,8 @@ const AdministrativeSolicitationQueryService = (() => {
     if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
       return value.getTime();
     }
-
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
-  }
-
-  function cacheKey_(limit) {
-    return LIST_CACHE_PREFIX + String(limit);
-  }
-
-  function readListCache_(limit) {
-    try {
-      const cached = CacheService.getScriptCache().get(cacheKey_(limit));
-      return cached ? JSON.parse(cached) : null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  function writeListCache_(limit, value) {
-    try {
-      CacheService.getScriptCache().put(
-        cacheKey_(limit),
-        JSON.stringify(value),
-        LIST_CACHE_SECONDS
-      );
-    } catch (error) {
-      // Cache é apenas otimização.
-    }
   }
 
   return {
