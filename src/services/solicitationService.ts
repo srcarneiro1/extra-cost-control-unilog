@@ -19,6 +19,10 @@ interface ApiFailure {
 
 type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 
+const ADMIN_LIST_CACHE_MS = 5 * 60 * 1000
+const adminListCache = new Map<number, { value: AdministrativeSolicitationListResponse; expiresAt: number }>()
+const adminListRequests = new Map<number, Promise<AdministrativeSolicitationListResponse>>()
+
 export class SolicitationServiceError extends Error {
   readonly code: string
   readonly details?: unknown
@@ -72,6 +76,10 @@ async function getRequest<T>(url: string, signal?: AbortSignal): Promise<T> {
   return parseResponse<T>(response)
 }
 
+function invalidateAdministrativeListCache() {
+  adminListCache.clear()
+}
+
 async function postRequest<T>(url: string, body: Record<string, unknown>): Promise<T> {
   let response: Response
 
@@ -88,14 +96,54 @@ async function postRequest<T>(url: string, body: Record<string, unknown>): Promi
     throw new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
   }
 
-  return parseResponse<T>(response)
+  const result = await parseResponse<T>(response)
+  invalidateAdministrativeListCache()
+  return result
+}
+
+function requestAdministrativeSolicitations(limit: number): Promise<AdministrativeSolicitationListResponse> {
+  const request = getRequest<AdministrativeSolicitationListResponse>(
+    `/api/solicitacoes?limite=${encodeURIComponent(String(limit))}`,
+  )
+    .then((value) => {
+      adminListCache.set(limit, {
+        value,
+        expiresAt: Date.now() + ADMIN_LIST_CACHE_MS,
+      })
+      return value
+    })
+    .finally(() => {
+      adminListRequests.delete(limit)
+    })
+
+  adminListRequests.set(limit, request)
+  return request
 }
 
 export function fetchAdministrativeSolicitations(
   limit = 100,
   signal?: AbortSignal,
 ): Promise<AdministrativeSolicitationListResponse> {
-  return getRequest(`/api/solicitacoes?limite=${encodeURIComponent(String(limit))}`, signal)
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  const cached = adminListCache.get(limit)
+  if (cached && cached.expiresAt > Date.now()) {
+    return Promise.resolve(cached.value)
+  }
+
+  const sharedRequest = adminListRequests.get(limit) || requestAdministrativeSolicitations(limit)
+  if (!signal) return sharedRequest
+
+  return Promise.race([
+    sharedRequest,
+    new Promise<AdministrativeSolicitationListResponse>((_, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => reject(new DOMException('Aborted', 'AbortError')),
+        { once: true },
+      )
+    }),
+  ])
 }
 
 export async function fetchAdministrativeSolicitationDetail(
