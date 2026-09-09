@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { AdminSolicitationsPageCurrentPeriod } from './components/AdminSolicitationsPageCurrentPeriod'
 import { AppShell, type AppSection } from './components/AppShell'
-import { CadastrosPage } from './components/CadastrosPage'
+import { CadastrosPagePaginated } from './components/CadastrosPagePaginated'
 
 export function App() {
   const [section, setSection] = useState<AppSection>('solicitacoes')
 
   return (
     <AppShell section={section} onNavigate={setSection}>
-      {section === 'cadastros' ? <CadastrosPage /> : <AdminSolicitationsPageCurrentPeriod />}
+      {section === 'cadastros' ? <CadastrosPagePaginated /> : <AdminSolicitationsPageCurrentPeriod />}
     </AppShell>
   )
 }
