@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AdminSolicitationsPage } from './components/AdminSolicitationsPageOptimized'
+import { AdminSolicitationsPageCurrentPeriod } from './components/AdminSolicitationsPageCurrentPeriod'
 import { AppShell, type AppSection } from './components/AppShell'
 import { CadastrosPage } from './components/CadastrosPage'
 
@@ -8,7 +8,7 @@ export function App() {
 
   return (
     <AppShell section={section} onNavigate={setSection}>
-      {section === 'cadastros' ? <CadastrosPage /> : <AdminSolicitationsPage />}
+      {section === 'cadastros' ? <CadastrosPage /> : <AdminSolicitationsPageCurrentPeriod />}
     </AppShell>
   )
 }
