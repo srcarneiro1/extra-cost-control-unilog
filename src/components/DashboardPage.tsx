@@ -159,6 +159,9 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
   const expectedPath = buildPath(points, 'metaEsperada', maxValue, width, height, padding)
   const projectionPath = buildPath(points, 'projecao', maxValue, width, height, padding)
   const labels = points.length ? [points[0], points[Math.floor((points.length - 1) / 2)], points[points.length - 1]] : []
+  const denominator = Math.max(points.length - 1, 1)
+  const usableWidth = width - padding * 2
+  const usableHeight = height - padding * 2
 
   return (
     <section className="dashboard-card dashboard-projection-card">
@@ -166,7 +169,7 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
         <div>
           <span className="ui-eyebrow">META E TENDÊNCIA</span>
           <h2>Realizado × Meta esperada × Projeção</h2>
-          <p>Acumulado de mão de obra ao longo da competência 21–20.</p>
+          <p>Acumulado de mão de obra ao longo da competência 21–20. Passe o cursor sobre os pontos para ver os valores.</p>
         </div>
       </div>
       {points.length ? (
@@ -179,6 +182,27 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
             <path d={expectedPath} className="dashboard-chart-line dashboard-chart-expected" />
             <path d={projectionPath} className="dashboard-chart-line dashboard-chart-projection" />
             <path d={realizedPath} className="dashboard-chart-line dashboard-chart-realized" />
+            {points.map((point, index) => {
+              const referenceValue = point.realizadoAcumulado ?? point.projecao ?? point.metaEsperada
+              if (referenceValue == null) return null
+              const x = padding + (index / denominator) * usableWidth
+              const y = padding + usableHeight - (referenceValue / maxValue) * usableHeight
+              const deltaExpected = point.realizadoAcumulado != null && point.metaEsperada != null
+                ? point.realizadoAcumulado - point.metaEsperada
+                : null
+              const tooltip = [
+                shortDate(point.data),
+                `Realizado: ${currency(point.realizadoAcumulado)}`,
+                `Meta esperada: ${currency(point.metaEsperada)}`,
+                `Projeção: ${currency(point.projecao)}`,
+                `Diferença vs. meta esperada: ${currency(deltaExpected)}`,
+              ].join('\n')
+              return (
+                <circle key={point.data} cx={x} cy={y} r="10" fill="transparent" stroke="transparent">
+                  <title>{tooltip}</title>
+                </circle>
+              )
+            })}
           </svg>
           <div className="dashboard-chart-axis">
             {labels.map((point) => <span key={point.data}>{shortDate(point.data).slice(0, 5)}</span>)}
@@ -231,6 +255,12 @@ export function DashboardPage() {
     return () => controller.abort()
   }, [query])
 
+  useEffect(() => {
+    if (!data?.filtros.mesesCompetencia.length) return
+    if (data.filtros.mesesCompetencia.includes(query.mesCompetencia || '')) return
+    update('mesCompetencia', data.filtros.mesesCompetencia[0])
+  }, [data?.filtros.mesesCompetencia, query.mesCompetencia])
+
   function update<K extends keyof DashboardQuery>(field: K, value: DashboardQuery[K]) {
     setQuery((current) => ({ ...current, [field]: value }))
   }
@@ -272,6 +302,20 @@ export function DashboardPage() {
     })
   }, [data])
 
+  const metaAlertMessage = data?.alertaMeta.status === 'FORA_DA_META'
+    ? `Mantido o ritmo atual, a projeção supera a meta em ${currency(Math.max(data.alertaMeta.desvioProjetadoMeta || 0, 0))}.`
+    : data?.alertaMeta.mensagem || ''
+
+  const remainingDailyLimit = data && kpis?.metaMaoObra != null && data.projecao.diasRestantes > 0
+    ? (kpis.metaMaoObra - kpis.realizadoMaoObra) / data.projecao.diasRestantes
+    : null
+
+  const remainingDailyMessage = remainingDailyLimit == null
+    ? ''
+    : remainingDailyLimit >= 0
+      ? `Limite médio restante: ${currency(remainingDailyLimit)}/dia por ${data?.projecao.diasRestantes || 0} dia(s).`
+      : `A meta realizada já foi excedida em ${currency(Math.abs((kpis?.metaMaoObra || 0) - (kpis?.realizadoMaoObra || 0)))}.`
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-page-heading">
@@ -279,8 +323,8 @@ export function DashboardPage() {
           <span className="ui-eyebrow">CUSTOS EXTRAS</span>
           <h1>Visão geral</h1>
           <p>Leitura executiva e analítica de mão de obra terceirizada e lanches.</p>
+          {data && <p><strong>Competência: {monthName(data.competencia.slice(5, 7))}/{data.competencia.slice(0, 4)}</strong> · {shortDate(data.periodoInicio)} a {shortDate(data.periodoFim)}</p>}
         </div>
-        {data && <div className="dashboard-period-badge"><span>Competência</span><strong>{monthName(data.competencia.slice(5, 7))}/{data.competencia.slice(0, 4)}</strong><small>{shortDate(data.periodoInicio)} a {shortDate(data.periodoFim)}</small></div>}
       </div>
 
       <div className="dashboard-tabs" role="tablist" aria-label="Áreas do dashboard">
@@ -291,7 +335,7 @@ export function DashboardPage() {
       <section className="dashboard-filter-panel" aria-label="Filtros do dashboard">
         <div className="dashboard-filters">
           <label>Ano<select value={query.ano} onChange={(event) => update('ano', event.target.value)}>{(data?.filtros.anos.length ? data.filtros.anos : [query.ano || initial.ano]).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
-          <label>Competência<select value={query.mesCompetencia} onChange={(event) => update('mesCompetencia', event.target.value)}>{MONTHS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>Competência<select value={query.mesCompetencia} onChange={(event) => update('mesCompetencia', event.target.value)}>{(data?.filtros.mesesCompetencia.length ? data.filtros.mesesCompetencia : [query.mesCompetencia || initial.mesCompetencia]).map((value) => <option key={value} value={value}>{monthName(value)}</option>)}</select></label>
           <label>Operação<select value={query.operacao} onChange={(event) => update('operacao', event.target.value)}><option value="TODOS">Todas</option>{data?.filtros.operacoes.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           <label>Supervisor<select value={query.supervisor} onChange={(event) => update('supervisor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.supervisores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           <label>Fornecedor<select value={query.fornecedor} onChange={(event) => update('fornecedor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.fornecedores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
@@ -324,7 +368,7 @@ export function DashboardPage() {
 
               <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}>
                 <div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div>
-                <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{data.alertaMeta.mensagem}</p></div>
+                <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div>
                 <div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div>
               </section>
 
