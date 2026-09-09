@@ -166,7 +166,7 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
         <div>
           <span className="ui-eyebrow">META E TENDÊNCIA</span>
           <h2>Realizado × Meta esperada × Projeção</h2>
-          <p>Linha acumulada de mão de obra. A meta esperada avança proporcionalmente aos dias corridos da competência.</p>
+          <p>Acumulado de mão de obra ao longo da competência 21–20.</p>
         </div>
       </div>
       {points.length ? (
@@ -248,15 +248,14 @@ export function DashboardPage() {
   }
 
   const kpis = data?.kpis
-  const projection = data?.projecao
   const totalPlanned = (kpis?.previstoMaoObra || 0) + (kpis?.previstoLanches || 0)
   const totalReal = (kpis?.realizadoMaoObra || 0) + (kpis?.realizadoLanches || 0)
   const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
-  const metaTone: MetricTone = projection?.percentualMetaProjetado == null
+  const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null
     ? 'neutral'
-    : projection.percentualMetaProjetado > 100
+    : kpis.atingimentoMetaPercentual > 100
       ? 'danger'
-      : projection.percentualMetaProjetado > 95
+      : kpis.atingimentoMetaPercentual > 85
         ? 'warning'
         : 'success'
 
@@ -306,32 +305,28 @@ export function DashboardPage() {
       {loading && !data ? <div className="ui-panel"><div className="ui-skeleton"><span /><span /><span /><span /></div></div> : null}
       {error ? <div className="ui-panel"><div className="ui-empty-state ui-empty-state-error"><div><strong>Falha ao carregar o dashboard</strong><p>{error}</p></div></div></div> : null}
 
-      {data && kpis && projection ? (
+      {data && kpis ? (
         <>
           {loading && <div className="dashboard-refreshing">Atualizando indicadores…</div>}
 
           {tab === 'executiva' ? (
             <div className="dashboard-view">
-              <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}>
-                <div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div>
-                <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{data.alertaMeta.mensagem}</p></div>
-                <div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div>
-              </section>
-
               <div className="dashboard-metrics-grid">
                 <MetricCard label="Previsto · Mão de obra" value={currency(kpis.previstoMaoObra)} detail="Solicitações da competência" />
                 <MetricCard label="Previsto · Lanches" value={currency(kpis.previstoLanches)} detail="Alimentação e bebida" />
                 <MetricCard label="Realizado · Mão de obra" value={currency(kpis.realizadoMaoObra)} detail="Com comparecimento registrado" tone="info" />
                 <MetricCard label="Realizado · Lanches" value={currency(kpis.realizadoLanches)} detail="Calculado pela solicitação" tone="info" />
-                <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta total da competência" />
-                <MetricCard label="Meta esperada até hoje" value={currency(projection.metaEsperadaAteHoje)} detail={`${projection.diasDecorridos} de ${projection.totalDias} dias corridos`} tone={metaTone} />
-                <MetricCard label="Projeção final · MO" value={currency(projection.projecaoFinalMaoObra)} detail={`${percent(projection.percentualMetaProjetado)} da meta`} tone={metaTone} />
-                <MetricCard label="Exposição conhecida · MO" value={currency(projection.exposicaoConhecidaMaoObra)} detail="Realizado + compromissos ainda não confirmados" tone="info" />
                 <MetricCard label="Diferença R$" value={currency(kpis.diferencaValor)} detail={`${currency(totalReal)} realizado vs. ${currency(totalPlanned)} previsto`} tone={differenceTone} />
                 <MetricCard label="Diferença %" value={percent(kpis.diferencaPercentual)} detail="Realizado − previsto" tone={differenceTone} />
-                <MetricCard label="Atingimento atual da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail="Realizado atual ÷ meta" tone={metaTone} />
-                <MetricCard label="Ritmo diário realizado · MO" value={currency(projection.ritmoDiarioRealizado)} detail={`${projection.diasRestantes} dia(s) restante(s)`} />
+                <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta da competência, sem rateio por dimensão" tone="neutral" />
+                <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
               </div>
+
+              <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}>
+                <div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div>
+                <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{data.alertaMeta.mensagem}</p></div>
+                <div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div>
+              </section>
 
               <ProjectionChart points={data.evolucaoMetaProjecao} />
 
@@ -354,8 +349,8 @@ export function DashboardPage() {
               <div className="dashboard-analytics-summary">
                 <MetricCard label="Solicitações analisadas" value={String(kpis.totalSolicitacoes)} detail="Após aplicação dos filtros" />
                 <MetricCard label="Divergências de comparecimento" value={String(kpis.divergenciasComparecimento)} detail="Quantidade solicitada ≠ comparecida" tone={kpis.divergenciasComparecimento ? 'warning' : 'success'} />
-                <MetricCard label="Projeção final · MO" value={currency(projection.projecaoFinalMaoObra)} detail={`${percent(projection.percentualMetaProjetado)} da meta`} tone={metaTone} />
-                <MetricCard label="Desvio projetado da meta" value={currency(projection.desvioProjetadoMeta)} detail="Projeção final − meta" tone={metaTone} />
+                <MetricCard label="Desvio financeiro" value={currency(kpis.diferencaValor)} detail="Realizado − previsto" tone={differenceTone} />
+                <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail="Meta global da competência" tone={metaTone} />
               </div>
 
               <div className="dashboard-two-columns">
