@@ -16,6 +16,7 @@ import {
 } from './ui/Primitives'
 import { fetchCatalogos } from '../services/catalogService'
 import {
+  deleteAdministrativeSolicitation,
   fetchAdministrativeSolicitationDetail,
   fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
@@ -31,6 +32,10 @@ import type {
 const money = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
+})
+
+const quantity = new Intl.NumberFormat('pt-BR', {
+  maximumFractionDigits: 2,
 })
 
 const monthLabels = [
@@ -74,6 +79,10 @@ function currentPeriod() {
 
 function formatMoney(value: number | null) {
   return value == null ? '—' : money.format(value)
+}
+
+function formatQuantity(value: number | null) {
+  return value == null ? '—' : quantity.format(value)
 }
 
 function formatDate(value: string) {
@@ -128,6 +137,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
 
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [workflowOpen, setWorkflowOpen] = useState(false)
   const [correctionOpen, setCorrectionOpen] = useState(false)
@@ -291,6 +301,45 @@ export function AdminSolicitationsPageCurrentPeriod() {
   async function handleCorrectionSaved(idSolicitacao: string) {
     await Promise.all([refreshItems(), refreshDetail(idSolicitacao), refreshMetadata()])
     notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
+  }
+
+  async function handleDelete(item: AdministrativeSolicitationListItem) {
+    const reason = window.prompt(
+      `Informe o motivo para excluir ${item.idSolicitacao}. A exclusão será registrada na auditoria.`,
+      '',
+    )
+    if (reason == null) return
+    if (reason.trim().length < 5) {
+      notify('error', 'Informe um motivo de exclusão com pelo menos 5 caracteres.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Excluir definitivamente a solicitação ${item.idSolicitacao}? O registro e eventuais jornadas parciais serão removidos da base operacional, preservando um snapshot na auditoria.`,
+    )
+    if (!confirmed) return
+
+    setDeleteLoading(item.idSolicitacao)
+    try {
+      await deleteAdministrativeSolicitation({
+        idSolicitacao: item.idSolicitacao,
+        motivoExclusao: reason.trim(),
+      })
+      detailCacheRef.current.delete(item.idSolicitacao)
+      detailRequestsRef.current.delete(item.idSolicitacao)
+
+      if (items.length === 1 && currentPage > 1) {
+        setCurrentPage((page) => Math.max(1, page - 1))
+        await refreshMetadata()
+      } else {
+        await Promise.all([refreshItems(), refreshMetadata()])
+      }
+      notify('success', `Solicitação ${item.idSolicitacao} excluída e registrada na auditoria.`)
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Não foi possível excluir a solicitação.')
+    } finally {
+      setDeleteLoading(null)
+    }
   }
 
   useEffect(() => {
@@ -554,7 +603,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
           ) : items.length === 0 ? (
             <EmptyState title="Nenhuma solicitação encontrada" description="A busca atual não possui registros. Ajuste a busca ou limpe os filtros." />
           ) : (
-            <div className="table-wrap embedded">
+            <div className="table-wrap embedded admin-record-table-wrap">
               <table className="responsive-data-table admin-record-table">
                 <thead>
                   <tr>
@@ -564,6 +613,8 @@ export function AdminSolicitationsPageCurrentPeriod() {
                     <th>Operação</th>
                     <th>Tipo</th>
                     <th>Status</th>
+                    <th className="admin-quantity-column">Qtd. prevista</th>
+                    <th className="admin-quantity-column">Qtd. real</th>
                     <th className="admin-money-column">Previsto</th>
                     <th className="admin-money-column">Valor real</th>
                     <th className="admin-actions-header">Ações</th>
@@ -572,6 +623,8 @@ export function AdminSolicitationsPageCurrentPeriod() {
                 <tbody>
                   {items.map((item) => {
                     const status = statusInfo(item)
+                    const isLabor = item.tipoSolicitacao === 'MAO_DE_OBRA'
+                    const rowBusy = detailLoading || Boolean(deleteLoading)
                     return (
                       <tr key={item.idSolicitacao}>
                         <td data-label="Solicitação" data-primary="true">
@@ -582,15 +635,21 @@ export function AdminSolicitationsPageCurrentPeriod() {
                         <td data-label="Operação"><strong>{item.operacao || '—'}</strong></td>
                         <td data-label="Tipo"><span className="module-badge">{typeLabel(item.tipoSolicitacao)}</span></td>
                         <td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td>
+                        <td data-label="Qtd. prevista" className="admin-quantity-column"><strong>{isLabor ? formatQuantity(item.qtdSolicitada) : '—'}</strong></td>
+                        <td data-label="Qtd. real" className="admin-quantity-column"><strong>{isLabor ? formatQuantity(item.qtdComparecida) : '—'}</strong></td>
                         <td data-label="Previsto" className="admin-money-column"><strong>{formatMoney(item.valorPrevisto)}</strong></td>
                         <td data-label="Valor real" className="admin-money-column"><strong>{formatMoney(item.valorReal)}</strong></td>
                         <td data-label="Ações" className="admin-row-actions-cell">
                           <div className="admin-row-actions">
-                            <button type="button" className="button button-compact" onClick={() => void openCorrection(item.idSolicitacao)} disabled={detailLoading}>
+                            <button type="button" className="button button-compact" onClick={() => void openCorrection(item.idSolicitacao)} disabled={rowBusy}>
                               <span className="material-symbols-rounded" aria-hidden="true">edit</span>Editar
                             </button>
-                            <button type="button" className="button button-primary button-compact" onClick={() => void openDetail(item.idSolicitacao)} disabled={detailLoading}>
+                            <button type="button" className="button button-primary button-compact" onClick={() => void openDetail(item.idSolicitacao)} disabled={rowBusy}>
                               <span className="material-symbols-rounded" aria-hidden="true">open_in_new</span>Abrir
+                            </button>
+                            <button type="button" className="button button-danger button-compact" onClick={() => void handleDelete(item)} disabled={rowBusy}>
+                              <span className="material-symbols-rounded" aria-hidden="true">delete</span>
+                              {deleteLoading === item.idSolicitacao ? 'Excluindo…' : 'Excluir'}
                             </button>
                           </div>
                         </td>
