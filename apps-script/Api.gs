@@ -66,7 +66,7 @@ const Api = (() => {
 
       if (route === 'solicitacoes_admin') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(AdministrativeSolicitationQueryService.execute(servicePayload));
+        return JsonResponse.ok(AdministrativeSolicitationCacheService.get(servicePayload));
       }
 
       if (route === 'dashboard') {
@@ -123,6 +123,7 @@ const Api = (() => {
   function writeAndInvalidate_(operation) {
     const result = operation();
     DashboardCacheService.clear();
+    AdministrativeSolicitationCacheService.clear();
     return result;
   }
 
