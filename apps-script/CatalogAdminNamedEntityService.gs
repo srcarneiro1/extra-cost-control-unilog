@@ -50,10 +50,12 @@ const CatalogAdminNamedEntityService = (() => {
 
     const saved = findExisting_(definition, name);
     const record = saved ? saved.record : values;
+    const formSync = syncFormCatalogsSafely_();
 
     return {
       nome: ValidationService.normalizeText(record[definition.fieldName]),
       ativo: ValidationService.isTruthy(record.ATIVO),
+      sincronizacaoForm: formSync,
     };
   }
 
@@ -71,6 +73,19 @@ const CatalogAdminNamedEntityService = (() => {
       definition.fieldName,
       matched[definition.fieldName]
     );
+  }
+
+  function syncFormCatalogsSafely_() {
+    try {
+      return FormCatalogSyncService.sync();
+    } catch (error) {
+      return {
+        sincronizado: false,
+        motivo: error && error.message
+          ? String(error.message)
+          : 'Não foi possível sincronizar o formulário neste momento.',
+      };
+    }
   }
 
   return {
