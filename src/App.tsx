@@ -3,7 +3,11 @@ import { AdminSolicitationsPageCurrentPeriod } from './components/AdminSolicitat
 import { AppShell, type AppSection } from './components/AppShell'
 import { CadastrosPagePaginated } from './components/CadastrosPagePaginated'
 import { DashboardPage } from './components/DashboardPage'
-import { fetchCatalogos, prefetchCatalogoAdminScope } from './services/catalogService'
+import {
+  fetchCatalogoAdminScope,
+  fetchCatalogos,
+  prefetchCatalogoAdminScope,
+} from './services/catalogService'
 import {
   fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
@@ -27,7 +31,7 @@ export function App() {
     // O Dashboard é a primeira tela. Aproveitamos o tempo ocioso logo após a
     // montagem para aquecer as consultas mais prováveis das outras áreas.
     // Nenhuma falha de prefetch interfere na navegação ou exibe erro ao usuário.
-    const timeout = window.setTimeout(() => {
+    const firstWave = window.setTimeout(() => {
       const period = currentPeriod()
 
       void fetchAdministrativeSolicitations({
@@ -45,7 +49,33 @@ export function App() {
       prefetchCatalogoAdminScope('PRODUTOS')
     }, 900)
 
-    return () => window.clearTimeout(timeout)
+    // Segunda onda: aquece navegação provável, sem competir com a primeira
+    // pintura do Dashboard nem com as consultas essenciais da aplicação.
+    const secondWave = window.setTimeout(() => {
+      const period = currentPeriod()
+
+      void fetchAdministrativeSolicitations({
+        pagina: 2,
+        tamanhoPagina: 20,
+        anoRegistro: period.anoRegistro,
+        mesRegistro: period.mesRegistro,
+      }).catch(() => undefined)
+
+      void fetchCatalogoAdminScope('PRECOS_MO', {
+        pagina: 1,
+        tamanhoPagina: 25,
+      }).catch(() => undefined)
+
+      void fetchCatalogoAdminScope('PRECOS_PRODUTOS', {
+        pagina: 1,
+        tamanhoPagina: 25,
+      }).catch(() => undefined)
+    }, 2200)
+
+    return () => {
+      window.clearTimeout(firstWave)
+      window.clearTimeout(secondWave)
+    }
   }, [])
 
   function handleNavigate(nextSection: AppSection) {
