@@ -47,25 +47,29 @@ function directSvgTitle(target: SVGElement) {
 
 function normalizeSvgTargets(svg: SVGSVGElement) {
   svg.querySelectorAll<SVGElement>('rect,circle,path').forEach((target) => {
-    if (target.hasAttribute('data-chart-tooltip')) return
     const title = directSvgTitle(target)
-    const text = title?.textContent?.trim()
+    const titleText = title?.textContent?.trim()
+    const currentText = target.getAttribute('data-chart-tooltip')?.trim()
+    const text = titleText || currentText
     if (!text) return
+
     target.setAttribute('data-chart-tooltip', text)
     if (!target.hasAttribute('aria-label')) {
       target.setAttribute('aria-label', text.replace(/\n+/g, ' · '))
     }
-    title.remove()
+    if (title) title.remove()
   })
 }
 
 function normalizeHtmlTargets(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>('[title]').forEach((target) => {
-    if (target.hasAttribute('data-chart-tooltip')) return
-    const text = target.getAttribute('title')?.trim()
+  root.querySelectorAll<HTMLElement>('[title],[data-chart-tooltip]').forEach((target) => {
+    const titleText = target.getAttribute('title')?.trim()
+    const currentText = target.getAttribute('data-chart-tooltip')?.trim()
+    const text = titleText || currentText
     if (!text) return
+
     target.setAttribute('data-chart-tooltip', text)
-    target.removeAttribute('title')
+    if (target.hasAttribute('title')) target.removeAttribute('title')
   })
 }
 
@@ -233,5 +237,5 @@ export function enableProjectionTooltip() {
   if (typeof document === 'undefined') return
   scan()
   const observer = new MutationObserver(scan)
-  observer.observe(document.body, { childList: true, subtree: true })
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['title'] })
 }
