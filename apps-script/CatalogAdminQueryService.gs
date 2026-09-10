@@ -17,7 +17,7 @@ const CatalogAdminQueryService = (() => {
   });
 
   const DESTINATIONS = ['NENHUM', 'NUMERO', 'GRUPO'];
-  const CACHE_PREFIX = 'catalog_admin_scope_v1_';
+  const CACHE_PREFIX = 'catalog_admin_scope_v2_';
   const CACHE_SECONDS = 60;
   const PRICE_PAGINATION_THRESHOLD = 50;
   const PRICE_PAGE_SIZE = 25;
@@ -82,7 +82,6 @@ const CatalogAdminQueryService = (() => {
         .map(productAdminDto_)
         .filter(function (item) {
           if (!item.nome) return false;
-          if (item.ativo) return true;
           return Boolean(linkedProducts[ValidationService.normalizeUpper(item.nome)]);
         })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
@@ -142,13 +141,14 @@ const CatalogAdminQueryService = (() => {
     return {
       fornecedores: providerRows
         .map(providerAdminDto_)
-        .filter(function (item) { return Boolean(item.nome); })
+        .filter(function (item) {
+          return Boolean(item.nome) && item.ativo && item.alimentacao;
+        })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
       produtos: productRows
         .map(productAdminDto_)
         .filter(function (item) {
           if (!item.nome) return false;
-          if (item.ativo) return true;
           return Boolean(linkedProducts[ValidationService.normalizeUpper(item.nome)]);
         })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
@@ -210,7 +210,11 @@ const CatalogAdminQueryService = (() => {
     (priceRows || []).forEach(function (row) {
       const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
       const product = ValidationService.normalizeUpper(row.PRODUTO);
-      if (product && activeFoodProviders[provider]) linked[product] = true;
+      if (
+        product &&
+        activeFoodProviders[provider] &&
+        ValidationService.isTruthy(row.ATIVO)
+      ) linked[product] = true;
     });
     return linked;
   }
@@ -335,8 +339,21 @@ const CatalogAdminQueryService = (() => {
     }
   }
 
+  function clearCache() {
+    try {
+      CacheService.getScriptCache().removeAll([
+        cacheKey_(SCOPES.SUMMARY),
+        cacheKey_(SCOPES.PROVIDERS),
+        cacheKey_(SCOPES.PRODUCTS),
+      ]);
+    } catch (error) {
+      // Cache é apenas otimização; falha nunca bloqueia a operação.
+    }
+  }
+
   return {
     SCOPES,
     getScope,
+    clearCache,
   };
 })();

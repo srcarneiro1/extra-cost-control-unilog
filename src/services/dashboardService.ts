@@ -27,6 +27,10 @@ export interface DashboardExportResponse {
   total: number
 }
 
+const DASHBOARD_CACHE_MS = 45 * 1000
+const dashboardCache = new Map<string, { value: DashboardResponse; expiresAt: number }>()
+const dashboardRequests = new Map<string, Promise<DashboardResponse>>()
+
 export class DashboardServiceError extends Error {
   readonly code: string
   readonly details?: unknown
@@ -83,21 +87,48 @@ async function parseApiResponse<T>(response: Response, fallbackMessage: string):
   return payload.data
 }
 
-export async function fetchDashboard(query: DashboardQuery, signal?: AbortSignal): Promise<DashboardResponse> {
+async function requestDashboard(key: string): Promise<DashboardResponse> {
   let response: Response
 
   try {
-    response = await fetch(buildDashboardUrl(query), {
+    response = await fetch(key, {
       method: 'GET',
       headers: { accept: 'application/json' },
-      signal,
     })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
+  } catch {
     throw new DashboardServiceError('Não foi possível conectar ao serviço do dashboard.')
   }
 
-  return parseApiResponse<DashboardResponse>(response, 'Não foi possível carregar o dashboard.')
+  const value = await parseApiResponse<DashboardResponse>(response, 'Não foi possível carregar o dashboard.')
+  dashboardCache.set(key, { value, expiresAt: Date.now() + DASHBOARD_CACHE_MS })
+  return value
+}
+
+export function invalidateDashboardCache(): void {
+  dashboardCache.clear()
+}
+
+export function fetchDashboard(query: DashboardQuery, signal?: AbortSignal): Promise<DashboardResponse> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  const key = buildDashboardUrl(query)
+  const cached = dashboardCache.get(key)
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value)
+
+  let request = dashboardRequests.get(key)
+  if (!request) {
+    request = requestDashboard(key).finally(() => dashboardRequests.delete(key))
+    dashboardRequests.set(key, request)
+  }
+
+  if (!signal) return request
+
+  return Promise.race([
+    request,
+    new Promise<DashboardResponse>((_, reject) => {
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+    }),
+  ])
 }
 
 export async function fetchDashboardExport(query: DashboardQuery, type: DashboardExportType): Promise<DashboardExportResponse> {

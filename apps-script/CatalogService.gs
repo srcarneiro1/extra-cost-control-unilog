@@ -6,6 +6,7 @@ const CatalogService = (() => {
     atividades: 'CAD_ATIVIDADES',
     funcoes: 'CAD_FUNCOES',
     produtos: 'CAD_PRODUTOS',
+    precosProdutos: 'PRECOS_PRODUTOS',
   };
 
   const SOLICITATION_TYPES = Object.freeze({
@@ -20,13 +21,35 @@ const CatalogService = (() => {
     const cached = readCache_();
     if (cached) return cached;
 
+    const providerRows = activeRows_(SHEETS.fornecedores);
+    const activeFoodProviders = {};
+    providerRows.forEach(function (row) {
+      const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
+      if (provider && ValidationService.isTruthy(row.ALIMENTACAO)) {
+        activeFoodProviders[provider] = true;
+      }
+    });
+
+    const availableProducts = {};
+    SheetRepository.readObjects(SHEETS.precosProdutos).forEach(function (row) {
+      const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
+      const product = ValidationService.normalizeUpper(row.PRODUTO);
+      if (
+        product &&
+        activeFoodProviders[provider] &&
+        ValidationService.isTruthy(row.ATIVO)
+      ) {
+        availableProducts[product] = true;
+      }
+    });
+
     const result = {
       operacoes: namedDtos_(SHEETS.operacoes, 'OPERACAO'),
       supervisores: namedDtos_(SHEETS.supervisores, 'SUPERVISOR'),
-      fornecedores: providerDtos_(),
+      fornecedores: providerDtos_(providerRows),
       atividades: namedDtos_(SHEETS.atividades, 'ATIVIDADE'),
       funcoes: namedDtos_(SHEETS.funcoes, 'FUNCAO'),
-      produtos: productDtos_(),
+      produtos: productDtos_(availableProducts),
     };
 
     writeCache_(result);
@@ -45,8 +68,8 @@ const CatalogService = (() => {
       });
   }
 
-  function providerDtos_() {
-    return activeRows_(SHEETS.fornecedores)
+  function providerDtos_(rows) {
+    return (rows || [])
       .map(function (row) {
         const types = [];
 
@@ -78,7 +101,7 @@ const CatalogService = (() => {
       });
   }
 
-  function productDtos_() {
+  function productDtos_(availableProducts) {
     return activeRows_(SHEETS.produtos)
       .map(function (row) {
         return {
@@ -87,7 +110,8 @@ const CatalogService = (() => {
         };
       })
       .filter(function (item) {
-        return Boolean(item.nome);
+        if (!item.nome) return false;
+        return Boolean(availableProducts[ValidationService.normalizeUpper(item.nome)]);
       });
   }
 

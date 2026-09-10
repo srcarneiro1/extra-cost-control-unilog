@@ -172,6 +172,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
+  const url = new URL(request.url);
+  const adminRead = optionalParam(url, 'admin') === '1';
+
+  if (adminRead) {
+    return proxyToAppsScript(env, 'solicitacoes_admin', payload);
+  }
+
   const trustedPayload = identity.mode === 'access'
     ? {
         ...payload,
