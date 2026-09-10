@@ -47,8 +47,16 @@
 .ui-modal-header p{margin:0;max-width:100%;font-size:10px;color:var(--text-muted);overflow-wrap:anywhere}
 .ui-modal-body{min-width:0;max-width:100%;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;overscroll-behavior-x:none;touch-action:pan-y}
 .ui-modal-body>*{min-width:0;max-width:100%}
+.ui-modal-body input,.ui-modal-body select,.ui-modal-body textarea{box-sizing:border-box;inline-size:100%;width:100%;min-inline-size:0;min-width:0;max-inline-size:100%;max-width:100%;min-height:42px;line-height:1.25}
+.ui-modal-body select{padding-top:9px;padding-bottom:9px}
 .ui-modal-footer{display:flex;justify-content:flex-end;gap:8px;min-width:0;max-width:100%;padding:14px 20px;border-top:1px solid var(--border-default);background:var(--surface-secondary)}
 .ui-modal-loading{min-height:320px;display:grid;align-content:start}
+
+@supports (-webkit-touch-callout:none){
+  .ui-modal-body input,.ui-modal-body select,.ui-modal-body textarea{min-height:42px;height:auto;line-height:normal}
+  .ui-modal-body input[type="date"],.ui-modal-body input[type="time"]{-webkit-appearance:none;appearance:none;display:block;inline-size:100%;min-inline-size:0;max-inline-size:100%}
+  .ui-modal-body select{-webkit-appearance:menulist;appearance:menulist}
+}
 
 @keyframes ui-modal-backdrop-in{
   from{opacity:0}
