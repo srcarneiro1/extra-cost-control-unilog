@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { enableProjectionTooltip } from './services/projectionTooltip'
 import './styles/tokens.css'
 import './styles/global.css'
 import './styles/shell.css'
@@ -19,6 +20,8 @@ const root = document.getElementById('root')
 if (!root) {
   throw new Error('Elemento raiz da aplicação não encontrado.')
 }
+
+enableProjectionTooltip()
 
 createRoot(root).render(
   <StrictMode>
