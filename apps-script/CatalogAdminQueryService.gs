@@ -82,7 +82,6 @@ const CatalogAdminQueryService = (() => {
         .map(productAdminDto_)
         .filter(function (item) {
           if (!item.nome) return false;
-          if (item.ativo) return true;
           return Boolean(linkedProducts[ValidationService.normalizeUpper(item.nome)]);
         })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
@@ -142,13 +141,14 @@ const CatalogAdminQueryService = (() => {
     return {
       fornecedores: providerRows
         .map(providerAdminDto_)
-        .filter(function (item) { return Boolean(item.nome); })
+        .filter(function (item) {
+          return Boolean(item.nome) && item.ativo && item.alimentacao;
+        })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
       produtos: productRows
         .map(productAdminDto_)
         .filter(function (item) {
           if (!item.nome) return false;
-          if (item.ativo) return true;
           return Boolean(linkedProducts[ValidationService.normalizeUpper(item.nome)]);
         })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
@@ -210,7 +210,11 @@ const CatalogAdminQueryService = (() => {
     (priceRows || []).forEach(function (row) {
       const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
       const product = ValidationService.normalizeUpper(row.PRODUTO);
-      if (product && activeFoodProviders[provider]) linked[product] = true;
+      if (
+        product &&
+        activeFoodProviders[provider] &&
+        ValidationService.isTruthy(row.ATIVO)
+      ) linked[product] = true;
     });
     return linked;
   }
