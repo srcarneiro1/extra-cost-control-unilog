@@ -43,11 +43,12 @@ const Api = (() => {
         if (action) {
           const result = CatalogAdminService.execute(servicePayload);
           CatalogAdminQueryService.clearCache();
+          CatalogAdminScopeCacheService.clear();
           return JsonResponse.ok(result);
         }
 
         if (mode === 'ADMIN_SCOPE') {
-          return JsonResponse.ok(CatalogAdminQueryService.getScope(servicePayload));
+          return JsonResponse.ok(CatalogAdminScopeCacheService.get(servicePayload));
         }
 
         if (mode === 'ADMIN') {
