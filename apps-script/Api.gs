@@ -95,6 +95,11 @@ const Api = (() => {
         return JsonResponse.ok(SolicitationCorrectionService.correct(servicePayload));
       }
 
+      if (route === 'exclusao_solicitacao') {
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(SolicitationDeletionService.remove(servicePayload));
+      }
+
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
       return handleError_(error);
