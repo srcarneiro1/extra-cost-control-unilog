@@ -41,7 +41,9 @@ const Api = (() => {
         const mode = ValidationService.normalizeUpper(servicePayload && servicePayload.modo);
 
         if (action) {
-          return JsonResponse.ok(CatalogAdminService.execute(servicePayload));
+          const result = CatalogAdminService.execute(servicePayload);
+          CatalogAdminQueryService.clearCache();
+          return JsonResponse.ok(result);
         }
 
         if (mode === 'ADMIN_SCOPE') {
