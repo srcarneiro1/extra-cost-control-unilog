@@ -20,7 +20,7 @@ const Api = (() => {
         return JsonResponse.unauthorized('Consulta administrativa disponível somente pelo gateway protegido.');
       }
 
-      if (route === 'dashboard') {
+      if (route === 'dashboard' || route === 'dashboard_export') {
         return JsonResponse.unauthorized('Dashboard disponível somente pelo gateway protegido.');
       }
 
@@ -68,6 +68,11 @@ const Api = (() => {
       if (route === 'dashboard') {
         const servicePayload = authorizeGateway_(payload);
         return JsonResponse.ok(DashboardService.getDashboard(servicePayload));
+      }
+
+      if (route === 'dashboard_export') {
+        const servicePayload = authorizeGateway_(payload);
+        return JsonResponse.ok(DashboardExportService.getExport(servicePayload));
       }
 
       if (route === 'triagem') {
