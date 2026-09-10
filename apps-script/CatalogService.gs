@@ -14,7 +14,7 @@ const CatalogService = (() => {
     FOOD: 'ALIMENTACAO_BEBIDA',
   });
 
-  const ACTIVE_CATALOG_CACHE_KEY = 'active_catalogs_v2';
+  const ACTIVE_CATALOG_CACHE_KEY = 'active_catalogs_v1';
   const ACTIVE_CATALOG_CACHE_SECONDS = 60;
 
   function getActiveCatalogs() {
