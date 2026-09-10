@@ -1,6 +1,8 @@
 import type {
   CatalogAdminScope,
   CatalogAdminScopeQuery,
+  CatalogoAdminNomeApiResponse,
+  CatalogoAdminNomeDto,
   CatalogosAdminApiResponse,
   CatalogosAdminDto,
   CatalogosAdminScopeApiResponse,
@@ -15,6 +17,7 @@ import type {
   PrecoMaoObraAdminDto,
   PrecoProdutoAdminApiResponse,
   PrecoProdutoAdminDto,
+  SaveCatalogoAdminNomeInput,
   SaveFornecedorAdminInput,
   SaveProdutoAdminInput,
   SavePrecoMaoObraAdminInput,
@@ -291,6 +294,14 @@ export function prefetchCatalogoAdminScope(scope: CatalogAdminScope): void {
   void fetchCatalogoAdminScope(scope).catch(() => undefined)
 }
 
+export async function saveOperacaoAdmin(input: SaveCatalogoAdminNomeInput): Promise<CatalogoAdminNomeDto> {
+  return postAdmin<CatalogoAdminNomeDto>({ acao: 'SALVAR_OPERACAO', ...input })
+}
+
+export async function saveSupervisorAdmin(input: SaveCatalogoAdminNomeInput): Promise<CatalogoAdminNomeDto> {
+  return postAdmin<CatalogoAdminNomeDto>({ acao: 'SALVAR_SUPERVISOR', ...input })
+}
+
 export async function saveFornecedorAdmin(input: SaveFornecedorAdminInput): Promise<FornecedorAdminDto> {
   return postAdmin<FornecedorAdminDto>({ acao: 'SALVAR_FORNECEDOR', ...input })
 }
@@ -308,6 +319,7 @@ export async function savePrecoProdutoAdmin(input: SavePrecoProdutoAdminInput): 
 }
 
 export type _CatalogResponseGuards =
+  | CatalogoAdminNomeApiResponse
   | FornecedorAdminApiResponse
   | ProdutoAdminApiResponse
   | PrecoMaoObraAdminApiResponse
