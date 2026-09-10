@@ -78,11 +78,74 @@ export interface DashboardProjectionPoint {
   projecao: number | null
 }
 
+export interface DashboardWeekdayItem {
+  chave: string
+  previsto: number
+  realizado: number
+  solicitacoes: number
+}
+
+export interface DashboardParetoItem {
+  chave: string
+  previsto: number
+  realizado: number
+  solicitacoes: number
+  percentual: number
+  acumulado: number
+}
+
+export interface DashboardHeatmapRow {
+  operacao: string
+  total: number
+  valores: number[]
+}
+
+export interface DashboardLinearityItem {
+  operacao: string
+  custo: number
+  previsto: number
+  solicitacoes: number
+  diasObservados: number
+  diasAtivos: number
+  coeficienteVariacao: number
+  indiceLinearidade: number
+  recorrenciaPercentual: number
+}
+
+export interface DashboardDeviationItem {
+  chave: string
+  previsto: number
+  realizado: number
+  diferenca: number
+  diferencaPercentual: number | null
+}
+
+export interface DashboardOpportunity {
+  severidade: 'ALTA' | 'MEDIA' | 'INFO'
+  titulo: string
+  evidencia: string
+  acao: string
+}
+
+export interface DashboardAnalytics {
+  diasSemana: DashboardWeekdayItem[]
+  paretoOperacao: DashboardParetoItem[]
+  concentracaoTop5Percentual: number
+  concentracaoTop5Valor: number
+  matrizOperacaoDiaSemana: DashboardHeatmapRow[]
+  linearidadeOperacao: DashboardLinearityItem[]
+  maiorDesvio: DashboardDeviationItem | null
+  oportunidades: DashboardOpportunity[]
+  potencialReducao: number | null
+  metodologiaPotencialReducao: string
+}
+
 export interface DashboardResponse {
   competencia: string
   periodoInicio: string
   periodoFim: string
   metaEscopo: 'GLOBAL_COMPETENCIA'
+  metaFonte?: string
   filtros: DashboardFilterOptions
   kpis: DashboardKpis
   projecao: DashboardProjection
@@ -95,4 +158,5 @@ export interface DashboardResponse {
   porAtividade: DashboardBreakdownItem[]
   evolucaoDiaria: DashboardDailyItem[]
   evolucaoMetaProjecao: DashboardProjectionPoint[]
+  analytics?: DashboardAnalytics
 }

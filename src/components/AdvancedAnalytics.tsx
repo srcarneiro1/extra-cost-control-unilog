@@ -1,125 +1,41 @@
-import { useMemo } from 'react'
-import type { DashboardResponse } from '../types/dashboard'
+import type { CSSProperties } from 'react'
+import type { DashboardAnalytics, DashboardResponse } from '../types/dashboard'
 
-const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-function currency(value: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    maximumFractionDigits: 2,
-  }).format(value)
+function currency(value: number | null | undefined) {
+  if (value == null) return '—'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value)
 }
-
-function percent(value: number) {
+function percent(value: number | null | undefined) {
+  if (value == null) return '—'
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)}%`
 }
-
-function parseIsoDate(value: string) {
-  const [year, month, day] = value.split('-').map(Number)
-  return new Date(year, month - 1, day, 12, 0, 0, 0)
+function emptyAnalytics(): DashboardAnalytics {
+  return { diasSemana: [], paretoOperacao: [], concentracaoTop5Percentual: 0, concentracaoTop5Valor: 0, matrizOperacaoDiaSemana: [], linearidadeOperacao: [], maiorDesvio: null, oportunidades: [], potencialReducao: null, metodologiaPotencialReducao: '' }
 }
 
-export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
-  const analytics = useMemo(() => {
-    const weekdayMap = WEEKDAYS.map((label) => ({ label, realizado: 0, previsto: 0, dias: 0 }))
-    const activeDays = data.evolucaoDiaria.filter((item) => item.realizado > 0 || item.previsto > 0)
-
-    activeDays.forEach((item) => {
-      const weekday = parseIsoDate(item.data).getDay()
-      weekdayMap[weekday].realizado += item.realizado
-      weekdayMap[weekday].previsto += item.previsto
-      weekdayMap[weekday].dias += 1
-    })
-
-    const dailyValues = activeDays.map((item) => item.realizado)
-    const total = dailyValues.reduce((sum, value) => sum + value, 0)
-    const average = dailyValues.length ? total / dailyValues.length : 0
-    const variance = dailyValues.length
-      ? dailyValues.reduce((sum, value) => sum + Math.pow(value - average, 2), 0) / dailyValues.length
-      : 0
-    const deviation = Math.sqrt(variance)
-    const cv = average ? (deviation / average) * 100 : 0
-    const linearity = cv <= 25 ? 'ALTA' : cv <= 50 ? 'MÉDIA' : 'BAIXA'
-
-    const peak = activeDays.reduce((max, item) => item.realizado > max.realizado ? item : max, { data: '', realizado: 0, previsto: 0 })
-    const topOperation = data.porOperacao[0]
-    const topSupervisor = data.porSupervisor[0]
-    const operationsTotal = data.porOperacao.reduce((sum, item) => sum + item.realizado, 0)
-    const supervisorsTotal = data.porSupervisor.reduce((sum, item) => sum + item.realizado, 0)
-    const operationShare = topOperation && operationsTotal ? (topOperation.realizado / operationsTotal) * 100 : 0
-    const supervisorShare = topSupervisor && supervisorsTotal ? (topSupervisor.realizado / supervisorsTotal) * 100 : 0
-
-    const sizingGap = data.porOperacao.reduce((sum, item) => sum + Math.max(item.previsto - item.realizado, 0), 0)
-    const overrun = data.porOperacao.reduce((sum, item) => sum + Math.max(item.realizado - item.previsto, 0), 0)
-
-    const opportunities: string[] = []
-    if (data.kpis.divergenciasComparecimento > 0) opportunities.push(`${data.kpis.divergenciasComparecimento} divergência(s) de comparecimento pedem revisão de dimensionamento.`)
-    if (operationShare >= 50 && topOperation) opportunities.push(`${topOperation.chave} concentra ${percent(operationShare)} do custo realizado; priorize a análise dessa operação.`)
-    if (cv > 50) opportunities.push(`A distribuição diária está pouco linear (CV ${percent(cv)}), indicando picos relevantes ao longo da competência.`)
-    if (sizingGap > 0) opportunities.push(`Há ${currency(sizingGap)} de gap entre valores previstos e realizados em operações onde o realizado ficou abaixo do planejado.`)
-    if (overrun > 0) opportunities.push(`Há ${currency(overrun)} de estouro acumulado nas operações em que o realizado superou o previsto.`)
-    if (!opportunities.length) opportunities.push('Não há sinal material de desvio pelos critérios atuais; mantenha o acompanhamento da competência.')
-
-    return {
-      weekdayMap,
-      activeDays: activeDays.length,
-      average,
-      cv,
-      linearity,
-      peak,
-      topOperation,
-      operationShare,
-      topSupervisor,
-      supervisorShare,
-      sizingGap,
-      overrun,
-      opportunities,
-    }
-  }, [data])
-
-  const weekdayMax = Math.max(...analytics.weekdayMap.map((item) => item.realizado), 1)
-
-  return (
-    <>
-      <div className="dashboard-analytics-summary">
-        <article className="dashboard-metric dashboard-metric-info"><span>Média por dia ativo</span><strong>{currency(analytics.average)}</strong><small>{analytics.activeDays} dia(s) com movimento</small></article>
-        <article className="dashboard-metric"><span>Linearidade do custo</span><strong>{analytics.linearity}</strong><small>Coeficiente de variação: {percent(analytics.cv)}</small></article>
-        <article className="dashboard-metric dashboard-metric-warning"><span>Gap de dimensionamento</span><strong>{currency(analytics.sizingGap)}</strong><small>Previsto acima do realizado por operação</small></article>
-        <article className="dashboard-metric dashboard-metric-danger"><span>Estouro sobre previsto</span><strong>{currency(analytics.overrun)}</strong><small>Realizado acima do previsto por operação</small></article>
-      </div>
-
-      <div className="dashboard-two-columns">
-        <section className="dashboard-card">
-          <div className="dashboard-card-header"><div><span className="ui-eyebrow">DIA DA SEMANA</span><h2>Impacto do custo por dia</h2><p>Realizado agrupado pela data operacional.</p></div></div>
-          <div className="dashboard-ranking">
-            {analytics.weekdayMap.map((item) => (
-              <div className="dashboard-ranking-row" key={item.label}>
-                <div className="dashboard-ranking-label"><strong>{item.label}</strong><span>{item.dias} dia(s) com movimento</span></div>
-                <div className="dashboard-ranking-bars"><div className="dashboard-bar-track"><span className="dashboard-bar dashboard-bar-real" style={{ width: `${Math.max((item.realizado / weekdayMax) * 100, item.realizado ? 2 : 0)}%` }} /></div></div>
-                <div className="dashboard-ranking-values"><strong>{currency(item.realizado)}</strong><span>Prev. {currency(item.previsto)}</span></div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="dashboard-card">
-          <div className="dashboard-card-header"><div><span className="ui-eyebrow">PADRÃO</span><h2>Concentração e pico</h2><p>Leitura rápida dos principais vetores do custo.</p></div></div>
-          <div className="dashboard-pareto">
-            <div className="dashboard-pareto-row"><strong>Maior depositante</strong><span>{analytics.topOperation?.chave || '—'}</span><small>{analytics.topOperation ? `${currency(analytics.topOperation.realizado)} · ${percent(analytics.operationShare)} do realizado` : 'Sem dados'}</small></div>
-            <div className="dashboard-pareto-row"><strong>Maior supervisor</strong><span>{analytics.topSupervisor?.chave || '—'}</span><small>{analytics.topSupervisor ? `${currency(analytics.topSupervisor.realizado)} · ${percent(analytics.supervisorShare)} do realizado` : 'Sem dados'}</small></div>
-            <div className="dashboard-pareto-row"><strong>Maior dia</strong><span>{analytics.peak.data ? analytics.peak.data.split('-').reverse().join('/') : '—'}</span><small>{analytics.peak.data ? currency(analytics.peak.realizado) : 'Sem movimento'}</small></div>
-            <div className="dashboard-pareto-row"><strong>Dispersão diária</strong><span>{analytics.linearity}</span><small>CV de {percent(analytics.cv)}; quanto menor, mais linear é o custo.</small></div>
-          </div>
-        </section>
-      </div>
-
-      <section className="dashboard-card">
-        <div className="dashboard-card-header"><div><span className="ui-eyebrow">OPORTUNIDADES</span><h2>Sinais para redução de custo</h2><p>Diagnóstico indicativo; não trata o valor como economia garantida sem validação operacional.</p></div></div>
-        <div className="dashboard-pareto">
-          {analytics.opportunities.map((item, index) => <div className="dashboard-pareto-row" key={`${index}-${item}`}><strong>{String(index + 1).padStart(2, '0')}</strong><span>{item}</span></div>)}
-        </div>
-      </section>
-    </>
-  )
+function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
+  const items = analytics.diasSemana
+  const max = Math.max(...items.map((item) => item.realizado), 1)
+  const width = 620, height = 270, left = 46, bottom = 36, top = 20
+  const chartHeight = height - top - bottom
+  const availableWidth = width - left - 14
+  const slot = availableWidth / Math.max(items.length, 1)
+  const barWidth = Math.min(48, slot * 0.62)
+  const topItem = items.reduce((best, item) => !best || item.realizado > best.realizado ? item : best, items[0])
+  return <section className="dashboard-card analytics-viz-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">DIA DA SEMANA</span><h2>Impacto por dia da semana</h2><p>Custo realizado agrupado pela data operacional.</p></div></div>{items.length ? <svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Custo realizado por dia da semana">{[0,.25,.5,.75,1].map((ratio)=>{const y=top+chartHeight*(1-ratio);return <g key={ratio}><line x1={left} x2={width-10} y1={y} y2={y} className="analytics-grid-line"/><text x={left-8} y={y+4} textAnchor="end" className="analytics-axis-text">{currency(max*ratio)}</text></g>})}{items.map((item,index)=>{const h=(item.realizado/max)*chartHeight;const x=left+slot*index+(slot-barWidth)/2;const y=top+chartHeight-h;const isPeak=topItem?.chave===item.chave;return <g key={item.chave} className={isPeak?'analytics-bar-peak':''}><rect x={x} y={y} width={barWidth} height={Math.max(h,1)} rx="4" className="analytics-bar-column"><title>{`${item.chave}: ${currency(item.realizado)} · ${item.solicitacoes} solicitação(ões)`}</title></rect><text x={x+barWidth/2} y={Math.max(y-6,12)} textAnchor="middle" className="analytics-value-label">{item.realizado?currency(item.realizado):''}</text><text x={x+barWidth/2} y={height-12} textAnchor="middle" className="analytics-axis-label">{WEEKDAYS[index]}</text></g>})}</svg>:<div className="ui-empty-state"><div><strong>Sem dados no período</strong></div></div>}</section>
 }
+
+function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
+  const items=analytics.paretoOperacao.slice(0,8);const width=660,height=290,left=118,right=46,top=22,bottom=30;const max=Math.max(...items.map(i=>i.realizado),1);const row=(height-top-bottom)/Math.max(items.length,1);const barMaxWidth=width-left-right;const points=items.map((item,index)=>({x:left+(item.acumulado/100)*barMaxWidth,y:top+row*index+row/2}));const line=points.map((p,i)=>`${i?'L':'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+  return <section className="dashboard-card analytics-viz-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">PARETO</span><h2>Custo por depositante</h2><p>Barras = custo realizado · Linha = participação acumulada.</p></div><strong className="analytics-highlight">Top 5 {percent(analytics.concentracaoTop5Percentual)}</strong></div>{items.length?<svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Pareto do custo por depositante">{items.map((item,index)=>{const y=top+row*index+row*.2;const h=row*.6;const w=(item.realizado/max)*barMaxWidth;return <g key={item.chave}><text x={left-8} y={y+h/2+4} textAnchor="end" className="analytics-axis-label">{item.chave}</text><rect x={left} y={y} width={barMaxWidth} height={h} rx="3" className="analytics-bar-track-svg"/><rect x={left} y={y} width={Math.max(w,1)} height={h} rx="3" className="analytics-pareto-bar"><title>{`${item.chave}: ${currency(item.realizado)} · ${percent(item.percentual)} · acumulado ${percent(item.acumulado)}`}</title></rect><text x={Math.min(left+w+6,width-right)} y={y+h/2+4} className="analytics-value-label">{currency(item.realizado)}</text></g>})}<path d={line} className="analytics-pareto-line"/>{points.map((point,index)=><circle key={items[index].chave} cx={point.x} cy={point.y} r="4" className="analytics-pareto-point"><title>{`${items[index].chave}: ${percent(items[index].acumulado)} acumulado`}</title></circle>)}</svg>:<div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}</section>
+}
+
+function SupervisorRanking({ data }: { data: DashboardResponse }) {const items=data.porSupervisor.slice(0,7);const max=Math.max(...items.map(i=>i.realizado),1);return <section className="dashboard-card analytics-viz-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">SUPERVISÃO</span><h2>Custo por supervisor</h2><p>Ranking do realizado no escopo filtrado.</p></div></div><div className="analytics-ranking-list">{items.map((item,index)=><div className="analytics-ranking-item" key={item.chave}><span className="analytics-rank">{index+1}</span><strong>{item.chave}</strong><div><i style={{width:`${Math.max((item.realizado/max)*100,2)}%`}}/></div><span>{currency(item.realizado)}</span></div>)}</div></section>}
+
+function Heatmap({ analytics }: { analytics: DashboardAnalytics }) {const rows=analytics.matrizOperacaoDiaSemana.slice(0,8);const max=Math.max(...rows.flatMap(r=>r.valores),1);return <section className="dashboard-card analytics-viz-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">PADRÃO DE SOLICITAÇÕES</span><h2>Depositante × dia da semana</h2><p>Intensidade do custo realizado por combinação.</p></div></div>{rows.length?<div className="analytics-heatmap"><div className="analytics-heatmap-head"><span/>{WEEKDAYS.map(day=><strong key={day}>{day}</strong>)}</div>{rows.map(row=><div className="analytics-heatmap-row" key={row.operacao}><strong title={row.operacao}>{row.operacao}</strong>{row.valores.map((value,index)=><span key={`${row.operacao}-${index}`} style={{'--heat':String(value/max)} as CSSProperties} title={`${row.operacao} · ${WEEKDAYS[index]}: ${currency(value)}`}>{value?currency(value):'—'}</span>)}</div>)}</div>:<div className="ui-empty-state"><div><strong>Sem matriz disponível</strong></div></div>}</section>}
+
+function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {const items=analytics.linearidadeOperacao.slice(0,10);const width=620,height=300,left=52,right=20,top=24,bottom=42;const chartWidth=width-left-right,chartHeight=height-top-bottom,maxCost=Math.max(...items.map(i=>i.custo),1),maxRequests=Math.max(...items.map(i=>i.solicitacoes),1);return <section className="dashboard-card analytics-viz-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">LINEARIDADE × CUSTO</span><h2>Regularidade da demanda × impacto</h2><p>Tamanho da bolha = quantidade de solicitações.</p></div></div>{items.length?<svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dispersão de linearidade e custo por depositante"><line x1={left+chartWidth/2} x2={left+chartWidth/2} y1={top} y2={height-bottom} className="analytics-quadrant-line"/><line x1={left} x2={width-right} y1={top+chartHeight/2} y2={top+chartHeight/2} className="analytics-quadrant-line"/><text x={left+8} y={top+14} className="analytics-quadrant-label">Alto custo · não recorrente</text><text x={width-right-8} y={top+14} textAnchor="end" className="analytics-quadrant-label">Alto custo · recorrente</text><text x={left+8} y={height-bottom-8} className="analytics-quadrant-label">Baixo custo · não recorrente</text><text x={width-right-8} y={height-bottom-8} textAnchor="end" className="analytics-quadrant-label">Baixo custo · recorrente</text>{items.map(item=>{const x=left+(item.indiceLinearidade/100)*chartWidth;const y=top+chartHeight-(item.custo/maxCost)*chartHeight;const r=7+(item.solicitacoes/maxRequests)*11;return <g key={item.operacao}><circle cx={x} cy={y} r={r} className="analytics-bubble"><title>{`${item.operacao} · Custo ${currency(item.custo)} · Linearidade ${percent(item.indiceLinearidade)} · CV ${percent(item.coeficienteVariacao)} · ${item.solicitacoes} solicitações`}</title></circle><text x={x+r+4} y={y+4} className="analytics-bubble-label">{item.operacao}</text></g>})}<text x={left+chartWidth/2} y={height-8} textAnchor="middle" className="analytics-axis-label">Índice de linearidade →</text></svg>:<div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>}</section>}
+
+export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {const analytics=data.analytics||emptyAnalytics();const topDay=analytics.diasSemana.reduce((best,item)=>!best||item.realizado>best.realizado?item:best,analytics.diasSemana[0]);const topOperation=analytics.paretoOperacao[0];const topSupervisor=data.porSupervisor[0];return <div className="advanced-analytics-grid"><div className="dashboard-analytics-summary analytics-summary-five"><article className="dashboard-metric dashboard-metric-info"><span>Dia mais impactante</span><strong>{topDay?.chave||'—'}</strong><small>{topDay?currency(topDay.realizado):'Sem movimento'}</small></article><article className="dashboard-metric"><span>Depositante líder</span><strong>{topOperation?.chave||'—'}</strong><small>{topOperation?`${currency(topOperation.realizado)} · ${percent(topOperation.percentual)}`:'Sem dados'}</small></article><article className="dashboard-metric"><span>Supervisor líder</span><strong>{topSupervisor?.chave||'—'}</strong><small>{topSupervisor?currency(topSupervisor.realizado):'Sem dados'}</small></article><article className="dashboard-metric dashboard-metric-warning"><span>Concentração Top 5</span><strong>{percent(analytics.concentracaoTop5Percentual)}</strong><small>{currency(analytics.concentracaoTop5Valor)}</small></article><article className="dashboard-metric dashboard-metric-danger"><span>Maior desvio</span><strong>{analytics.maiorDesvio?percent(analytics.maiorDesvio.diferencaPercentual):'—'}</strong><small>{analytics.maiorDesvio?`${analytics.maiorDesvio.chave} · ${currency(analytics.maiorDesvio.diferenca)}`:'Sem desvio'}</small></article></div><div className="analytics-three-columns"><WeekdayChart analytics={analytics}/><ParetoChart analytics={analytics}/><SupervisorRanking data={data}/></div><div className="dashboard-two-columns"><Heatmap analytics={analytics}/><LinearityScatter analytics={analytics}/></div><section className="dashboard-card analytics-opportunities-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">OPORTUNIDADES DE REDUÇÃO</span><h2>Achados baseados em evidências</h2><p>Fato observado, evidência e ação recomendada. Economia não é estimada sem regra validada.</p></div></div><div className="analytics-opportunities">{analytics.oportunidades.map((item,index)=><article className={`analytics-opportunity analytics-opportunity-${item.severidade.toLowerCase()}`} key={`${index}-${item.titulo}`}><span>{index+1}</span><div><strong>{item.titulo}</strong><p>{item.evidencia}</p><small>Ação: {item.acao}</small></div></article>)}</div></section></div>}
