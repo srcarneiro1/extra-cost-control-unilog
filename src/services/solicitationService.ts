@@ -210,7 +210,10 @@ export function fetchAdministrativeSolicitations(
   const key = buildAdministrativeListUrl(query)
   const snapshot = getAdministrativeSolicitationsSnapshot(query)
 
-  if (!options?.force && snapshot?.isFresh) {
+  if (!options?.force && snapshot) {
+    if (!snapshot.isFresh && !adminListRequests.has(key)) {
+      void requestAdministrativeSolicitations(key, query).catch(() => undefined)
+    }
     return Promise.resolve(snapshot.value)
   }
 
