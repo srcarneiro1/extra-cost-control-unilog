@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchDashboard } from '../services/dashboardService'
+import { AdvancedAnalytics } from './AdvancedAnalytics'
 import type {
   DashboardBreakdownItem,
   DashboardProjectionPoint,
@@ -56,17 +57,7 @@ function typeLabel(value: DashboardTypeFilter) {
   return 'Todos os tipos'
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  tone = 'neutral',
-}: {
-  label: string
-  value: string
-  detail: string
-  tone?: MetricTone
-}) {
+function MetricCard({ label, value, detail, tone = 'neutral' }: { label: string; value: string; detail: string; tone?: MetricTone }) {
   return (
     <article className={`dashboard-metric dashboard-metric-${tone}`}>
       <span>{label}</span>
@@ -76,28 +67,14 @@ function MetricCard({
   )
 }
 
-function HorizontalRanking({
-  title,
-  subtitle,
-  items,
-  limit = 8,
-}: {
-  title: string
-  subtitle: string
-  items: DashboardBreakdownItem[]
-  limit?: number
-}) {
+function HorizontalRanking({ title, subtitle, items, limit = 8 }: { title: string; subtitle: string; items: DashboardBreakdownItem[]; limit?: number }) {
   const visible = items.slice(0, limit)
   const max = Math.max(...visible.map((item) => Math.max(item.realizado, item.previsto)), 1)
 
   return (
     <section className="dashboard-card">
       <div className="dashboard-card-header">
-        <div>
-          <span className="ui-eyebrow">ANÁLISE</span>
-          <h2>{title}</h2>
-          <p>{subtitle}</p>
-        </div>
+        <div><span className="ui-eyebrow">ANÁLISE</span><h2>{title}</h2><p>{subtitle}</p></div>
       </div>
       <div className="dashboard-ranking">
         {visible.length === 0 ? (
@@ -118,14 +95,7 @@ function HorizontalRanking({
   )
 }
 
-function buildPath(
-  points: DashboardProjectionPoint[],
-  field: 'realizadoAcumulado' | 'metaEsperada' | 'projecao',
-  maxValue: number,
-  width: number,
-  height: number,
-  padding: number,
-) {
+function buildPath(points: DashboardProjectionPoint[], field: 'realizadoAcumulado' | 'metaEsperada' | 'projecao', maxValue: number, width: number, height: number, padding: number) {
   let path = ''
   let drawing = false
   const usableWidth = width - padding * 2
@@ -151,10 +121,7 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
   const width = 920
   const height = 300
   const padding = 38
-  const maxValue = Math.max(
-    ...points.flatMap((point) => [point.realizadoAcumulado || 0, point.metaEsperada || 0, point.projecao || 0]),
-    1,
-  )
+  const maxValue = Math.max(...points.flatMap((point) => [point.realizadoAcumulado || 0, point.metaEsperada || 0, point.projecao || 0]), 1)
   const realizedPath = buildPath(points, 'realizadoAcumulado', maxValue, width, height, padding)
   const expectedPath = buildPath(points, 'metaEsperada', maxValue, width, height, padding)
   const projectionPath = buildPath(points, 'projecao', maxValue, width, height, padding)
@@ -165,13 +132,7 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
 
   return (
     <section className="dashboard-card dashboard-projection-card">
-      <div className="dashboard-card-header">
-        <div>
-          <span className="ui-eyebrow">META E TENDÊNCIA</span>
-          <h2>Realizado × Meta esperada × Projeção</h2>
-          <p>Acumulado de mão de obra ao longo da competência 21–20. Passe o cursor sobre os pontos para ver os valores.</p>
-        </div>
-      </div>
+      <div className="dashboard-card-header"><div><span className="ui-eyebrow">META E TENDÊNCIA</span><h2>Realizado × Meta esperada × Projeção</h2><p>Acumulado de mão de obra ao longo da competência 21–20. Passe o cursor sobre os pontos para ver os valores.</p></div></div>
       {points.length ? (
         <div className="dashboard-chart-wrap">
           <svg className="dashboard-projection-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Gráfico acumulado de realizado, meta esperada e projeção de mão de obra">
@@ -187,35 +148,15 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
               if (referenceValue == null) return null
               const x = padding + (index / denominator) * usableWidth
               const y = padding + usableHeight - (referenceValue / maxValue) * usableHeight
-              const deltaExpected = point.realizadoAcumulado != null && point.metaEsperada != null
-                ? point.realizadoAcumulado - point.metaEsperada
-                : null
-              const tooltip = [
-                shortDate(point.data),
-                `Realizado: ${currency(point.realizadoAcumulado)}`,
-                `Meta esperada: ${currency(point.metaEsperada)}`,
-                `Projeção: ${currency(point.projecao)}`,
-                `Diferença vs. meta esperada: ${currency(deltaExpected)}`,
-              ].join('\n')
-              return (
-                <circle key={point.data} cx={x} cy={y} r="10" fill="transparent" stroke="transparent">
-                  <title>{tooltip}</title>
-                </circle>
-              )
+              const deltaExpected = point.realizadoAcumulado != null && point.metaEsperada != null ? point.realizadoAcumulado - point.metaEsperada : null
+              const tooltip = [shortDate(point.data), `Realizado: ${currency(point.realizadoAcumulado)}`, `Meta esperada: ${currency(point.metaEsperada)}`, `Projeção: ${currency(point.projecao)}`, `Diferença vs. meta esperada: ${currency(deltaExpected)}`].join('\n')
+              return <circle key={point.data} cx={x} cy={y} r="10" fill="transparent" stroke="transparent"><title>{tooltip}</title></circle>
             })}
           </svg>
-          <div className="dashboard-chart-axis">
-            {labels.map((point) => <span key={point.data}>{shortDate(point.data).slice(0, 5)}</span>)}
-          </div>
-          <div className="dashboard-chart-legend">
-            <span><i className="chart-legend-realized" />Realizado</span>
-            <span><i className="chart-legend-expected" />Meta esperada</span>
-            <span><i className="chart-legend-projection" />Projeção</span>
-          </div>
+          <div className="dashboard-chart-axis">{labels.map((point) => <span key={point.data}>{shortDate(point.data).slice(0, 5)}</span>)}</div>
+          <div className="dashboard-chart-legend"><span><i className="chart-legend-realized" />Realizado</span><span><i className="chart-legend-expected" />Meta esperada</span><span><i className="chart-legend-projection" />Projeção</span></div>
         </div>
-      ) : (
-        <div className="ui-empty-state"><div><strong>Sem série para exibir</strong></div></div>
-      )}
+      ) : <div className="ui-empty-state"><div><strong>Sem série para exibir</strong></div></div>}
     </section>
   )
 }
@@ -223,16 +164,7 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
 export function DashboardPage() {
   const initial = useMemo(currentCompetence, [])
   const [tab, setTab] = useState<DashboardTab>('executiva')
-  const [query, setQuery] = useState<DashboardQuery>({
-    ano: initial.ano,
-    mesCompetencia: initial.mesCompetencia,
-    operacao: 'TODOS',
-    supervisor: 'TODOS',
-    fornecedor: 'TODOS',
-    tipo: 'TODOS',
-    responsavelCusto: 'TODOS',
-    atividade: 'TODOS',
-  })
+  const [query, setQuery] = useState<DashboardQuery>({ ano: initial.ano, mesCompetencia: initial.mesCompetencia, operacao: 'TODOS', supervisor: 'TODOS', fornecedor: 'TODOS', tipo: 'TODOS', responsavelCusto: 'TODOS', atividade: 'TODOS' })
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -241,17 +173,13 @@ export function DashboardPage() {
     const controller = new AbortController()
     setLoading(true)
     setError('')
-
     void fetchDashboard(query, controller.signal)
       .then(setData)
       .catch((requestError: unknown) => {
         if (requestError instanceof DOMException && requestError.name === 'AbortError') return
         setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar o dashboard.')
       })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [query])
 
@@ -266,28 +194,14 @@ export function DashboardPage() {
   }
 
   function clearDimensionFilters() {
-    setQuery((current) => ({
-      ...current,
-      operacao: 'TODOS',
-      supervisor: 'TODOS',
-      fornecedor: 'TODOS',
-      tipo: 'TODOS',
-      responsavelCusto: 'TODOS',
-      atividade: 'TODOS',
-    }))
+    setQuery((current) => ({ ...current, operacao: 'TODOS', supervisor: 'TODOS', fornecedor: 'TODOS', tipo: 'TODOS', responsavelCusto: 'TODOS', atividade: 'TODOS' }))
   }
 
   const kpis = data?.kpis
   const totalPlanned = (kpis?.previstoMaoObra || 0) + (kpis?.previstoLanches || 0)
   const totalReal = (kpis?.realizadoMaoObra || 0) + (kpis?.realizadoLanches || 0)
   const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
-  const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null
-    ? 'neutral'
-    : kpis.atingimentoMetaPercentual > 100
-      ? 'danger'
-      : kpis.atingimentoMetaPercentual > 85
-        ? 'warning'
-        : 'success'
+  const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null ? 'neutral' : kpis.atingimentoMetaPercentual > 100 ? 'danger' : kpis.atingimentoMetaPercentual > 85 ? 'warning' : 'success'
 
   const paretoOperations = useMemo(() => {
     if (!data) return []
@@ -295,129 +209,63 @@ export function DashboardPage() {
     let accumulated = 0
     return data.porOperacao.slice(0, 10).map((item) => {
       accumulated += item.realizado
-      return {
-        ...item,
-        acumulado: total ? (accumulated / total) * 100 : 0,
-      }
+      return { ...item, acumulado: total ? (accumulated / total) * 100 : 0 }
     })
   }, [data])
 
-  const metaAlertMessage = data?.alertaMeta.status === 'FORA_DA_META'
-    ? `Mantido o ritmo atual, a projeção supera a meta em ${currency(Math.max(data.alertaMeta.desvioProjetadoMeta || 0, 0))}.`
-    : data?.alertaMeta.mensagem || ''
-
-  const remainingDailyLimit = data && kpis?.metaMaoObra != null && data.projecao.diasRestantes > 0
-    ? (kpis.metaMaoObra - kpis.realizadoMaoObra) / data.projecao.diasRestantes
-    : null
-
-  const remainingDailyMessage = remainingDailyLimit == null
-    ? ''
-    : remainingDailyLimit >= 0
-      ? `Limite médio restante: ${currency(remainingDailyLimit)}/dia por ${data?.projecao.diasRestantes || 0} dia(s).`
-      : `A meta realizada já foi excedida em ${currency(Math.abs((kpis?.metaMaoObra || 0) - (kpis?.realizadoMaoObra || 0)))}.`
+  const metaAlertMessage = data?.alertaMeta.status === 'FORA_DA_META' ? `Mantido o ritmo atual, a projeção supera a meta em ${currency(Math.max(data.alertaMeta.desvioProjetadoMeta || 0, 0))}.` : data?.alertaMeta.mensagem || ''
+  const remainingDailyLimit = data && kpis?.metaMaoObra != null && data.projecao.diasRestantes > 0 ? (kpis.metaMaoObra - kpis.realizadoMaoObra) / data.projecao.diasRestantes : null
+  const remainingDailyMessage = remainingDailyLimit == null ? '' : remainingDailyLimit >= 0 ? `Limite médio restante: ${currency(remainingDailyLimit)}/dia por ${data?.projecao.diasRestantes || 0} dia(s).` : `A meta realizada já foi excedida em ${currency(Math.abs((kpis?.metaMaoObra || 0) - (kpis?.realizadoMaoObra || 0)))}.`
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-page-heading">
-        <div>
-          <span className="ui-eyebrow">CUSTOS EXTRAS</span>
-          <h1>Visão geral</h1>
-          <p>Leitura executiva e analítica de mão de obra terceirizada e lanches.</p>
-          {data && <p><strong>Competência: {monthName(data.competencia.slice(5, 7))}/{data.competencia.slice(0, 4)}</strong> · {shortDate(data.periodoInicio)} a {shortDate(data.periodoFim)}</p>}
-        </div>
-      </div>
+      <div className="dashboard-page-heading"><div><span className="ui-eyebrow">CUSTOS EXTRAS</span><h1>Visão geral</h1><p>Leitura executiva e analítica de mão de obra terceirizada e lanches.</p>{data && <p><strong>Competência: {monthName(data.competencia.slice(5, 7))}/{data.competencia.slice(0, 4)}</strong> · {shortDate(data.periodoInicio)} a {shortDate(data.periodoFim)}</p>}</div></div>
 
-      <div className="dashboard-tabs" role="tablist" aria-label="Áreas do dashboard">
-        <button type="button" className={tab === 'executiva' ? 'active' : ''} onClick={() => setTab('executiva')}>Visão Executiva</button>
-        <button type="button" className={tab === 'analytics' ? 'active' : ''} onClick={() => setTab('analytics')}>Analytics</button>
-      </div>
+      <div className="dashboard-tabs" role="tablist" aria-label="Áreas do dashboard"><button type="button" className={tab === 'executiva' ? 'active' : ''} onClick={() => setTab('executiva')}>Visão Executiva</button><button type="button" className={tab === 'analytics' ? 'active' : ''} onClick={() => setTab('analytics')}>Analytics</button></div>
 
-      <section className="dashboard-filter-panel" aria-label="Filtros do dashboard">
-        <div className="dashboard-filters">
-          <label>Ano<select value={query.ano} onChange={(event) => update('ano', event.target.value)}>{(data?.filtros.anos.length ? data.filtros.anos : [query.ano || initial.ano]).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
-          <label>Competência<select value={query.mesCompetencia} onChange={(event) => update('mesCompetencia', event.target.value)}>{(data?.filtros.mesesCompetencia.length ? data.filtros.mesesCompetencia : [query.mesCompetencia || initial.mesCompetencia]).map((value) => <option key={value} value={value}>{monthName(value)}</option>)}</select></label>
-          <label>Operação<select value={query.operacao} onChange={(event) => update('operacao', event.target.value)}><option value="TODOS">Todas</option>{data?.filtros.operacoes.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-          <label>Supervisor<select value={query.supervisor} onChange={(event) => update('supervisor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.supervisores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-          <label>Fornecedor<select value={query.fornecedor} onChange={(event) => update('fornecedor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.fornecedores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-          <label>Tipo<select value={query.tipo} onChange={(event) => update('tipo', event.target.value as DashboardTypeFilter)}>{(['TODOS', 'MAO_DE_OBRA', 'ALIMENTACAO_BEBIDA'] as DashboardTypeFilter[]).map((item) => <option key={item} value={item}>{typeLabel(item)}</option>)}</select></label>
-          <label>Responsável pelo custo<select value={query.responsavelCusto} onChange={(event) => update('responsavelCusto', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.responsaveisCusto.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-          <label>Atividade<select value={query.atividade} onChange={(event) => update('atividade', event.target.value)}><option value="TODOS">Todas</option>{data?.filtros.atividades.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-          <button type="button" className="button" onClick={clearDimensionFilters}>Limpar dimensões</button>
-        </div>
-      </section>
+      <section className="dashboard-filter-panel" aria-label="Filtros do dashboard"><div className="dashboard-filters">
+        <label>Ano<select value={query.ano} onChange={(event) => update('ano', event.target.value)}>{(data?.filtros.anos.length ? data.filtros.anos : [query.ano || initial.ano]).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+        <label>Competência<select value={query.mesCompetencia} onChange={(event) => update('mesCompetencia', event.target.value)}>{(data?.filtros.mesesCompetencia.length ? data.filtros.mesesCompetencia : [query.mesCompetencia || initial.mesCompetencia]).map((value) => <option key={value} value={value}>{monthName(value)}</option>)}</select></label>
+        <label>Operação<select value={query.operacao} onChange={(event) => update('operacao', event.target.value)}><option value="TODOS">Todas</option>{data?.filtros.operacoes.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label>Supervisor<select value={query.supervisor} onChange={(event) => update('supervisor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.supervisores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label>Fornecedor<select value={query.fornecedor} onChange={(event) => update('fornecedor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.fornecedores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label>Tipo<select value={query.tipo} onChange={(event) => update('tipo', event.target.value as DashboardTypeFilter)}>{(['TODOS', 'MAO_DE_OBRA', 'ALIMENTACAO_BEBIDA'] as DashboardTypeFilter[]).map((item) => <option key={item} value={item}>{typeLabel(item)}</option>)}</select></label>
+        <label>Responsável pelo custo<select value={query.responsavelCusto} onChange={(event) => update('responsavelCusto', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.responsaveisCusto.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label>Atividade<select value={query.atividade} onChange={(event) => update('atividade', event.target.value)}><option value="TODOS">Todas</option>{data?.filtros.atividades.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <button type="button" className="button" onClick={clearDimensionFilters}>Limpar dimensões</button>
+      </div></section>
 
       {loading && !data ? <div className="ui-panel"><div className="ui-skeleton"><span /><span /><span /><span /></div></div> : null}
       {error ? <div className="ui-panel"><div className="ui-empty-state ui-empty-state-error"><div><strong>Falha ao carregar o dashboard</strong><p>{error}</p></div></div></div> : null}
 
-      {data && kpis ? (
-        <>
-          {loading && <div className="dashboard-refreshing">Atualizando indicadores…</div>}
-
-          {tab === 'executiva' ? (
-            <div className="dashboard-view">
-              <div className="dashboard-metrics-grid">
-                <MetricCard label="Previsto · Mão de obra" value={currency(kpis.previstoMaoObra)} detail="Solicitações da competência" />
-                <MetricCard label="Previsto · Lanches" value={currency(kpis.previstoLanches)} detail="Alimentação e bebida" />
-                <MetricCard label="Realizado · Mão de obra" value={currency(kpis.realizadoMaoObra)} detail="Com comparecimento registrado" tone="info" />
-                <MetricCard label="Realizado · Lanches" value={currency(kpis.realizadoLanches)} detail="Calculado pela solicitação" tone="info" />
-                <MetricCard label="Diferença R$" value={currency(kpis.diferencaValor)} detail={`${currency(totalReal)} realizado vs. ${currency(totalPlanned)} previsto`} tone={differenceTone} />
-                <MetricCard label="Diferença %" value={percent(kpis.diferencaPercentual)} detail="Realizado − previsto" tone={differenceTone} />
-                <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta da competência, sem rateio por dimensão" tone="neutral" />
-                <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
-              </div>
-
-              <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}>
-                <div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div>
-                <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div>
-                <div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div>
-              </section>
-
-              <ProjectionChart points={data.evolucaoMetaProjecao} />
-
-              <div className="dashboard-two-columns">
-                <HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} />
-                <HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} />
-              </div>
-
-              <section className="dashboard-card">
-                <div className="dashboard-card-header"><div><span className="ui-eyebrow">EVOLUÇÃO</span><h2>Movimento diário da competência</h2><p>Data operacional dentro da janela 21–20.</p></div></div>
-                <div className="dashboard-daily-grid">
-                  {data.evolucaoDiaria.length ? data.evolucaoDiaria.map((item) => (
-                    <div className="dashboard-daily-item" key={item.data}><span>{shortDate(item.data).slice(0, 5)}</span><strong>{currency(item.realizado)}</strong><small>Prev. {currency(item.previsto)}</small></div>
-                  )) : <div className="ui-empty-state"><div><strong>Sem movimento</strong><p>Não há custos na combinação de filtros selecionada.</p></div></div>}
-                </div>
-              </section>
-            </div>
-          ) : (
-            <div className="dashboard-view">
-              <div className="dashboard-analytics-summary">
-                <MetricCard label="Solicitações analisadas" value={String(kpis.totalSolicitacoes)} detail="Após aplicação dos filtros" />
-                <MetricCard label="Divergências de comparecimento" value={String(kpis.divergenciasComparecimento)} detail="Quantidade solicitada ≠ comparecida" tone={kpis.divergenciasComparecimento ? 'warning' : 'success'} />
-                <MetricCard label="Desvio financeiro" value={currency(kpis.diferencaValor)} detail="Realizado − previsto" tone={differenceTone} />
-                <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail="Meta global da competência" tone={metaTone} />
-              </div>
-
-              <div className="dashboard-two-columns">
-                <section className="dashboard-card">
-                  <div className="dashboard-card-header"><div><span className="ui-eyebrow">PARETO</span><h2>Concentração por operação</h2><p>Participação acumulada do custo realizado.</p></div></div>
-                  <div className="dashboard-pareto">
-                    {paretoOperations.map((item) => (
-                      <div className="dashboard-pareto-row" key={item.chave}><strong>{item.chave}</strong><span>{currency(item.realizado)}</span><div><i style={{ width: `${Math.min(item.acumulado, 100)}%` }} /></div><small>{percent(item.acumulado)} acumulado</small></div>
-                    ))}
-                    {!paretoOperations.length && <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}
-                  </div>
-                </section>
-                <HorizontalRanking title="Responsável pelo custo" subtitle="Separação entre custos Unilog, cliente e demais classificações." items={data.porResponsavelCusto} limit={6} />
-              </div>
-
-              <div className="dashboard-two-columns">
-                <HorizontalRanking title="Supervisores" subtitle="Distribuição do custo realizado por supervisão." items={data.porSupervisor} limit={8} />
-                <HorizontalRanking title="Atividades" subtitle="Atividades com maior concentração de custos extras." items={data.porAtividade} limit={8} />
-              </div>
-            </div>
-          )}
-        </>
-      ) : null}
+      {data && kpis ? <>{loading && <div className="dashboard-refreshing">Atualizando indicadores…</div>}{tab === 'executiva' ? (
+        <div className="dashboard-view">
+          <div className="dashboard-metrics-grid">
+            <MetricCard label="Previsto · Mão de obra" value={currency(kpis.previstoMaoObra)} detail="Solicitações da competência" />
+            <MetricCard label="Previsto · Lanches" value={currency(kpis.previstoLanches)} detail="Alimentação e bebida" />
+            <MetricCard label="Realizado · Mão de obra" value={currency(kpis.realizadoMaoObra)} detail="Com comparecimento registrado" tone="info" />
+            <MetricCard label="Realizado · Lanches" value={currency(kpis.realizadoLanches)} detail="Calculado pela solicitação" tone="info" />
+            <MetricCard label="Diferença R$" value={currency(kpis.diferencaValor)} detail={`${currency(totalReal)} realizado vs. ${currency(totalPlanned)} previsto`} tone={differenceTone} />
+            <MetricCard label="Diferença %" value={percent(kpis.diferencaPercentual)} detail="Realizado − previsto" tone={differenceTone} />
+            <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta da competência, sem rateio por dimensão" tone="neutral" />
+            <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
+          </div>
+          <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}><div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div><div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div><div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div></section>
+          <ProjectionChart points={data.evolucaoMetaProjecao} />
+          <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>
+          <section className="dashboard-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">EVOLUÇÃO</span><h2>Movimento diário da competência</h2><p>Data operacional dentro da janela 21–20.</p></div></div><div className="dashboard-daily-grid">{data.evolucaoDiaria.length ? data.evolucaoDiaria.map((item) => <div className="dashboard-daily-item" key={item.data}><span>{shortDate(item.data).slice(0, 5)}</span><strong>{currency(item.realizado)}</strong><small>Prev. {currency(item.previsto)}</small></div>) : <div className="ui-empty-state"><div><strong>Sem movimento</strong><p>Não há custos na combinação de filtros selecionada.</p></div></div>}</div></section>
+        </div>
+      ) : (
+        <div className="dashboard-view">
+          <div className="dashboard-analytics-summary"><MetricCard label="Solicitações analisadas" value={String(kpis.totalSolicitacoes)} detail="Após aplicação dos filtros" /><MetricCard label="Divergências de comparecimento" value={String(kpis.divergenciasComparecimento)} detail="Quantidade solicitada ≠ comparecida" tone={kpis.divergenciasComparecimento ? 'warning' : 'success'} /><MetricCard label="Desvio financeiro" value={currency(kpis.diferencaValor)} detail="Realizado − previsto" tone={differenceTone} /><MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail="Meta global da competência" tone={metaTone} /></div>
+          <div className="dashboard-two-columns">
+            <section className="dashboard-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">PARETO</span><h2>Concentração por operação</h2><p>Participação acumulada do custo realizado.</p></div></div><div className="dashboard-pareto">{paretoOperations.map((item) => <div className="dashboard-pareto-row" key={item.chave}><strong>{item.chave}</strong><span>{currency(item.realizado)}</span><div><i style={{ width: `${Math.min(item.acumulado, 100)}%` }} /></div><small>{percent(item.acumulado)} acumulado</small></div>)}{!paretoOperations.length && <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}</div></section>
+            <HorizontalRanking title="Responsável pelo custo" subtitle="Separação entre custos Unilog, cliente e demais classificações." items={data.porResponsavelCusto} limit={6} />
+          </div>
+          <div className="dashboard-two-columns"><HorizontalRanking title="Supervisores" subtitle="Distribuição do custo realizado por supervisão." items={data.porSupervisor} limit={8} /><HorizontalRanking title="Atividades" subtitle="Atividades com maior concentração de custos extras." items={data.porAtividade} limit={8} /></div>
+          <AdvancedAnalytics data={data} />
+        </div>
+      )}</> : null}
     </div>
   )
 }
