@@ -2,10 +2,14 @@ export type TipoSolicitacao = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
 export type WhatsappDestino = 'NENHUM' | 'NUMERO' | 'GRUPO'
 export type CategoriaProduto = 'ALIMENTACAO' | 'BEBIDA'
 export type TipoDia = 'UTIL' | 'SABADO' | 'DOMINGO_FERIADO'
-export type CatalogAdminScope = 'RESUMO' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
+export type CatalogAdminScope = 'RESUMO' | 'OPERACOES' | 'SUPERVISORES' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
 
 export interface CatalogoNomeDto {
   nome: string
+}
+
+export interface CatalogoAdminNomeDto extends CatalogoNomeDto {
+  ativo: boolean
 }
 
 export interface FornecedorDto {
@@ -101,12 +105,19 @@ export interface CatalogAdminScopeQuery {
 
 export interface CatalogosAdminScopeDto {
   resumoAtivos?: CatalogosAdminResumoDto
+  operacoes?: CatalogoAdminNomeDto[]
+  supervisores?: CatalogoAdminNomeDto[]
   funcoes?: CatalogoNomeDto[]
   fornecedores?: FornecedorAdminDto[]
   produtos?: ProdutoAdminDto[]
   precosMaoObra?: PrecoMaoObraAdminDto[]
   precosProdutos?: PrecoProdutoAdminDto[]
   paginacao?: CatalogAdminPaginationDto
+}
+
+export interface SaveCatalogoAdminNomeInput {
+  nome: string
+  ativo: boolean
 }
 
 export interface SaveFornecedorAdminInput {
@@ -157,6 +168,10 @@ export type CatalogosAdminApiResponse =
 
 export type CatalogosAdminScopeApiResponse =
   | { ok: true; data: CatalogosAdminScopeDto }
+  | { ok: false; error: ApiErrorDto }
+
+export type CatalogoAdminNomeApiResponse =
+  | { ok: true; data: CatalogoAdminNomeDto }
   | { ok: false; error: ApiErrorDto }
 
 export type FornecedorAdminApiResponse =
