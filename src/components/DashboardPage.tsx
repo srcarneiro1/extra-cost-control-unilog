@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchDashboard } from '../services/dashboardService'
 import { AdvancedAnalytics } from './AdvancedAnalytics'
+import { DashboardExportActions } from './DashboardExportActions'
 import type {
   DashboardBreakdownItem,
   DashboardProjectionPoint,
@@ -219,7 +220,10 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-page-heading"><div><span className="ui-eyebrow">CUSTOS EXTRAS</span><h1>Visão geral</h1><p>Leitura executiva e analítica de mão de obra terceirizada e lanches.</p>{data && <p><strong>Competência: {monthName(data.competencia.slice(5, 7))}/{data.competencia.slice(0, 4)}</strong> · {shortDate(data.periodoInicio)} a {shortDate(data.periodoFim)}</p>}</div></div>
+      <div className="dashboard-page-heading">
+        <div><span className="ui-eyebrow">CUSTOS EXTRAS</span><h1>Visão geral</h1><p>Leitura executiva e analítica de mão de obra terceirizada e lanches.</p>{data && <p><strong>Competência: {monthName(data.competencia.slice(5, 7))}/{data.competencia.slice(0, 4)}</strong> · {shortDate(data.periodoInicio)} a {shortDate(data.periodoFim)}</p>}</div>
+        <DashboardExportActions query={query} />
+      </div>
 
       <div className="dashboard-tabs" role="tablist" aria-label="Áreas do dashboard"><button type="button" className={tab === 'executiva' ? 'active' : ''} onClick={() => setTab('executiva')}>Visão Executiva</button><button type="button" className={tab === 'analytics' ? 'active' : ''} onClick={() => setTab('analytics')}>Analytics</button></div>
 
