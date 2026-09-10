@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AdminSolicitationsPageCurrentPeriod } from './components/AdminSolicitationsPageCurrentPeriod'
 import { AppShell, type AppSection } from './components/AppShell'
-import { CadastrosPage } from './components/CadastrosPage'
+import { CadastrosPagePaginated } from './components/CadastrosPagePaginated'
 import { DashboardPage } from './components/DashboardPage'
 import {
   fetchCatalogoAdminScope,
@@ -28,9 +28,6 @@ export function App() {
   )
 
   useEffect(() => {
-    // O Dashboard é a primeira tela. Aproveitamos o tempo ocioso logo após a
-    // montagem para aquecer as consultas mais prováveis das outras áreas.
-    // Nenhuma falha de prefetch interfere na navegação ou exibe erro ao usuário.
     const firstWave = window.setTimeout(() => {
       const period = currentPeriod()
 
@@ -51,8 +48,6 @@ export function App() {
       prefetchCatalogoAdminScope('PRODUTOS')
     }, 900)
 
-    // Segunda onda: aquece navegação provável, sem competir com a primeira
-    // pintura do Dashboard nem com as consultas essenciais da aplicação.
     const secondWave = window.setTimeout(() => {
       const period = currentPeriod()
 
@@ -104,7 +99,7 @@ export function App() {
 
       {mountedSections.has('cadastros') && (
         <div hidden={section !== 'cadastros'}>
-          <CadastrosPage />
+          <CadastrosPagePaginated />
         </div>
       )}
     </AppShell>
