@@ -17,7 +17,7 @@ const CatalogAdminQueryService = (() => {
   });
 
   const DESTINATIONS = ['NENHUM', 'NUMERO', 'GRUPO'];
-  const CACHE_PREFIX = 'catalog_admin_scope_v1_';
+  const CACHE_PREFIX = 'catalog_admin_scope_v2_';
   const CACHE_SECONDS = 60;
   const PRICE_PAGINATION_THRESHOLD = 50;
   const PRICE_PAGE_SIZE = 25;
@@ -339,8 +339,21 @@ const CatalogAdminQueryService = (() => {
     }
   }
 
+  function clearCache() {
+    try {
+      CacheService.getScriptCache().removeAll([
+        cacheKey_(SCOPES.SUMMARY),
+        cacheKey_(SCOPES.PROVIDERS),
+        cacheKey_(SCOPES.PRODUCTS),
+      ]);
+    } catch (error) {
+      // Cache é apenas otimização; falha nunca bloqueia a operação.
+    }
+  }
+
   return {
     SCOPES,
     getScope,
+    clearCache,
   };
 })();
