@@ -40,7 +40,9 @@ const AdministrativeSolicitationQueryService = (() => {
         offset,
         pageSize
       );
-    } else if (isCurrentMonthFilter_(filters)) {
+    } else if (isMonthFilter_(filters)) {
+      // Qualquer competência mensal pode usar leitura reversa em blocos.
+      // Isso evita carregar toda a aba SOLICITACOES para consultar meses históricos.
       const periodRows = SheetRepository.readObjectsForMonthFromEnd(
         SHEET_SOLICITACOES,
         'DATA_CRIACAO',
@@ -183,13 +185,12 @@ const AdministrativeSolicitationQueryService = (() => {
     );
   }
 
-  function isCurrentMonthFilter_(filters) {
-    if (!filters.anoRegistro || !filters.mesRegistro || filters.dataRegistro) return false;
-
-    const currentYear = Utilities.formatDate(new Date(), DateService.TIMEZONE, 'yyyy');
-    const currentMonth = Utilities.formatDate(new Date(), DateService.TIMEZONE, 'MM');
-
-    return filters.anoRegistro === currentYear && filters.mesRegistro === currentMonth;
+  function isMonthFilter_(filters) {
+    return Boolean(
+      filters.anoRegistro &&
+      filters.mesRegistro &&
+      !filters.dataRegistro
+    );
   }
 
   function matchesPeriod_(record, filters) {
