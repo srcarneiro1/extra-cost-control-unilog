@@ -22,8 +22,13 @@ interface ApiFailure {
 
 type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 
-const ADMIN_LIST_CACHE_MS = 30 * 1000
-const adminListCache = new Map<string, { value: AdministrativeSolicitationListResponse; expiresAt: number }>()
+const ADMIN_LIST_FRESH_MS = 30 * 1000
+const ADMIN_LIST_STALE_MS = 5 * 60 * 1000
+const adminListCache = new Map<string, {
+  value: AdministrativeSolicitationListResponse
+  freshUntil: number
+  staleUntil: number
+}>()
 const adminListRequests = new Map<string, Promise<AdministrativeSolicitationListResponse>>()
 let metadataCache: { value: AdministrativeSolicitationMetadata; expiresAt: number } | null = null
 let metadataRequest: Promise<AdministrativeSolicitationMetadata> | null = null
@@ -144,15 +149,25 @@ function buildAdministrativeListUrl(query: AdministrativeSolicitationListQuery):
   return `/api/solicitacoes?${params.toString()}`
 }
 
+function normalizeAdministrativeListQuery(
+  queryOrLimit: AdministrativeSolicitationListQuery | number = {},
+): AdministrativeSolicitationListQuery {
+  return typeof queryOrLimit === 'number'
+    ? { tamanhoPagina: queryOrLimit }
+    : queryOrLimit
+}
+
 function requestAdministrativeSolicitations(
   key: string,
   query: AdministrativeSolicitationListQuery,
 ): Promise<AdministrativeSolicitationListResponse> {
   const request = getRequest<AdministrativeSolicitationListResponse>(buildAdministrativeListUrl(query))
     .then((value) => {
+      const now = Date.now()
       adminListCache.set(key, {
         value,
-        expiresAt: Date.now() + ADMIN_LIST_CACHE_MS,
+        freshUntil: now + ADMIN_LIST_FRESH_MS,
+        staleUntil: now + ADMIN_LIST_STALE_MS,
       })
       return value
     })
@@ -164,21 +179,42 @@ function requestAdministrativeSolicitations(
   return request
 }
 
+export function getAdministrativeSolicitationsSnapshot(
+  queryOrLimit: AdministrativeSolicitationListQuery | number = {},
+): { value: AdministrativeSolicitationListResponse; isFresh: boolean } | null {
+  const query = normalizeAdministrativeListQuery(queryOrLimit)
+  const key = buildAdministrativeListUrl(query)
+  const cached = adminListCache.get(key)
+  const now = Date.now()
+
+  if (!cached) return null
+  if (cached.staleUntil <= now) {
+    adminListCache.delete(key)
+    return null
+  }
+
+  return {
+    value: cached.value,
+    isFresh: cached.freshUntil > now,
+  }
+}
+
 export function fetchAdministrativeSolicitations(
   queryOrLimit: AdministrativeSolicitationListQuery | number = {},
   signal?: AbortSignal,
+  options?: { force?: boolean },
 ): Promise<AdministrativeSolicitationListResponse> {
   if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
 
-  const query: AdministrativeSolicitationListQuery =
-    typeof queryOrLimit === 'number'
-      ? { tamanhoPagina: queryOrLimit }
-      : queryOrLimit
-
+  const query = normalizeAdministrativeListQuery(queryOrLimit)
   const key = buildAdministrativeListUrl(query)
-  const cached = adminListCache.get(key)
-  if (cached && cached.expiresAt > Date.now()) {
-    return Promise.resolve(cached.value)
+  const snapshot = getAdministrativeSolicitationsSnapshot(query)
+
+  if (!options?.force && snapshot) {
+    if (!snapshot.isFresh && !adminListRequests.has(key)) {
+      void requestAdministrativeSolicitations(key, query).catch(() => undefined)
+    }
+    return Promise.resolve(snapshot.value)
   }
 
   const sharedRequest = adminListRequests.get(key) || requestAdministrativeSolicitations(key, query)
@@ -214,7 +250,7 @@ export function fetchAdministrativeSolicitationMetadata(
       .then((value) => {
         metadataCache = {
           value,
-          expiresAt: Date.now() + ADMIN_LIST_CACHE_MS,
+          expiresAt: Date.now() + ADMIN_LIST_FRESH_MS,
         }
         return value
       })

@@ -43,11 +43,12 @@ const Api = (() => {
         if (action) {
           const result = CatalogAdminService.execute(servicePayload);
           CatalogAdminQueryService.clearCache();
+          CatalogAdminScopeCacheService.clear();
           return JsonResponse.ok(result);
         }
 
         if (mode === 'ADMIN_SCOPE') {
-          return JsonResponse.ok(CatalogAdminQueryService.getScope(servicePayload));
+          return JsonResponse.ok(CatalogAdminScopeCacheService.get(servicePayload));
         }
 
         if (mode === 'ADMIN') {
@@ -66,7 +67,7 @@ const Api = (() => {
 
       if (route === 'solicitacoes_admin') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(AdministrativeSolicitationQueryService.execute(servicePayload));
+        return JsonResponse.ok(AdministrativeSolicitationCacheService.get(servicePayload));
       }
 
       if (route === 'dashboard') {
@@ -123,6 +124,7 @@ const Api = (() => {
   function writeAndInvalidate_(operation) {
     const result = operation();
     DashboardCacheService.clear();
+    AdministrativeSolicitationCacheService.clear();
     return result;
   }
 

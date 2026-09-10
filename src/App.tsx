@@ -1,14 +1,82 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AdminSolicitationsPageCurrentPeriod } from './components/AdminSolicitationsPageCurrentPeriod'
 import { AppShell, type AppSection } from './components/AppShell'
 import { CadastrosPagePaginated } from './components/CadastrosPagePaginated'
 import { DashboardPage } from './components/DashboardPage'
+import {
+  fetchCatalogoAdminScope,
+  fetchCatalogos,
+  prefetchCatalogoAdminScope,
+} from './services/catalogService'
+import {
+  fetchAdministrativeSolicitationMetadata,
+  fetchAdministrativeSolicitations,
+} from './services/solicitationService'
+
+function currentPeriod() {
+  const now = new Date()
+  return {
+    anoRegistro: String(now.getFullYear()),
+    mesRegistro: String(now.getMonth() + 1).padStart(2, '0'),
+  }
+}
 
 export function App() {
   const [section, setSection] = useState<AppSection>('dashboard')
   const [mountedSections, setMountedSections] = useState<Set<AppSection>>(
     () => new Set<AppSection>(['dashboard']),
   )
+
+  useEffect(() => {
+    // O Dashboard é a primeira tela. Aproveitamos o tempo ocioso logo após a
+    // montagem para aquecer as consultas mais prováveis das outras áreas.
+    // Nenhuma falha de prefetch interfere na navegação ou exibe erro ao usuário.
+    const firstWave = window.setTimeout(() => {
+      const period = currentPeriod()
+
+      void fetchAdministrativeSolicitations({
+        pagina: 1,
+        tamanhoPagina: 20,
+        anoRegistro: period.anoRegistro,
+        mesRegistro: period.mesRegistro,
+      }).catch(() => undefined)
+
+      void fetchAdministrativeSolicitationMetadata().catch(() => undefined)
+      void fetchCatalogos().catch(() => undefined)
+
+      prefetchCatalogoAdminScope('RESUMO')
+      prefetchCatalogoAdminScope('FORNECEDORES')
+      prefetchCatalogoAdminScope('PRODUTOS')
+    }, 900)
+
+    // Segunda onda: aquece navegação provável, sem competir com a primeira
+    // pintura do Dashboard nem com as consultas essenciais da aplicação.
+    const secondWave = window.setTimeout(() => {
+      const period = currentPeriod()
+
+      void fetchAdministrativeSolicitations({
+        pagina: 2,
+        tamanhoPagina: 20,
+        anoRegistro: period.anoRegistro,
+        mesRegistro: period.mesRegistro,
+      }).catch(() => undefined)
+
+      void fetchCatalogoAdminScope('PRECOS_MO', {
+        pagina: 1,
+        tamanhoPagina: 25,
+      }).catch(() => undefined)
+
+      void fetchCatalogoAdminScope('PRECOS_PRODUTOS', {
+        pagina: 1,
+        tamanhoPagina: 25,
+      }).catch(() => undefined)
+    }, 2200)
+
+    return () => {
+      window.clearTimeout(firstWave)
+      window.clearTimeout(secondWave)
+    }
+  }, [])
 
   function handleNavigate(nextSection: AppSection) {
     setMountedSections((current) => {
