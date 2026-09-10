@@ -5,13 +5,16 @@ import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton, SummaryMe
 import {
   fetchCatalogoAdminScope,
   saveFornecedorAdmin,
-  saveProdutoAdmin,
+  saveOperacaoAdmin,
   savePrecoMaoObraAdmin,
   savePrecoProdutoAdmin,
+  saveProdutoAdmin,
+  saveSupervisorAdmin,
 } from '../services/catalogService'
 import type {
   CatalogAdminPaginationDto,
   CatalogAdminScope,
+  CatalogoAdminNomeDto,
   CatalogosAdminResumoDto,
   CatalogosAdminScopeDto,
   CategoriaProduto,
@@ -23,8 +26,8 @@ import type {
   WhatsappDestino,
 } from '../types/catalog'
 
-type CatalogSection = 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
-
+type CatalogSection = 'OPERACOES' | 'SUPERVISORES' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
+type NamedDraft = { nome: string; ativo: boolean }
 type ProviderDraft = {
   nome: string
   maoDeObra: boolean
@@ -34,7 +37,6 @@ type ProviderDraft = {
   whatsappNumero: string
   whatsappGrupoLink: string
 }
-
 type ProductDraft = { nome: string; categoria: CategoriaProduto; ativo: boolean }
 type LaborPriceDraft = {
   fornecedor: string
@@ -48,6 +50,7 @@ type ProductPriceDraft = { fornecedor: string; produto: string; vigenciaInicio: 
 
 const PRICE_PAGE_SIZE = 25
 
+const emptyNamedDraft = (): NamedDraft => ({ nome: '', ativo: true })
 const emptyProviderDraft = (): ProviderDraft => ({
   nome: '',
   maoDeObra: true,
@@ -104,8 +107,14 @@ function isPriceSection(section: CatalogSection) {
   return section === 'PRECOS_MO' || section === 'PRECOS_PRODUTOS'
 }
 
+function isNamedSection(section: CatalogSection) {
+  return section === 'OPERACOES' || section === 'SUPERVISORES'
+}
+
 export function CadastrosPagePaginated() {
   const [summary, setSummary] = useState<CatalogosAdminResumoDto | null>(null)
+  const [operationRows, setOperationRows] = useState<CatalogoAdminNomeDto[]>([])
+  const [supervisorRows, setSupervisorRows] = useState<CatalogoAdminNomeDto[]>([])
   const [functions, setFunctions] = useState<{ nome: string }[]>([])
   const [providerRows, setProviderRows] = useState<FornecedorAdminDto[]>([])
   const [productRows, setProductRows] = useState<ProdutoAdminDto[]>([])
@@ -120,11 +129,12 @@ export function CadastrosPagePaginated() {
   const [notice, setNotice] = useState('')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [section, setSection] = useState<CatalogSection>('FORNECEDORES')
+  const [section, setSection] = useState<CatalogSection>('OPERACOES')
   const [pricePage, setPricePage] = useState(1)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingExisting, setEditingExisting] = useState(false)
   const [reactivatingPrice, setReactivatingPrice] = useState(false)
+  const [namedDraft, setNamedDraft] = useState<NamedDraft>(emptyNamedDraft)
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProviderDraft)
   const [catalogProductDraft, setCatalogProductDraft] = useState<ProductDraft>(emptyProductDraft)
   const [laborDraft, setLaborDraft] = useState<LaborPriceDraft>(emptyLaborPriceDraft)
@@ -135,6 +145,8 @@ export function CadastrosPagePaginated() {
 
   function applyScope(data: CatalogosAdminScopeDto) {
     if (data.resumoAtivos) setSummary(data.resumoAtivos)
+    if (data.operacoes) setOperationRows(data.operacoes)
+    if (data.supervisores) setSupervisorRows(data.supervisores)
     if (data.funcoes) setFunctions(data.funcoes)
     if (data.fornecedores) setProviderRows(data.fornecedores)
     if (data.produtos) setProductRows(data.produtos)
@@ -183,7 +195,7 @@ export function CadastrosPagePaginated() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void loadStaticScope('FORNECEDORES', { signal: controller.signal })
+    void loadStaticScope('OPERACOES', { signal: controller.signal })
     void loadStaticScope('RESUMO', { signal: controller.signal, background: true })
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -200,6 +212,8 @@ export function CadastrosPagePaginated() {
   }, [debouncedSearch, section])
 
   useEffect(() => {
+    if (section === 'OPERACOES') void loadStaticScope('OPERACOES')
+    if (section === 'SUPERVISORES') void loadStaticScope('SUPERVISORES')
     if (section === 'FORNECEDORES') void loadStaticScope('FORNECEDORES')
     if (section === 'PRODUTOS') void loadStaticScope('PRODUTOS')
     if (section === 'PRECOS_MO') void loadPriceScope('PRECOS_MO', pricePage, debouncedSearch)
@@ -208,14 +222,10 @@ export function CadastrosPagePaginated() {
   }, [section, pricePage, debouncedSearch])
 
   const normalizedSearch = search.trim().toUpperCase()
-  const providers = useMemo(() => {
-    if (!normalizedSearch) return providerRows
-    return providerRows.filter((item) => `${item.nome} ${destinationLabel(item)}`.toUpperCase().includes(normalizedSearch))
-  }, [providerRows, normalizedSearch])
-  const products = useMemo(() => {
-    if (!normalizedSearch) return productRows
-    return productRows.filter((item) => `${item.nome} ${item.categoria}`.toUpperCase().includes(normalizedSearch))
-  }, [productRows, normalizedSearch])
+  const operations = useMemo(() => !normalizedSearch ? operationRows : operationRows.filter((item) => item.nome.toUpperCase().includes(normalizedSearch)), [operationRows, normalizedSearch])
+  const supervisors = useMemo(() => !normalizedSearch ? supervisorRows : supervisorRows.filter((item) => item.nome.toUpperCase().includes(normalizedSearch)), [supervisorRows, normalizedSearch])
+  const providers = useMemo(() => !normalizedSearch ? providerRows : providerRows.filter((item) => `${item.nome} ${destinationLabel(item)}`.toUpperCase().includes(normalizedSearch)), [providerRows, normalizedSearch])
+  const products = useMemo(() => !normalizedSearch ? productRows : productRows.filter((item) => `${item.nome} ${item.categoria}`.toUpperCase().includes(normalizedSearch)), [productRows, normalizedSearch])
 
   const laborProviders = providerRows.filter((item) => item.maoDeObra)
   const foodProviders = providerRows.filter((item) => item.alimentacao)
@@ -248,10 +258,18 @@ export function CadastrosPagePaginated() {
   function openNew() {
     resetMessages()
     setEditingExisting(false)
+    if (isNamedSection(section)) setNamedDraft(emptyNamedDraft())
     if (section === 'FORNECEDORES') setProviderDraft(emptyProviderDraft())
     if (section === 'PRODUTOS') setCatalogProductDraft(emptyProductDraft())
     if (section === 'PRECOS_MO') setLaborDraft(emptyLaborPriceDraft())
     if (section === 'PRECOS_PRODUTOS') setProductPriceDraft(emptyProductPriceDraft())
+    setEditorOpen(true)
+  }
+
+  function editNamed(item: CatalogoAdminNomeDto) {
+    resetMessages()
+    setEditingExisting(true)
+    setNamedDraft({ nome: item.nome, ativo: item.ativo })
     setEditorOpen(true)
   }
 
@@ -280,26 +298,14 @@ export function CadastrosPagePaginated() {
   function openLaborVersion(item: PrecoMaoObraAdminDto, reactivate = false) {
     resetMessages()
     setReactivatingPrice(reactivate)
-    setLaborDraft({
-      fornecedor: item.fornecedor,
-      funcao: item.funcao,
-      turno: item.turno,
-      tipoDia: item.tipoDia,
-      vigenciaInicio: '',
-      precoUnitario: reactivate ? String(item.precoUnitario) : '',
-    })
+    setLaborDraft({ fornecedor: item.fornecedor, funcao: item.funcao, turno: item.turno, tipoDia: item.tipoDia, vigenciaInicio: '', precoUnitario: reactivate ? String(item.precoUnitario) : '' })
     setEditorOpen(true)
   }
 
   function openProductPriceVersion(item: PrecoProdutoAdminDto, reactivate = false) {
     resetMessages()
     setReactivatingPrice(reactivate)
-    setProductPriceDraft({
-      fornecedor: item.fornecedor,
-      produto: item.produto,
-      vigenciaInicio: '',
-      precoUnitario: reactivate ? String(item.precoUnitario) : '',
-    })
+    setProductPriceDraft({ fornecedor: item.fornecedor, produto: item.produto, vigenciaInicio: '', precoUnitario: reactivate ? String(item.precoUnitario) : '' })
     setEditorOpen(true)
   }
 
@@ -311,7 +317,7 @@ export function CadastrosPagePaginated() {
   }
 
   async function reloadAfterSave() {
-    if (section === 'FORNECEDORES' || section === 'PRODUTOS') {
+    if (!isPriceSection(section)) {
       loadedStaticScopesRef.current.delete(section)
       await loadStaticScope(section, { force: true })
     } else {
@@ -326,6 +332,14 @@ export function CadastrosPagePaginated() {
     setEditorError('')
     setNotice('')
     try {
+      if (section === 'OPERACOES' || section === 'SUPERVISORES') {
+        if (!namedDraft.nome.trim()) throw new Error(section === 'OPERACOES' ? 'Informe a operação.' : 'Informe o supervisor.')
+        if (section === 'OPERACOES') await saveOperacaoAdmin({ nome: namedDraft.nome, ativo: namedDraft.ativo })
+        else await saveSupervisorAdmin({ nome: namedDraft.nome, ativo: namedDraft.ativo })
+        const entity = section === 'OPERACOES' ? 'Operação' : 'Supervisor'
+        setNotice(editingExisting ? `${entity} atualizado com sucesso.` : `${entity} cadastrado com sucesso.`)
+      }
+
       if (section === 'FORNECEDORES') {
         if (!providerDraft.nome.trim()) throw new Error('Informe o nome do fornecedor.')
         if (!providerDraft.maoDeObra && !providerDraft.alimentacao) throw new Error('O fornecedor precisa atender mão de obra e/ou alimentação.')
@@ -383,34 +397,43 @@ export function CadastrosPagePaginated() {
     }
   }
 
-  const pageActionLabel = section === 'FORNECEDORES'
-    ? 'Novo fornecedor'
-    : section === 'PRODUTOS'
-      ? 'Novo produto'
-      : section === 'PRECOS_MO'
-        ? 'Novo preço de mão de obra'
-        : 'Novo preço de produto'
+  const pageActionLabel = section === 'OPERACOES'
+    ? 'Nova operação'
+    : section === 'SUPERVISORES'
+      ? 'Novo supervisor'
+      : section === 'FORNECEDORES'
+        ? 'Novo fornecedor'
+        : section === 'PRODUTOS'
+          ? 'Novo produto'
+          : section === 'PRECOS_MO'
+            ? 'Novo preço de mão de obra'
+            : 'Novo preço de produto'
 
   return (
     <div className="catalog-page">
       <PageHeader
         eyebrow="ADMINISTRAÇÃO"
         title="Cadastros"
-        description="Mantenha fornecedores, produtos e tabelas de preço com rastreabilidade. Históricos extensos são paginados no servidor."
+        description="Mantenha operações, supervisores, fornecedores, produtos e tabelas de preço em uma única área administrativa, preservando histórico e rastreabilidade."
         actions={<button className="button button-primary" type="button" onClick={openNew}><span className="material-symbols-rounded" aria-hidden="true">add</span>{pageActionLabel}</button>}
       />
 
       {notice && <div className="admin-alert admin-alert-success catalog-notice">{notice}</div>}
       {loadError && <div className="admin-alert catalog-notice" role="alert">{loadError}</div>}
-      <SummaryMetrics items={metrics} ariaLabel="Catálogos ativos" />
+
+      <SummaryMetrics items={metrics} ariaLabel="Resumo geral dos cadastros ativos" />
 
       <div className="catalog-section-tabs" role="tablist" aria-label="Tipos de cadastro">
+        <button type="button" role="tab" aria-selected={section === 'OPERACOES'} className={section === 'OPERACOES' ? 'is-active' : ''} onClick={() => changeSection('OPERACOES')}>Operações</button>
+        <button type="button" role="tab" aria-selected={section === 'SUPERVISORES'} className={section === 'SUPERVISORES' ? 'is-active' : ''} onClick={() => changeSection('SUPERVISORES')}>Supervisores</button>
         <button type="button" role="tab" aria-selected={section === 'FORNECEDORES'} className={section === 'FORNECEDORES' ? 'is-active' : ''} onClick={() => changeSection('FORNECEDORES')}>Fornecedores</button>
         <button type="button" role="tab" aria-selected={section === 'PRODUTOS'} className={section === 'PRODUTOS' ? 'is-active' : ''} onClick={() => changeSection('PRODUTOS')}>Produtos</button>
         <button type="button" role="tab" aria-selected={section === 'PRECOS_MO'} className={section === 'PRECOS_MO' ? 'is-active' : ''} onClick={() => changeSection('PRECOS_MO')}>Preços de mão de obra</button>
         <button type="button" role="tab" aria-selected={section === 'PRECOS_PRODUTOS'} className={section === 'PRECOS_PRODUTOS' ? 'is-active' : ''} onClick={() => changeSection('PRECOS_PRODUTOS')}>Preços de produtos</button>
       </div>
 
+      {section === 'OPERACOES' && <NamedPanel loading={loading} title="Operações" description="Cadastre, inative ou reative operações disponíveis nos novos lançamentos." icon="warehouse" items={operations} search={search} setSearch={setSearch} onEdit={editNamed} />}
+      {section === 'SUPERVISORES' && <NamedPanel loading={loading} title="Supervisores" description="Cadastre, inative ou reative supervisores disponíveis nos novos lançamentos." icon="badge" items={supervisors} search={search} setSearch={setSearch} onEdit={editNamed} />}
       {section === 'FORNECEDORES' && <ProviderPanel loading={loading} items={providers} search={search} setSearch={setSearch} onEdit={editProvider} />}
       {section === 'PRODUTOS' && <ProductPanel loading={loading} items={products} search={search} setSearch={setSearch} onEdit={editProduct} />}
       {section === 'PRECOS_MO' && <LaborPricePanel loading={loading} items={laborPriceRows} search={search} setSearch={setSearch} onVersion={openLaborVersion} pagination={pricePagination} onPage={setPricePage} />}
@@ -420,7 +443,7 @@ export function CadastrosPagePaginated() {
         open={editorOpen}
         titleId="catalog-editor-title"
         eyebrow={modalEyebrow(section, editingExisting, reactivatingPrice)}
-        title={modalTitle(section, editingExisting, providerDraft, catalogProductDraft, reactivatingPrice)}
+        title={modalTitle(section, editingExisting, namedDraft, providerDraft, catalogProductDraft, reactivatingPrice)}
         description={modalDescription(section, reactivatingPrice)}
         onClose={closeEditor}
         busy={saving}
@@ -430,6 +453,7 @@ export function CadastrosPagePaginated() {
       >
         <div className="catalog-editor-form">
           {editorError && <div className="admin-alert catalog-editor-error" role="alert">{editorError}</div>}
+          {isNamedSection(section) && <NamedForm label={section === 'OPERACOES' ? 'Operação' : 'Supervisor'} draft={namedDraft} setDraft={setNamedDraft} editingExisting={editingExisting} />}
           {section === 'FORNECEDORES' && <ProviderForm draft={providerDraft} setDraft={setProviderDraft} editingExisting={editingExisting} />}
           {section === 'PRODUTOS' && <ProductForm draft={catalogProductDraft} setDraft={setCatalogProductDraft} editingExisting={editingExisting} />}
           {section === 'PRECOS_MO' && <LaborPriceForm draft={laborDraft} setDraft={setLaborDraft} functions={functions} providers={laborProviders} />}
@@ -448,20 +472,12 @@ function PricePagination({ pagination, onPage }: { pagination: CatalogAdminPagin
   if (!pagination?.paginado) return null
   const start = pagination.total === 0 ? 0 : (pagination.pagina - 1) * pagination.tamanhoPagina + 1
   const end = Math.min(pagination.pagina * pagination.tamanhoPagina, pagination.total)
-  return (
-    <footer className="admin-pagination">
-      <span className="admin-pagination-range">{start}–{end} de {pagination.total}</span>
-      <div className="admin-pagination-nav" aria-label="Navegação de páginas do histórico">
-        <button type="button" className="icon-button" onClick={() => onPage(Math.max(1, pagination.pagina - 1))} disabled={pagination.pagina <= 1} aria-label="Página anterior">
-          <span className="material-symbols-rounded" aria-hidden="true">chevron_left</span>
-        </button>
-        <span>Página {pagination.pagina} de {pagination.totalPaginas}</span>
-        <button type="button" className="icon-button" onClick={() => onPage(Math.min(pagination.totalPaginas, pagination.pagina + 1))} disabled={pagination.pagina >= pagination.totalPaginas} aria-label="Próxima página">
-          <span className="material-symbols-rounded" aria-hidden="true">chevron_right</span>
-        </button>
-      </div>
-    </footer>
-  )
+  return <footer className="admin-pagination"><span className="admin-pagination-range">{start}–{end} de {pagination.total}</span><div className="admin-pagination-nav" aria-label="Navegação de páginas do histórico"><button type="button" className="icon-button" onClick={() => onPage(Math.max(1, pagination.pagina - 1))} disabled={pagination.pagina <= 1} aria-label="Página anterior"><span className="material-symbols-rounded" aria-hidden="true">chevron_left</span></button><span>Página {pagination.pagina} de {pagination.totalPaginas}</span><button type="button" className="icon-button" onClick={() => onPage(Math.min(pagination.totalPaginas, pagination.pagina + 1))} disabled={pagination.pagina >= pagination.totalPaginas} aria-label="Próxima página"><span className="material-symbols-rounded" aria-hidden="true">chevron_right</span></button></div></footer>
+}
+
+function NamedPanel({ loading, title, description, icon, items, search, setSearch, onEdit }: { loading: boolean; title: string; description: string; icon: string; items: CatalogoAdminNomeDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: CatalogoAdminNomeDto) => void }) {
+  const singular = title === 'Operações' ? 'Operação' : 'Supervisor'
+  return <Panel className="catalog-provider-list"><PanelHeader eyebrow={title.toUpperCase()} title={`Cadastro de ${title.toLowerCase()}`} description={description} /><CatalogSearch value={search} onChange={setSearch} placeholder={`Buscar ${title.toLowerCase()}…`} label={`Buscar ${title.toLowerCase()}`} />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>{singular}</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.nome}><td data-label={singular} data-primary="true"><strong>{item.nome}</strong></td><td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td></tr>)}</tbody></table></div> : <EmptyState title={`Nenhum ${singular.toLowerCase()} encontrado`} description={`Ajuste a busca ou cadastre um novo ${singular.toLowerCase()}.`} icon={icon} />}</Panel>
 }
 
 function ProviderPanel({ loading, items, search, setSearch, onEdit }: { loading: boolean; items: FornecedorAdminDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: FornecedorAdminDto) => void }) {
@@ -481,12 +497,16 @@ function ProductPricePanel({ loading, items, search, setSearch, onVersion, pagin
 }
 
 function modalEyebrow(section: CatalogSection, editing: boolean, reactivating: boolean) {
+  if (section === 'OPERACOES') return editing ? 'EDIÇÃO DE OPERAÇÃO' : 'NOVA OPERAÇÃO'
+  if (section === 'SUPERVISORES') return editing ? 'EDIÇÃO DE SUPERVISOR' : 'NOVO SUPERVISOR'
   if (section === 'FORNECEDORES') return editing ? 'EDIÇÃO DE FORNECEDOR' : 'NOVO FORNECEDOR'
   if (section === 'PRODUTOS') return editing ? 'EDIÇÃO DE PRODUTO' : 'NOVO PRODUTO'
   return reactivating ? 'REATIVAÇÃO POR NOVA VIGÊNCIA' : 'NOVA VIGÊNCIA'
 }
 
-function modalTitle(section: CatalogSection, editing: boolean, provider: ProviderDraft, product: ProductDraft, reactivating: boolean) {
+function modalTitle(section: CatalogSection, editing: boolean, named: NamedDraft, provider: ProviderDraft, product: ProductDraft, reactivating: boolean) {
+  if (section === 'OPERACOES') return editing ? named.nome || 'Editar operação' : 'Cadastrar operação'
+  if (section === 'SUPERVISORES') return editing ? named.nome || 'Editar supervisor' : 'Cadastrar supervisor'
   if (section === 'FORNECEDORES') return editing ? provider.nome || 'Editar fornecedor' : 'Cadastrar fornecedor'
   if (section === 'PRODUTOS') return editing ? product.nome || 'Editar produto' : 'Cadastrar produto'
   if (section === 'PRECOS_MO') return reactivating ? 'Reativar preço de mão de obra' : 'Preço de mão de obra'
@@ -494,6 +514,7 @@ function modalTitle(section: CatalogSection, editing: boolean, provider: Provide
 }
 
 function modalDescription(section: CatalogSection, reactivating: boolean) {
+  if (isNamedSection(section)) return 'O status controla a disponibilidade em novos lançamentos sem apagar referências históricas.'
   if (section === 'FORNECEDORES') return 'Configure elegibilidade, status e destino de WhatsApp.'
   if (section === 'PRODUTOS') return 'Defina categoria e status. Reativar o produto não altera preços históricos.'
   if (reactivating) return 'Será criada uma nova linha de vigência; o registro anterior permanece preservado.'
@@ -501,8 +522,12 @@ function modalDescription(section: CatalogSection, reactivating: boolean) {
 }
 
 function saveButtonLabel(section: CatalogSection, editing: boolean, reactivating: boolean) {
-  if (section === 'FORNECEDORES' || section === 'PRODUTOS') return editing ? 'Salvar alterações' : 'Cadastrar'
+  if (!isPriceSection(section)) return editing ? 'Salvar alterações' : 'Cadastrar'
   return reactivating ? 'Criar reativação' : 'Criar vigência'
+}
+
+function NamedForm({ label, draft, setDraft, editingExisting }: { label: string; draft: NamedDraft; setDraft: Dispatch<SetStateAction<NamedDraft>>; editingExisting: boolean }) {
+  return <div className="catalog-form-grid"><label>{label}<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} /></label><label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label></div>
 }
 
 function ProviderForm({ draft, setDraft, editingExisting }: { draft: ProviderDraft; setDraft: Dispatch<SetStateAction<ProviderDraft>>; editingExisting: boolean }) {
