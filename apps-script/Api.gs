@@ -57,7 +57,9 @@ const Api = (() => {
 
       if (route === 'solicitacoes') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(SolicitationService.create(servicePayload));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return SolicitationService.create(servicePayload);
+        }));
       }
 
       if (route === 'solicitacoes_admin') {
@@ -67,7 +69,7 @@ const Api = (() => {
 
       if (route === 'dashboard') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(DashboardService.getDashboard(servicePayload));
+        return JsonResponse.ok(DashboardCacheService.get(servicePayload));
       }
 
       if (route === 'dashboard_export') {
@@ -77,33 +79,49 @@ const Api = (() => {
 
       if (route === 'triagem') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(TriageService.apply(servicePayload));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return TriageService.apply(servicePayload);
+        }));
       }
 
       if (route === 'comparecimento') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(AttendanceService.register(servicePayload));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return AttendanceService.register(servicePayload);
+        }));
       }
 
       if (route === 'jornada_parcial') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(PartialShiftService.register(servicePayload));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return PartialShiftService.register(servicePayload);
+        }));
       }
 
       if (route === 'correcao_solicitacao') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(SolicitationCorrectionService.correct(servicePayload));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return SolicitationCorrectionService.correct(servicePayload);
+        }));
       }
 
       if (route === 'exclusao_solicitacao') {
         const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(SolicitationDeletionService.remove(servicePayload));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return SolicitationDeletionService.remove(servicePayload);
+        }));
       }
 
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
       return handleError_(error);
     }
+  }
+
+  function writeAndInvalidate_(operation) {
+    const result = operation();
+    DashboardCacheService.clear();
+    return result;
   }
 
   function authorizeGateway_(payload) {
