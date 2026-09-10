@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AdminSolicitationsPageCurrentPeriod } from './components/AdminSolicitationsPageCurrentPeriod'
 import { AppShell, type AppSection } from './components/AppShell'
-import { CadastrosPagePaginated } from './components/CadastrosPagePaginated'
+import { CadastrosPage } from './components/CadastrosPage'
 import { DashboardPage } from './components/DashboardPage'
 import {
   fetchCatalogoAdminScope,
@@ -45,6 +45,8 @@ export function App() {
       void fetchCatalogos().catch(() => undefined)
 
       prefetchCatalogoAdminScope('RESUMO')
+      prefetchCatalogoAdminScope('OPERACOES')
+      prefetchCatalogoAdminScope('SUPERVISORES')
       prefetchCatalogoAdminScope('FORNECEDORES')
       prefetchCatalogoAdminScope('PRODUTOS')
     }, 900)
@@ -102,7 +104,7 @@ export function App() {
 
       {mountedSections.has('cadastros') && (
         <div hidden={section !== 'cadastros'}>
-          <CadastrosPagePaginated />
+          <CadastrosPage />
         </div>
       )}
     </AppShell>
