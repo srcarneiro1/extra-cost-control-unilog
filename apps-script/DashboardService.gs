@@ -1,8 +1,6 @@
 const DashboardService = (() => {
   const SOLICITATIONS_SHEET = 'SOLICITACOES';
-  const META_SHEET = 'Meta';
-  const META_SPREADSHEET_PROPERTY = 'META_SPREADSHEET_ID';
-  const DEFAULT_META_SPREADSHEET_ID = '1zKqgj45d1mNa_EFftvOiIXZMA8rOV5G2EVmvoRO5aXM';
+  const META_SHEET = 'METAS_MO';
   const TYPE_LABOR = 'MAO_DE_OBRA';
   const TYPE_SNACKS = 'ALIMENTACAO_BEBIDA';
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -19,7 +17,9 @@ const DashboardService = (() => {
       return matchesFilters_(record, filters);
     });
     const metaRows = readMetaRows_();
-    const metaValue = filters.tipo === TYPE_SNACKS ? null : metaForCompetence_(metaRows, selectedCompetence);
+    const metaValue = filters.tipo === TYPE_SNACKS
+      ? null
+      : metaForCompetence_(metaRows, selectedCompetence);
     const period = competencePeriod_(selectedCompetence);
     const kpis = summarize_(filteredRows, metaValue);
     const projection = projection_(filteredRows, kpis.realizadoMaoObra, metaValue, period);
@@ -29,13 +29,12 @@ const DashboardService = (() => {
       periodoInicio: DateService.toIsoDate(period.start),
       periodoFim: DateService.toIsoDate(period.end),
       metaEscopo: 'GLOBAL_COMPETENCIA',
+      metaFonte: META_SHEET,
       filtros: filterOptions_(allRows, periodRows, selectedCompetence),
       kpis: kpis,
       projecao: projection,
       alertaMeta: metaAlert_(projection),
-      porTipo: group_(filteredRows, function (record) {
-        return typeLabel_(record.TIPO_SOLICITACAO);
-      }),
+      porTipo: group_(filteredRows, function (record) { return typeLabel_(record.TIPO_SOLICITACAO); }),
       porOperacao: group_(filteredRows, function (record) { return record.OPERACAO; }),
       porFornecedor: group_(filteredRows, function (record) { return record.FORNECEDOR; }),
       porSupervisor: group_(filteredRows, function (record) { return record.SUPERVISOR; }),
@@ -43,6 +42,7 @@ const DashboardService = (() => {
       porAtividade: group_(filteredRows, function (record) { return record.ATIVIDADE; }),
       evolucaoDiaria: daily_(filteredRows),
       evolucaoMetaProjecao: projectionSeries_(filteredRows, metaValue, projection, period),
+      analytics: DashboardAnalyticsService.build(filteredRows, period),
     };
   }
 
@@ -128,21 +128,11 @@ const DashboardService = (() => {
     const timeline = timeline_(period);
     const exposure = knownLaborExposure_(rows);
     const pace = timeline.elapsedDays > 0 ? realizadoMaoObra / timeline.elapsedDays : null;
-    const trend = pace == null
-      ? null
-      : realizadoMaoObra + pace * timeline.remainingDays;
-    const finalProjection = trend == null
-      ? (exposure > 0 ? exposure : null)
-      : Math.max(trend, exposure);
-    const expectedMeta = metaValue == null
-      ? null
-      : metaValue * (timeline.elapsedDays / timeline.totalDays);
-    const projectedPercent = metaValue && finalProjection != null
-      ? (finalProjection / metaValue) * 100
-      : null;
-    const projectedDelta = metaValue != null && finalProjection != null
-      ? finalProjection - metaValue
-      : null;
+    const trend = pace == null ? null : realizadoMaoObra + pace * timeline.remainingDays;
+    const finalProjection = trend == null ? (exposure > 0 ? exposure : null) : Math.max(trend, exposure);
+    const expectedMeta = metaValue == null ? null : metaValue * (timeline.elapsedDays / timeline.totalDays);
+    const projectedPercent = metaValue && finalProjection != null ? (finalProjection / metaValue) * 100 : null;
+    const projectedDelta = metaValue != null && finalProjection != null ? finalProjection - metaValue : null;
 
     return {
       totalDias: timeline.totalDays,
@@ -161,14 +151,13 @@ const DashboardService = (() => {
   function knownLaborExposure_(rows) {
     return (rows || []).reduce(function (sum, record) {
       if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) return sum;
-      return sum + (hasValue_(record.VALOR_REAL)
-        ? number_(record.VALOR_REAL)
-        : number_(record.VALOR_PREVISTO));
+      return sum + (hasValue_(record.VALOR_REAL) ? number_(record.VALOR_REAL) : number_(record.VALOR_PREVISTO));
     }, 0);
   }
 
   function metaAlert_(projection) {
     const percent = projection.percentualMetaProjetado;
+
     if (percent == null || projection.projecaoFinalMaoObra == null) {
       return {
         status: 'SEM_PROJECAO',
@@ -210,6 +199,7 @@ const DashboardService = (() => {
 
   function projectionSeries_(rows, metaValue, projection, period) {
     const laborByDay = {};
+
     (rows || []).forEach(function (record) {
       if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) return;
       const date = safeDate_(record.DATA_OPERACIONAL);
@@ -304,15 +294,8 @@ const DashboardService = (() => {
     (rows || []).forEach(function (record) {
       const key = ValidationService.normalizeText(keyFn(record)) || 'NÃO INFORMADO';
       if (!grouped[key]) {
-        grouped[key] = {
-          chave: key,
-          previsto: 0,
-          realizado: 0,
-          diferenca: 0,
-          solicitacoes: 0,
-        };
+        grouped[key] = { chave: key, previsto: 0, realizado: 0, diferenca: 0, solicitacoes: 0 };
       }
-
       grouped[key].previsto += number_(record.VALOR_PREVISTO);
       grouped[key].realizado += realizedValue_(record);
       grouped[key].solicitacoes += 1;
@@ -356,8 +339,8 @@ const DashboardService = (() => {
     const selectedYear = String(selectedCompetence || '').slice(0, 4);
 
     (allRows || []).forEach(function (record) {
+      if (!isValidSolicitation_(record)) return;
       const competence = competenceOf_(record);
-      if (!/^\d{4}-\d{2}$/.test(competence)) return;
       const year = competence.slice(0, 4);
       const month = competence.slice(5, 7);
       years[year] = true;
@@ -373,6 +356,14 @@ const DashboardService = (() => {
       responsaveisCusto: distinct_(periodRows, 'RESPONSAVEL_CUSTO'),
       atividades: distinct_(periodRows, 'ATIVIDADE'),
     };
+  }
+
+  function isValidSolicitation_(record) {
+    const id = ValidationService.normalizeText(record.ID_SOLICITACAO);
+    if (!id) return false;
+    const type = ValidationService.normalizeUpper(record.TIPO_SOLICITACAO);
+    if (type !== TYPE_LABOR && type !== TYPE_SNACKS) return false;
+    return /^\d{4}-\d{2}$/.test(competenceOf_(record));
   }
 
   function distinct_(rows, field) {
@@ -406,27 +397,36 @@ const DashboardService = (() => {
   }
 
   function readMetaRows_() {
-    const configuredId = PropertiesService.getScriptProperties().getProperty(META_SPREADSHEET_PROPERTY);
-    const spreadsheetId = String(configuredId || DEFAULT_META_SPREADSHEET_ID).trim();
-    if (!spreadsheetId) return [];
-
     try {
-      const sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(META_SHEET);
+      const spreadsheet = SheetRepository.getSpreadsheet();
+      const sheet = spreadsheet.getSheetByName(META_SHEET);
       if (!sheet) return [];
       const values = sheet.getDataRange().getValues();
       if (values.length <= 1) return [];
 
       return values.slice(1).map(function (row) {
-        const date = row[0];
+        const rawCompetence = row[0];
         const meta = number_(row[1]);
-        if (!date || !meta) return null;
-        return {
-          competencia: Utilities.formatDate(new Date(date), DateService.TIMEZONE, 'yyyy-MM'),
-          meta: meta,
-        };
+        if (!rawCompetence || !meta) return null;
+        const competence = normalizeMetaCompetence_(rawCompetence);
+        if (!competence) return null;
+        return { competencia: competence, meta: meta };
       }).filter(Boolean);
     } catch (error) {
       return [];
+    }
+  }
+
+  function normalizeMetaCompetence_(value) {
+    if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
+      return Utilities.formatDate(value, DateService.TIMEZONE, 'yyyy-MM');
+    }
+    const text = String(value || '').trim();
+    if (/^\d{4}-\d{2}$/.test(text)) return text.slice(0, 7);
+    try {
+      return DateService.toIsoDate(value).slice(0, 7);
+    } catch (error) {
+      return '';
     }
   }
 
@@ -439,9 +439,7 @@ const DashboardService = (() => {
 
   function realizedValue_(record) {
     const type = ValidationService.normalizeUpper(record.TIPO_SOLICITACAO);
-    if (type === TYPE_SNACKS && !hasValue_(record.VALOR_REAL)) {
-      return number_(record.VALOR_PREVISTO);
-    }
+    if (type === TYPE_SNACKS && !hasValue_(record.VALOR_REAL)) return number_(record.VALOR_PREVISTO);
     return number_(record.VALOR_REAL);
   }
 
@@ -488,7 +486,5 @@ const DashboardService = (() => {
     return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
   }
 
-  return {
-    getDashboard,
-  };
+  return { getDashboard };
 })();
