@@ -123,19 +123,9 @@ function cachedDashboard(key: string): DashboardResponse | null {
   return cached.value
 }
 
-export function invalidateDashboardCache(): void {
-  dashboardCache.clear()
-}
-
-export function fetchDashboard(query: DashboardQuery, signal?: AbortSignal): Promise<DashboardResponse> {
-  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
-
-  const key = buildDashboardUrl(query)
-  const cached = cachedDashboard(key)
-  if (cached) return Promise.resolve(cached)
-
-  const request = requestForKey(key)
+function withAbortSignal(request: Promise<DashboardResponse>, signal?: AbortSignal): Promise<DashboardResponse> {
   if (!signal) return request
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
 
   return Promise.race([
     request,
@@ -143,6 +133,28 @@ export function fetchDashboard(query: DashboardQuery, signal?: AbortSignal): Pro
       signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     }),
   ])
+}
+
+export function invalidateDashboardCache(): void {
+  dashboardCache.clear()
+}
+
+export function fetchDashboard(
+  query: DashboardQuery,
+  signal?: AbortSignal,
+  options?: { force?: boolean },
+): Promise<DashboardResponse> {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+
+  const key = buildDashboardUrl(query)
+  const cached = cachedDashboard(key)
+  if (!options?.force && cached) return Promise.resolve(cached)
+
+  return withAbortSignal(requestForKey(key), signal)
+}
+
+export function revalidateDashboard(query: DashboardQuery, signal?: AbortSignal): Promise<DashboardResponse> {
+  return fetchDashboard(query, signal, { force: true })
 }
 
 export function prefetchDashboard(query: DashboardQuery): void {

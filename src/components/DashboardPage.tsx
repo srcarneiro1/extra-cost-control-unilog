@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchDashboard } from '../services/dashboardService'
+import { fetchDashboard, revalidateDashboard } from '../services/dashboardService'
 import { AdvancedAnalytics } from './AdvancedAnalytics'
 import { DashboardExportActions } from './DashboardExportActions'
 import type {
@@ -357,6 +357,39 @@ export function DashboardPage() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
+  }, [query])
+
+  useEffect(() => {
+    let active = true
+    let refreshing = false
+
+    const refreshSilently = () => {
+      if (!active || refreshing || document.visibilityState !== 'visible') return
+      refreshing = true
+      void revalidateDashboard(query)
+        .then((latest) => {
+          if (active) setData(latest)
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          refreshing = false
+        })
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshSilently()
+    }
+
+    const interval = window.setInterval(refreshSilently, 30_000)
+    window.addEventListener('focus', refreshSilently)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshSilently)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [query])
 
   useEffect(() => {
