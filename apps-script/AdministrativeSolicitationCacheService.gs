@@ -10,8 +10,6 @@ const AdministrativeSolicitationCacheService = (() => {
       input.acao || AdministrativeSolicitationQueryService.ACTIONS.LIST
     );
 
-    // Detalhes permanecem sempre em leitura direta para evitar exibir um registro
-    // desatualizado logo após triagem, correção, comparecimento ou jornada parcial.
     if (action === AdministrativeSolicitationQueryService.ACTIONS.DETAIL) {
       return AdministrativeSolicitationQueryService.execute(input);
     }
@@ -59,6 +57,7 @@ const AdministrativeSolicitationCacheService = (() => {
       value_(payload.anoRegistro),
       value_(payload.mesRegistro),
       value_(payload.dataRegistro),
+      value_(payload.operacaoEscopo),
     ].join('|');
 
     const digest = Utilities.computeDigest(
