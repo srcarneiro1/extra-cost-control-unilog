@@ -10,6 +10,16 @@ const CatalogAdminNamedEntityService = (() => {
       fieldName: 'SUPERVISOR',
       label: 'Supervisor',
     },
+    SALVAR_FUNCAO: {
+      sheetName: 'CAD_FUNCOES',
+      fieldName: 'FUNCAO',
+      label: 'Função',
+    },
+    SALVAR_ATIVIDADE: {
+      sheetName: 'CAD_ATIVIDADES',
+      fieldName: 'ATIVIDADE',
+      label: 'Atividade',
+    },
   });
 
   function execute(payload) {
