@@ -1,11 +1,12 @@
 const UserAuthService = (() => {
   const SHEET = 'CAD_USUARIOS';
   const PEPPER_PROPERTY = 'AUTH_PASSWORD_PEPPER';
+  const PENDING_EMAIL_PROPERTY = 'AUTH_PENDING_EMAIL';
+  const PENDING_PASSWORD_PROPERTY = 'AUTH_PENDING_PASSWORD';
   const HASH_ROUNDS = 2048;
   const HEADERS = [
     'EMAIL',
     'NOME',
-    'SENHA_TEMPORARIA',
     'SENHA_HASH',
     'SALT',
     'PERFIL',
@@ -29,19 +30,14 @@ const UserAuthService = (() => {
 
     ensureSheet_();
 
-    const match = SheetRepository
-      .readObjectsWithRowNumbers(SHEET)
-      .filter(function (item) {
-        return normalizeEmail_(item.record.EMAIL) === email;
-      })[0];
+    const match = findUser_(email);
 
     if (!match || !isActive_(match.record.ATIVO)) {
       authorizationFail_();
     }
 
-    const record = match.record;
-    const storedHash = String(record.SENHA_HASH || '').trim();
-    const storedSalt = String(record.SALT || '').trim();
+    const storedHash = String(match.record.SENHA_HASH || '').trim();
+    const storedSalt = String(match.record.SALT || '').trim();
 
     if (!storedHash || !storedSalt) {
       authorizationFail_();
@@ -53,126 +49,47 @@ const UserAuthService = (() => {
       authorizationFail_();
     }
 
-    const profile = normalizeProfile_(record.PERFIL);
+    const profile = normalizeProfile_(match.record.PERFIL);
 
     return {
       email: email,
-      nome: ValidationService.normalizeText(record.NOME) || email.split('@')[0],
+      nome: ValidationService.normalizeText(match.record.NOME) || email.split('@')[0],
       perfil: profile,
-      operacao: ValidationService.normalizeUpper(record.OPERACAO || ''),
+      operacao: ValidationService.normalizeUpper(match.record.OPERACAO || ''),
     };
   }
 
-  function handlePasswordEdit(event) {
-    if (!event || !event.range) return;
-
-    const sheet = event.range.getSheet();
-    if (!sheet || sheet.getName() !== SHEET) return;
-    if (event.range.getRow() <= 1) return;
-
-    ensureSheet_();
-
-    const headers = sheet
-      .getRange(1, 1, 1, sheet.getLastColumn())
-      .getDisplayValues()[0]
-      .map(function (header) { return String(header || '').trim(); });
-
-    const temporaryPasswordColumn = headers.indexOf('SENHA_TEMPORARIA') + 1;
-    const emailColumn = headers.indexOf('EMAIL') + 1;
-    const hashColumn = headers.indexOf('SENHA_HASH') + 1;
-    const saltColumn = headers.indexOf('SALT') + 1;
-    const updatedAtColumn = headers.indexOf('ULTIMA_ALTERACAO') + 1;
-
-    if (
-      !temporaryPasswordColumn ||
-      !emailColumn ||
-      !hashColumn ||
-      !saltColumn ||
-      event.range.getColumn() !== temporaryPasswordColumn
-    ) {
-      return;
-    }
-
-    const rowNumber = event.range.getRow();
-    const email = normalizeEmail_(sheet.getRange(rowNumber, emailColumn).getValue());
-    const password = String(event.range.getValue() || '');
-
-    if (!password) return;
+  function applyPendingPassword() {
+    const properties = PropertiesService.getScriptProperties();
+    const email = normalizeEmail_(properties.getProperty(PENDING_EMAIL_PROPERTY));
+    const password = String(properties.getProperty(PENDING_PASSWORD_PROPERTY) || '');
 
     try {
       if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-        throw new Error('Preencha um e-mail válido antes de definir a senha.');
+        ValidationService.fail('Defina AUTH_PENDING_EMAIL com um e-mail válido nas propriedades do script.');
       }
 
       if (password.length < 8) {
-        throw new Error('A senha deve ter pelo menos 8 caracteres.');
+        ValidationService.fail('Defina AUTH_PENDING_PASSWORD com uma senha de pelo menos 8 caracteres.');
       }
 
-      const salt = createSalt_();
-      const hash = hashPassword_(password, salt);
+      setPassword_(email, password);
 
-      sheet.getRange(rowNumber, hashColumn).setNumberFormat('@').setValue(hash);
-      sheet.getRange(rowNumber, saltColumn).setNumberFormat('@').setValue(salt);
-
-      if (updatedAtColumn) {
-        sheet.getRange(rowNumber, updatedAtColumn).setValue(new Date());
-      }
-
-      event.range.clearContent();
-      event.range.clearNote();
-      event.range.setNote('Senha processada com segurança. Digite uma nova senha aqui somente para redefinir o acesso.');
-    } catch (error) {
-      event.range.setNote(error && error.message ? error.message : 'Não foi possível processar a senha.');
-      throw error;
+      return {
+        ok: true,
+        email: email,
+        mensagem: 'Senha protegida gravada com sucesso. As propriedades temporárias foram removidas.',
+      };
+    } finally {
+      properties.deleteProperty(PENDING_EMAIL_PROPERTY);
+      properties.deleteProperty(PENDING_PASSWORD_PROPERTY);
     }
   }
 
-  function installEditTrigger() {
+  function setPassword_(email, password) {
     ensureSheet_();
 
-    const spreadsheet = SheetRepository.getSpreadsheet();
-    const handler = 'handleUserPasswordEdit';
-
-    ScriptApp.getProjectTriggers().forEach(function (trigger) {
-      if (
-        trigger.getHandlerFunction() === handler &&
-        trigger.getEventType() === ScriptApp.EventType.ON_EDIT
-      ) {
-        ScriptApp.deleteTrigger(trigger);
-      }
-    });
-
-    ScriptApp
-      .newTrigger(handler)
-      .forSpreadsheet(spreadsheet)
-      .onEdit()
-      .create();
-
-    return {
-      ok: true,
-      mensagem: 'Gatilho de senha instalado para a aba CAD_USUARIOS.',
-    };
-  }
-
-  function setPassword(email, password) {
-    const normalizedEmail = normalizeEmail_(email);
-    const normalizedPassword = String(password || '');
-
-    if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
-      ValidationService.fail('Informe um e-mail válido.');
-    }
-
-    if (normalizedPassword.length < 8) {
-      ValidationService.fail('A senha deve ter pelo menos 8 caracteres.');
-    }
-
-    ensureSheet_();
-
-    const match = SheetRepository
-      .readObjectsWithRowNumbers(SHEET)
-      .filter(function (item) {
-        return normalizeEmail_(item.record.EMAIL) === normalizedEmail;
-      })[0];
+    const match = findUser_(email);
 
     if (!match) {
       ValidationService.fail('Usuário não encontrado na aba CAD_USUARIOS.');
@@ -184,18 +101,20 @@ const UserAuthService = (() => {
       SHEET,
       match.rowNumber,
       {
-        SENHA_TEMPORARIA: '',
-        SENHA_HASH: hashPassword_(normalizedPassword, salt),
+        SENHA_HASH: hashPassword_(password, salt),
         SALT: salt,
         ULTIMA_ALTERACAO: new Date(),
       },
       { textFields: ['SENHA_HASH', 'SALT'] }
     );
+  }
 
-    return {
-      ok: true,
-      email: normalizedEmail,
-    };
+  function findUser_(email) {
+    return SheetRepository
+      .readObjectsWithRowNumbers(SHEET)
+      .filter(function (item) {
+        return normalizeEmail_(item.record.EMAIL) === email;
+      })[0] || null;
   }
 
   function ensureSheet_() {
@@ -289,8 +208,6 @@ const UserAuthService = (() => {
   return {
     authenticate,
     ensureSheet: ensureSheet_,
-    handlePasswordEdit,
-    installEditTrigger,
-    setPassword,
+    applyPendingPassword,
   };
 })();
