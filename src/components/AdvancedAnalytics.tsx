@@ -24,6 +24,10 @@ function percent(value: number | null | undefined) {
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)}%`
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
 function emptyAnalytics(): DashboardAnalytics {
   return {
     diasSemana: [],
@@ -247,13 +251,15 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
   const left = 66
   const right = 28
   const top = 20
-  const bottom = 48
+  const bottom = 20
   const chartWidth = width - left - right
   const chartHeight = height - top - bottom
+  const chartBottom = height - bottom
   const maxCost = Math.max(...items.map((item) => item.custo), 1)
   const maxRequests = Math.max(...items.map((item) => item.solicitacoes), 1)
   const centerX = left + chartWidth / 2
   const centerY = top + chartHeight / 2
+  const bubblePadding = 3
   const labeledOperations = new Set(
     [...items]
       .sort((leftItem, rightItem) => rightItem.custo - leftItem.custo)
@@ -280,13 +286,15 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
 
           <svg className="analytics-svg analytics-linearity-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dispersão de linearidade e custo por depositante">
             <rect x={left} y={top} width={chartWidth} height={chartHeight} className="analytics-quadrant-frame" />
-            <line x1={centerX} x2={centerX} y1={top} y2={height - bottom} className="analytics-quadrant-line" />
+            <line x1={centerX} x2={centerX} y1={top} y2={chartBottom} className="analytics-quadrant-line" />
             <line x1={left} x2={width - right} y1={centerY} y2={centerY} className="analytics-quadrant-line" />
 
             {items.map((item, index) => {
-              const x = left + (item.indiceLinearidade / 100) * chartWidth
-              const y = top + chartHeight - (item.custo / maxCost) * chartHeight
               const r = 7 + (item.solicitacoes / maxRequests) * 11
+              const rawX = left + (item.indiceLinearidade / 100) * chartWidth
+              const rawY = top + chartHeight - (item.custo / maxCost) * chartHeight
+              const x = clamp(rawX, left + r + bubblePadding, width - right - r - bubblePadding)
+              const y = clamp(rawY, top + r + bubblePadding, chartBottom - r - bubblePadding)
               const labelRight = x < centerX
               const labelX = labelRight ? x + r + 5 : x - r - 5
               const labelY = y + (index % 2 === 0 ? -5 : 10)
@@ -310,9 +318,6 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
               )
             })}
 
-            <text x={left + chartWidth / 2} y={height - 10} textAnchor="middle" className="analytics-axis-label analytics-axis-title">
-              Índice de linearidade →
-            </text>
             <text
               x="16"
               y={top + chartHeight / 2}
@@ -328,6 +333,8 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
             <span>{LINEARITY_QUADRANTS.bottomLeft}</span>
             <span>{LINEARITY_QUADRANTS.bottomRight}</span>
           </div>
+
+          <div className="analytics-linearity-axis-caption">Índice de linearidade →</div>
         </div>
       ) : (
         <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>
