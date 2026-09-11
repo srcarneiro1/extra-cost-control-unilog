@@ -4,6 +4,7 @@ import { AdvancedAnalytics } from './AdvancedAnalytics'
 import { DashboardExportActions } from './DashboardExportActions'
 import type {
   DashboardBreakdownItem,
+  DashboardCompetenceComparison,
   DashboardProjectionPoint,
   DashboardQuery,
   DashboardResponse,
@@ -37,9 +38,22 @@ function currency(value: number | null | undefined) {
   }).format(value)
 }
 
+function quantity(value: number | null | undefined) {
+  if (value == null) return '—'
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value)
+}
+
 function percent(value: number | null | undefined) {
   if (value == null) return '—'
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)}%`
+}
+
+function signedPercent(value: number | null | undefined) {
+  if (value == null) return '—'
+  const formatted = percent(Math.abs(value))
+  if (value > 0) return `+${formatted}`
+  if (value < 0) return `−${formatted}`
+  return formatted
 }
 
 function shortDate(value: string) {
@@ -50,6 +64,11 @@ function shortDate(value: string) {
 
 function monthName(month: string) {
   return MONTHS.find(([value]) => value === month)?.[1] || month
+}
+
+function competenceLabel(competence: string) {
+  const [year, month] = competence.split('-')
+  return `${monthName(month)}/${year}`
 }
 
 function typeLabel(value: DashboardTypeFilter) {
@@ -65,6 +84,59 @@ function MetricCard({ label, value, detail, tone = 'neutral' }: { label: string;
       <strong>{value}</strong>
       <small>{detail}</small>
     </article>
+  )
+}
+
+function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceComparison | undefined }) {
+  if (!comparison?.disponivel || !comparison.atual || !comparison.anterior || !comparison.variacao) {
+    return (
+      <section className="dashboard-card dashboard-comparison-card">
+        <div className="dashboard-card-header">
+          <div><span className="ui-eyebrow">COMPETÊNCIA × ANTERIOR</span><h2>Comparativo no mesmo intervalo realizado</h2><p>O corte é definido pela última data operacional com realizado válido.</p></div>
+        </div>
+        <div className="ui-empty-state"><div><strong>Comparativo ainda indisponível</strong><p>É necessário existir movimento realizado na competência selecionada.</p></div></div>
+      </section>
+    )
+  }
+
+  const current = comparison.atual
+  const previous = comparison.anterior
+  const variation = comparison.variacao
+  const rows = [
+    { label: 'Mão de obra · custo', current: currency(current.valorMaoObra), previous: currency(previous.valorMaoObra), delta: variation.valorMaoObraPercentual },
+    { label: 'Mão de obra · quantidade', current: quantity(current.quantidadeMaoObra), previous: quantity(previous.quantidadeMaoObra), delta: variation.quantidadeMaoObraPercentual },
+    { label: 'Lanches e bebidas · custo', current: currency(current.valorLanches), previous: currency(previous.valorLanches), delta: variation.valorLanchesPercentual },
+    { label: 'Lanches e bebidas · quantidade', current: quantity(current.quantidadeLanches), previous: quantity(previous.quantidadeLanches), delta: variation.quantidadeLanchesPercentual },
+  ]
+
+  return (
+    <section className="dashboard-card dashboard-comparison-card">
+      <div className="dashboard-card-header">
+        <div>
+          <span className="ui-eyebrow">COMPETÊNCIA × ANTERIOR</span>
+          <h2>Comparativo no mesmo intervalo realizado</h2>
+          <p>
+            Corte em {shortDate(comparison.dataCorte || '')} · {shortDate(current.periodoInicio)} a {shortDate(current.periodoFim)} versus {shortDate(previous.periodoInicio)} a {shortDate(previous.periodoFim)} · {comparison.diasComparados} dia(s)
+          </p>
+        </div>
+      </div>
+      <div className="dashboard-comparison-table" role="table" aria-label="Comparativo entre competência selecionada e anterior">
+        <div className="dashboard-comparison-row dashboard-comparison-head" role="row">
+          <span role="columnheader">Indicador</span>
+          <strong role="columnheader">{competenceLabel(current.competencia)}</strong>
+          <strong role="columnheader">{competenceLabel(previous.competencia)}</strong>
+          <strong role="columnheader">Variação</strong>
+        </div>
+        {rows.map((item) => (
+          <div className="dashboard-comparison-row" role="row" key={item.label}>
+            <span role="cell">{item.label}</span>
+            <strong role="cell">{item.current}</strong>
+            <span role="cell">{item.previous}</span>
+            <span role="cell" className={item.delta == null ? 'is-neutral' : item.delta > 0 ? 'is-up' : item.delta < 0 ? 'is-down' : 'is-neutral'}>{signedPercent(item.delta)}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -254,6 +326,7 @@ export function DashboardPage() {
             <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta da competência, sem rateio por dimensão" tone="neutral" />
             <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
           </div>
+          <CompetenceComparison comparison={data.comparativoCompetencia} />
           <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}><div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div><div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div><div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div></section>
           <ProjectionChart points={data.evolucaoMetaProjecao} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>
