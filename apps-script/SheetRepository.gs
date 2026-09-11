@@ -65,6 +65,14 @@ const SheetRepository = (() => {
     );
   }
 
+  function fieldIndex_(headers, sheetName, fieldName) {
+    const index = headers.indexOf(fieldName);
+    if (index < 0) {
+      throw new Error('Campo não encontrado na aba ' + sheetName + ': ' + fieldName);
+    }
+    return index;
+  }
+
   function rowToObject_(headers, row) {
     return headers.reduce(function (record, header, columnIndex) {
       if (header) record[header] = row[columnIndex] == null ? '' : row[columnIndex];
@@ -137,6 +145,78 @@ const SheetRepository = (() => {
     return readObjectsWithRowNumbers(sheetName).map(function (item) {
       return item.record;
     });
+  }
+
+  function readFieldValues(sheetName, fieldName) {
+    const sheet = getSheet_(sheetName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return [];
+
+    const headers = headers_(sheet);
+    const fieldIndex = fieldIndex_(headers, sheetName, fieldName);
+    return sheet
+      .getRange(2, fieldIndex + 1, lastRow - 1, 1)
+      .getValues()
+      .map(function (row) { return row[0]; });
+  }
+
+  function readObjectsByFieldValues(sheetName, fieldName, values) {
+    const sheet = getSheet_(sheetName);
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    if (lastRow <= 1 || lastColumn <= 0) return [];
+
+    const headers = headers_(sheet);
+    const fieldIndex = fieldIndex_(headers, sheetName, fieldName);
+    const searchRange = sheet.getRange(2, fieldIndex + 1, lastRow - 1, 1);
+    const rowMap = {};
+
+    (values || []).forEach(function (value) {
+      const target = String(value == null ? '' : value).trim();
+      if (!target) return;
+
+      searchRange
+        .createTextFinder(target)
+        .matchEntireCell(true)
+        .matchCase(true)
+        .findAll()
+        .forEach(function (cell) {
+          rowMap[cell.getRow()] = true;
+        });
+    });
+
+    const rowNumbers = Object.keys(rowMap)
+      .map(Number)
+      .sort(function (a, b) { return a - b; });
+
+    if (!rowNumbers.length) return [];
+
+    const result = [];
+    let runStart = rowNumbers[0];
+    let runEnd = rowNumbers[0];
+
+    function flushRun_() {
+      const take = runEnd - runStart + 1;
+      const rows = sheet.getRange(runStart, 1, take, lastColumn).getValues();
+      rows.forEach(function (row) {
+        const record = rowToObject_(headers, row);
+        if (hasRecordValue_(record)) result.push(record);
+      });
+    }
+
+    for (let index = 1; index < rowNumbers.length; index += 1) {
+      const rowNumber = rowNumbers[index];
+      if (rowNumber === runEnd + 1) {
+        runEnd = rowNumber;
+        continue;
+      }
+      flushRun_();
+      runStart = rowNumber;
+      runEnd = rowNumber;
+    }
+
+    flushRun_();
+    return result;
   }
 
   function readLastObjects(sheetName, limit) {
@@ -316,6 +396,8 @@ const SheetRepository = (() => {
     getSpreadsheet: getSpreadsheet_,
     readObjects,
     readObjectsWithRowNumbers,
+    readFieldValues,
+    readObjectsByFieldValues,
     readLastObjects,
     readObjectsWindowFromEnd,
     readObjectsForMonthFromEnd,
