@@ -140,6 +140,33 @@ export interface DashboardAnalytics {
   metodologiaPotencialReducao: string
 }
 
+export interface DashboardComparisonSnapshot {
+  competencia: string
+  periodoInicio: string
+  periodoFim: string
+  valorMaoObra: number
+  quantidadeMaoObra: number
+  valorLanches: number
+  quantidadeLanches: number
+}
+
+export interface DashboardComparisonVariation {
+  valorMaoObraPercentual: number | null
+  quantidadeMaoObraPercentual: number | null
+  valorLanchesPercentual: number | null
+  quantidadeLanchesPercentual: number | null
+}
+
+export interface DashboardCompetenceComparison {
+  disponivel: boolean
+  criterioCorte: 'ULTIMA_DATA_COM_REALIZADO'
+  dataCorte: string | null
+  diasComparados: number
+  atual: DashboardComparisonSnapshot | null
+  anterior: DashboardComparisonSnapshot | null
+  variacao: DashboardComparisonVariation | null
+}
+
 export interface DashboardResponse {
   competencia: string
   periodoInicio: string
@@ -150,6 +177,7 @@ export interface DashboardResponse {
   kpis: DashboardKpis
   projecao: DashboardProjection
   alertaMeta: DashboardMetaAlert
+  comparativoCompetencia?: DashboardCompetenceComparison
   porTipo: DashboardBreakdownItem[]
   porOperacao: DashboardBreakdownItem[]
   porFornecedor: DashboardBreakdownItem[]
