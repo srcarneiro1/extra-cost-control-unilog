@@ -284,61 +284,50 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
             <span>{LINEARITY_QUADRANTS.topRight}</span>
           </div>
 
-          <svg className="analytics-svg analytics-linearity-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dispersão de linearidade e custo por depositante">
-            <rect x={left} y={top} width={chartWidth} height={chartHeight} className="analytics-quadrant-frame" />
-            <line x1={centerX} x2={centerX} y1={top} y2={chartBottom} className="analytics-quadrant-line" />
-            <line x1={left} x2={width - right} y1={centerY} y2={centerY} className="analytics-quadrant-line" />
+          <div className="analytics-linearity-plot-shell">
+            <div className="analytics-linearity-axis-heading analytics-linearity-y-axis-heading">Custo realizado →</div>
+            <svg className="analytics-svg analytics-linearity-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dispersão de linearidade e custo por depositante">
+              <rect x={left} y={top} width={chartWidth} height={chartHeight} className="analytics-quadrant-frame" />
+              <line x1={centerX} x2={centerX} y1={top} y2={chartBottom} className="analytics-quadrant-line" />
+              <line x1={left} x2={width - right} y1={centerY} y2={centerY} className="analytics-quadrant-line" />
 
-            {items.map((item, index) => {
-              const r = 7 + (item.solicitacoes / maxRequests) * 11
-              const rawX = left + (item.indiceLinearidade / 100) * chartWidth
-              const rawY = top + chartHeight - (item.custo / maxCost) * chartHeight
-              const x = clamp(rawX, left + r + bubblePadding, width - right - r - bubblePadding)
-              const y = clamp(rawY, top + r + bubblePadding, chartBottom - r - bubblePadding)
-              const labelRight = x < centerX
-              const labelX = labelRight ? x + r + 5 : x - r - 5
-              const labelY = y + (index % 2 === 0 ? -5 : 10)
-              const labeled = labeledOperations.has(item.operacao)
+              {items.map((item, index) => {
+                const r = 7 + (item.solicitacoes / maxRequests) * 11
+                const rawX = left + (item.indiceLinearidade / 100) * chartWidth
+                const rawY = top + chartHeight - (item.custo / maxCost) * chartHeight
+                const x = clamp(rawX, left + r + bubblePadding, width - right - r - bubblePadding)
+                const y = clamp(rawY, top + r + bubblePadding, chartBottom - r - bubblePadding)
+                const labelRight = x < centerX
+                const labelX = labelRight ? x + r + 5 : x - r - 5
+                const labelY = y + (index % 2 === 0 ? -5 : 10)
+                const labeled = labeledOperations.has(item.operacao)
 
-              return (
-                <g key={item.operacao} className={`analytics-bubble-group ${labeled ? 'is-labeled' : ''}`}>
-                  <circle cx={x} cy={y} r={r} className="analytics-bubble">
-                    <title>{`${item.operacao} · Custo ${currency(item.custo)} · Linearidade ${percent(item.indiceLinearidade)} · CV ${percent(item.coeficienteVariacao)} · ${item.solicitacoes} solicitações`}</title>
-                  </circle>
-                  <text
-                    x={labelX}
-                    y={labelY}
-                    textAnchor={labelRight ? 'start' : 'end'}
-                    className="analytics-bubble-label"
-                    pointerEvents="none"
-                  >
-                    {item.operacao}
-                  </text>
-                </g>
-              )
-            })}
-
-            <text
-              x="16"
-              y={top + chartHeight / 2}
-              textAnchor="middle"
-              className="analytics-axis-label analytics-axis-title"
-              transform={`rotate(-90 16 ${top + chartHeight / 2})`}
-            >
-              Custo realizado →
-            </text>
-          </svg>
+                return (
+                  <g key={item.operacao} className={`analytics-bubble-group ${labeled ? 'is-labeled' : ''}`}>
+                    <circle cx={x} cy={y} r={r} className="analytics-bubble">
+                      <title>{`${item.operacao} · Custo ${currency(item.custo)} · Linearidade ${percent(item.indiceLinearidade)} · CV ${percent(item.coeficienteVariacao)} · ${item.solicitacoes} solicitações`}</title>
+                    </circle>
+                    <text
+                      x={labelX}
+                      y={labelY}
+                      textAnchor={labelRight ? 'start' : 'end'}
+                      className="analytics-bubble-label"
+                      pointerEvents="none"
+                    >
+                      {item.operacao}
+                    </text>
+                  </g>
+                )
+              })}
+            </svg>
+          </div>
 
           <div className="analytics-linearity-edge-labels analytics-linearity-edge-labels-bottom" aria-label="Quadrantes de baixo custo">
             <span>{LINEARITY_QUADRANTS.bottomLeft}</span>
             <span>{LINEARITY_QUADRANTS.bottomRight}</span>
           </div>
 
-          <svg className="analytics-linearity-axis-caption-svg" viewBox={`0 0 ${width} 18`} aria-hidden="true">
-            <text x={width / 2} y="12" textAnchor="middle" className="analytics-axis-title">
-              Índice de linearidade →
-            </text>
-          </svg>
+          <div className="analytics-linearity-axis-heading analytics-linearity-x-axis-heading">Índice de linearidade →</div>
         </div>
       ) : (
         <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>
