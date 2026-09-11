@@ -70,6 +70,7 @@ const statusQueryMap: Record<string, string> = {
 }
 
 const allPageSizeOptions = Array.from({ length: 19 }, (_, index) => 10 + index * 5)
+const BACKGROUND_REVALIDATION_MS = 30 * 1000
 
 function currentPeriod() {
   const now = new Date()
@@ -167,12 +168,20 @@ export function AdminSolicitationsPageCurrentPeriod() {
     }
   }
 
-  async function refreshItems() {
-    const response = await fetchAdministrativeSolicitations(listQuery())
+  function applyListResponse(response: Awaited<ReturnType<typeof fetchAdministrativeSolicitations>>) {
     setItems(response.itens)
     setTotal(response.total)
     setTotalPages(response.totalPaginas)
     if (response.resumo) setPeriodSummary(response.resumo)
+  }
+
+  async function refreshItems(force = false) {
+    const response = await fetchAdministrativeSolicitations(
+      listQuery(),
+      undefined,
+      force ? { force: true } : undefined,
+    )
+    applyListResponse(response)
   }
 
   function requestCatalogs(signal?: AbortSignal) {
@@ -361,10 +370,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
     void fetchAdministrativeSolicitations(listQuery(), controller.signal)
       .then((response) => {
         if (requestId !== listRequestRef.current) return
-        setItems(response.itens)
-        setTotal(response.total)
-        setTotalPages(response.totalPaginas)
-        if (response.resumo) setPeriodSummary(response.resumo)
+        applyListResponse(response)
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return
@@ -377,6 +383,41 @@ export function AdminSolicitationsPageCurrentPeriod() {
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
+
+  useEffect(() => {
+    if (loading || workflowOpen || correctionOpen || deleteLoading) return
+
+    let disposed = false
+
+    const revalidate = () => {
+      if (disposed || document.visibilityState !== 'visible') return
+
+      const requestId = ++listRequestRef.current
+      void fetchAdministrativeSolicitations(listQuery(), undefined, { force: true })
+        .then((response) => {
+          if (disposed || requestId !== listRequestRef.current) return
+          applyListResponse(response)
+        })
+        .catch(() => undefined)
+    }
+
+    const interval = window.setInterval(revalidate, BACKGROUND_REVALIDATION_MS)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') revalidate()
+    }
+    const handleFocus = () => revalidate()
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      disposed = true
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleFocus)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, workflowOpen, correctionOpen, deleteLoading, currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
 
   useEffect(() => {
     if (loading || metadata) return
