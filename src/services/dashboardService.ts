@@ -27,7 +27,7 @@ export interface DashboardExportResponse {
   total: number
 }
 
-const DASHBOARD_CACHE_MS = 45 * 1000
+const DASHBOARD_CACHE_MS = 5 * 60 * 1000
 const dashboardCache = new Map<string, { value: DashboardResponse; expiresAt: number }>()
 const dashboardRequests = new Map<string, Promise<DashboardResponse>>()
 
@@ -104,6 +104,25 @@ async function requestDashboard(key: string): Promise<DashboardResponse> {
   return value
 }
 
+function requestForKey(key: string): Promise<DashboardResponse> {
+  let request = dashboardRequests.get(key)
+  if (!request) {
+    request = requestDashboard(key).finally(() => dashboardRequests.delete(key))
+    dashboardRequests.set(key, request)
+  }
+  return request
+}
+
+function cachedDashboard(key: string): DashboardResponse | null {
+  const cached = dashboardCache.get(key)
+  if (!cached) return null
+  if (cached.expiresAt <= Date.now()) {
+    dashboardCache.delete(key)
+    return null
+  }
+  return cached.value
+}
+
 export function invalidateDashboardCache(): void {
   dashboardCache.clear()
 }
@@ -112,15 +131,10 @@ export function fetchDashboard(query: DashboardQuery, signal?: AbortSignal): Pro
   if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
 
   const key = buildDashboardUrl(query)
-  const cached = dashboardCache.get(key)
-  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value)
+  const cached = cachedDashboard(key)
+  if (cached) return Promise.resolve(cached)
 
-  let request = dashboardRequests.get(key)
-  if (!request) {
-    request = requestDashboard(key).finally(() => dashboardRequests.delete(key))
-    dashboardRequests.set(key, request)
-  }
-
+  const request = requestForKey(key)
   if (!signal) return request
 
   return Promise.race([
@@ -129,6 +143,12 @@ export function fetchDashboard(query: DashboardQuery, signal?: AbortSignal): Pro
       signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     }),
   ])
+}
+
+export function prefetchDashboard(query: DashboardQuery): void {
+  const key = buildDashboardUrl(query)
+  if (cachedDashboard(key) || dashboardRequests.has(key)) return
+  void requestForKey(key).catch(() => undefined)
 }
 
 export async function fetchDashboardExport(query: DashboardQuery, type: DashboardExportType): Promise<DashboardExportResponse> {
