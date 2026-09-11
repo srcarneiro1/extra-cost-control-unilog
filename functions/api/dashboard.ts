@@ -1,4 +1,5 @@
 import { authorizeGatewayRequest, type GatewayAuthEnv } from '../_auth'
+import { enforceDashboardScope, validateAreaAccess } from '../_access-control'
 
 interface Env extends GatewayAuthEnv {
   APPS_SCRIPT_URL: string
@@ -25,13 +26,7 @@ async function proxyToAppsScript(
 ): Promise<Response> {
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'GATEWAY_CONFIG_ERROR',
-          message: 'Gateway não configurado no ambiente Cloudflare.',
-        },
-      },
+      { ok: false, error: { code: 'GATEWAY_CONFIG_ERROR', message: 'Gateway não configurado no ambiente Cloudflare.' } },
       500,
     )
   }
@@ -42,10 +37,7 @@ async function proxyToAppsScript(
   const upstreamResponse = await fetch(targetUrl.toString(), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      ...payload,
-      _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
-    }),
+    body: JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN }),
     redirect: 'follow',
   })
 
@@ -56,13 +48,7 @@ async function proxyToAppsScript(
     upstreamPayload = JSON.parse(upstreamText)
   } catch {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UPSTREAM_INVALID_RESPONSE',
-          message: 'Apps Script retornou uma resposta inválida.',
-        },
-      },
+      { ok: false, error: { code: 'UPSTREAM_INVALID_RESPONSE', message: 'Apps Script retornou uma resposta inválida.' } },
       502,
     )
   }
@@ -73,10 +59,7 @@ async function proxyToAppsScript(
     'ok' in upstreamPayload &&
     (upstreamPayload as { ok?: unknown }).ok === true
 
-  return jsonResponse(
-    upstreamPayload,
-    apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502,
-  )
+  return jsonResponse(upstreamPayload, apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502)
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -85,16 +68,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   if (!identity) {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Acesso ao gateway não autorizado.',
-        },
-      },
+      { ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } },
       401,
     )
   }
+
+  const denied = validateAreaAccess(identity, 'DASHBOARD')
+  if (denied) return denied
 
   const url = new URL(request.url)
   const payload: Record<string, unknown> = {}
@@ -115,5 +95,5 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (value) payload[name] = value
   })
 
-  return proxyToAppsScript(env, payload)
+  return proxyToAppsScript(env, enforceDashboardScope(identity, payload))
 }
