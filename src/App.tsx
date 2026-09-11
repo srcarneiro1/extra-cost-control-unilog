@@ -3,12 +3,14 @@ import { AdminSolicitationsPageCurrentPeriod } from './components/AdminSolicitat
 import { AppShell, type AppSection } from './components/AppShell'
 import { CadastrosPagePaginated } from './components/CadastrosPagePaginated'
 import { DashboardPage } from './components/DashboardPage'
+import { LoginPage } from './components/LoginPage'
 import {
   fetchCatalogoAdminScope,
   fetchCatalogos,
   prefetchCatalogoAdminScope,
 } from './services/catalogService'
 import { prefetchDashboard } from './services/dashboardService'
+import { getCurrentUser, logout, type AuthUser } from './services/authService'
 import {
   fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
@@ -39,12 +41,28 @@ function adjacentDashboardCompetence(offset: number) {
 }
 
 export function App() {
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
   const [section, setSection] = useState<AppSection>('dashboard')
   const [mountedSections, setMountedSections] = useState<Set<AppSection>>(
     () => new Set<AppSection>(['dashboard']),
   )
 
   useEffect(() => {
+    const controller = new AbortController()
+
+    void getCurrentUser(controller.signal)
+      .then(setUser)
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setUser(null)
+      })
+
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+
     const firstWave = window.setTimeout(() => {
       const period = currentPeriod()
 
@@ -101,7 +119,7 @@ export function App() {
       window.clearTimeout(secondWave)
       window.clearTimeout(thirdWave)
     }
-  }, [])
+  }, [user])
 
   function handleNavigate(nextSection: AppSection) {
     setMountedSections((current) => {
@@ -113,8 +131,26 @@ export function App() {
     setSection(nextSection)
   }
 
+  async function handleLogout() {
+    const currentUser = user
+    await logout(currentUser)
+    if (currentUser?.provider !== 'cloudflare') {
+      setUser(null)
+      setSection('dashboard')
+      setMountedSections(new Set<AppSection>(['dashboard']))
+    }
+  }
+
+  if (user === undefined) {
+    return <div className="auth-loading"><span>Verificando acesso…</span></div>
+  }
+
+  if (!user) {
+    return <LoginPage onAuthenticated={setUser} />
+  }
+
   return (
-    <AppShell section={section} onNavigate={handleNavigate}>
+    <AppShell section={section} onNavigate={handleNavigate} user={user} onLogout={() => void handleLogout()}>
       <div hidden={section !== 'dashboard'}>
         <DashboardPage />
       </div>

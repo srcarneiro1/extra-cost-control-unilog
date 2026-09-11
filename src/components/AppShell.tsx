@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react'
 import { prefetchCatalogoAdminScope } from '../services/catalogService'
+import type { AuthUser } from '../services/authService'
 
 const BRAND_LOGO='/brand/unilog-logo-white-transparent.svg'
 const MOBILE_SIDEBAR_ID='extra-cost-mobile-sidebar'
@@ -9,28 +10,16 @@ export type AppSection='dashboard'|'solicitacoes'|'cadastros'
 type Props=PropsWithChildren<{
   section:AppSection
   onNavigate:(section:AppSection)=>void
+  user:AuthUser
+  onLogout:()=>void
 }>
 
-export function AppShell({children,section,onNavigate}:Props){
+export function AppShell({children,section,onNavigate,user,onLogout}:Props){
   const[collapsed,setCollapsed]=useState(()=>localStorage.getItem('extra-cost:sidebar')==='collapsed')
   const[mobileOpen,setMobileOpen]=useState(false)
-  const[identityEmail,setIdentityEmail]=useState('')
   const sidebarRef=useRef<HTMLElement>(null)
   const mobileMenuButtonRef=useRef<HTMLButtonElement>(null)
   const wasMobileOpen=useRef(false)
-
-  useEffect(()=>{
-    let active=true
-    void fetch('/cdn-cgi/access/get-identity',{headers:{accept:'application/json'}})
-      .then(response=>response.ok?response.json():null)
-      .then((payload:unknown)=>{
-        if(!active||!payload||typeof payload!=='object')return
-        const email='email' in payload&&typeof payload.email==='string'?payload.email.trim().toLowerCase():''
-        if(email)setIdentityEmail(email)
-      })
-      .catch(()=>undefined)
-    return()=>{active=false}
-  },[])
 
   useEffect(()=>{
     if(section!=='solicitacoes')return
@@ -90,14 +79,11 @@ export function AppShell({children,section,onNavigate}:Props){
     setMobileOpen(false)
   }
 
-  function signOut(){
-    window.location.assign('/cdn-cgi/access/logout')
-  }
-
-  const identityLabel=identityEmail||'Administrativo'
-  const avatar=(identityEmail||'A').slice(0,1).toUpperCase()
+  const identityLabel=user.name||user.email
+  const avatar=(user.name||user.email||'A').slice(0,1).toUpperCase()
   const pageTitle=section==='dashboard'?'Visão geral':section==='cadastros'?'Cadastros':'Solicitações'
   const scopeTitle=section==='dashboard'?'Executivo · Custos extras':section==='cadastros'?'Administrativo · Catálogos':'Administrativo · Custos extras'
+  const profileLabel=user.profile==='OWNER'?'Owner':user.profile==='OPERACIONAL'?'Operacional':'Administrativo'
 
   return <div className={`app-shell ${collapsed?'sidebar-collapsed':''}`}>
     {mobileOpen&&<button className="sidebar-backdrop" type="button" aria-label="Fechar menu de navegação" onClick={()=>setMobileOpen(false)}/>} 
@@ -114,7 +100,7 @@ export function AppShell({children,section,onNavigate}:Props){
         <div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><button type="button" className={`sidebar-link ${section==='cadastros'?'active':''}`.trim()} aria-current={section==='cadastros'?'page':undefined} onPointerEnter={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onFocus={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onClick={()=>navigate('cadastros')}><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></button></div>
       </nav>
 
-      <div className="sidebar-user"><div className="user-avatar">{avatar}</div><div className="sidebar-user-copy" title={identityEmail||undefined}><strong>{identityLabel}</strong><span>Cloudflare Access</span></div><button type="button" onClick={signOut} title="Sair" aria-label="Sair do Extra Cost Control"><span className="material-symbols-rounded" aria-hidden="true">logout</span></button></div>
+      <div className="sidebar-user"><div className="user-avatar">{avatar}</div><div className="sidebar-user-copy" title={user.email}><strong>{identityLabel}</strong><span>{profileLabel}{user.operation?` · ${user.operation}`:''}</span></div><button type="button" onClick={onLogout} title="Sair" aria-label="Sair do Extra Cost Control"><span className="material-symbols-rounded" aria-hidden="true">logout</span></button></div>
     </aside>
 
     <div className="workspace">
