@@ -86,6 +86,21 @@ const UserAuthService = (() => {
     }
   }
 
+  function setPassword(email, password) {
+    const normalizedEmail = normalizeEmail_(email);
+    const normalizedPassword = String(password || '');
+
+    if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      ValidationService.fail('Informe um e-mail válido para definir a senha.');
+    }
+
+    if (normalizedPassword.length < 8) {
+      ValidationService.fail('A senha deve possuir pelo menos 8 caracteres.');
+    }
+
+    setPassword_(normalizedEmail, normalizedPassword);
+  }
+
   function setPassword_(email, password) {
     ensureSheet_();
 
@@ -209,5 +224,6 @@ const UserAuthService = (() => {
     authenticate,
     ensureSheet: ensureSheet_,
     applyPendingPassword,
+    setPassword,
   };
 })();
