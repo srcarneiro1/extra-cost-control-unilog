@@ -4,6 +4,7 @@ import { AdvancedAnalytics } from './AdvancedAnalytics'
 import { DashboardExportActions } from './DashboardExportActions'
 import type {
   DashboardBreakdownItem,
+  DashboardCompetenceComparison,
   DashboardProjectionPoint,
   DashboardQuery,
   DashboardResponse,
@@ -37,9 +38,27 @@ function currency(value: number | null | undefined) {
   }).format(value)
 }
 
+function quantity(value: number | null | undefined) {
+  if (value == null) return '—'
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value)
+}
+
 function percent(value: number | null | undefined) {
   if (value == null) return '—'
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)}%`
+}
+
+function signedPercent(value: number | null | undefined) {
+  if (value == null) return '—'
+  const formatted = percent(Math.abs(value))
+  if (value > 0) return `+${formatted}`
+  if (value < 0) return `−${formatted}`
+  return formatted
+}
+
+function economyPercent(current: number, previous: number) {
+  if (!previous) return null
+  return ((previous - current) / previous) * 100
 }
 
 function shortDate(value: string) {
@@ -50,6 +69,11 @@ function shortDate(value: string) {
 
 function monthName(month: string) {
   return MONTHS.find(([value]) => value === month)?.[1] || month
+}
+
+function competenceLabel(competence: string) {
+  const [year, month] = competence.split('-')
+  return `${monthName(month)}/${year}`
 }
 
 function typeLabel(value: DashboardTypeFilter) {
@@ -65,6 +89,157 @@ function MetricCard({ label, value, detail, tone = 'neutral' }: { label: string;
       <strong>{value}</strong>
       <small>{detail}</small>
     </article>
+  )
+}
+
+function EconomyCard({ label, current, previous, featured = false }: { label: string; current: number; previous: number; featured?: boolean }) {
+  const economy = previous - current
+  const economyRate = economyPercent(current, previous)
+  const state = economy > 0 ? 'saving' : economy < 0 ? 'increase' : 'neutral'
+  const icon = economy > 0 ? 'trending_down' : economy < 0 ? 'trending_up' : 'remove'
+  const detail = economy > 0
+    ? `Economia de ${economyRate == null ? '—' : percent(economyRate)}`
+    : economy < 0
+      ? `Aumento de ${economyRate == null ? '—' : percent(Math.abs(economyRate))}`
+      : 'Sem variação de custo'
+
+  return (
+    <article className={`dashboard-economy-card is-${state}${featured ? ' is-featured' : ''}`}>
+      <div className="dashboard-economy-label">
+        <span className="material-symbols-rounded" aria-hidden="true">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <strong>{currency(Math.abs(economy))}</strong>
+      <small>{detail}</small>
+    </article>
+  )
+}
+
+function volumeSentence(label: string, variation: number | null | undefined) {
+  if (variation == null) return `${label}: sem base percentual anterior.`
+  if (variation > 0) return `${label}: volume ${percent(Math.abs(variation))} maior.`
+  if (variation < 0) return `${label}: volume ${percent(Math.abs(variation))} menor.`
+  return `${label}: volume estável.`
+}
+
+function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceComparison | undefined }) {
+  if (!comparison?.disponivel || !comparison.atual || !comparison.anterior || !comparison.variacao) {
+    return (
+      <section className="dashboard-card dashboard-comparison-card">
+        <div className="dashboard-card-header">
+          <div><span className="ui-eyebrow">COMPETÊNCIA × ANTERIOR</span><h2>Comparativo no mesmo intervalo realizado</h2><p>O corte é definido pela última data operacional com realizado válido.</p></div>
+        </div>
+        <div className="ui-empty-state"><div><strong>Comparativo ainda indisponível</strong><p>É necessário existir movimento realizado na competência selecionada.</p></div></div>
+      </section>
+    )
+  }
+
+  const current = comparison.atual
+  const previous = comparison.anterior
+  const variation = comparison.variacao
+  const currentTotal = current.valorMaoObra + current.valorLanches
+  const previousTotal = previous.valorMaoObra + previous.valorLanches
+  const totalEconomy = previousTotal - currentTotal
+  const totalEconomyRate = economyPercent(currentTotal, previousTotal)
+  const laborEconomy = previous.valorMaoObra - current.valorMaoObra
+  const snacksEconomy = previous.valorLanches - current.valorLanches
+  const currentLabel = competenceLabel(current.competencia)
+  const previousLabel = competenceLabel(previous.competencia)
+  const chartItems = [
+    { label: 'Mão de obra', current: current.valorMaoObra, previous: previous.valorMaoObra },
+    { label: 'Lanches e bebidas', current: current.valorLanches, previous: previous.valorLanches },
+    { label: 'Total', current: currentTotal, previous: previousTotal },
+  ]
+  const chartMax = Math.max(...chartItems.flatMap((item) => [item.current, item.previous]), 1)
+  const driver = totalEconomy >= 0
+    ? [
+        { label: 'mão de obra', value: laborEconomy },
+        { label: 'lanches e bebidas', value: snacksEconomy },
+      ].sort((a, b) => b.value - a.value)[0]
+    : [
+        { label: 'mão de obra', value: laborEconomy },
+        { label: 'lanches e bebidas', value: snacksEconomy },
+      ].sort((a, b) => a.value - b.value)[0]
+  const financialInsight = totalEconomy > 0
+    ? `O gasto total caiu ${currency(totalEconomy)} (${totalEconomyRate == null ? '—' : percent(totalEconomyRate)}) no mesmo recorte. A maior contribuição veio de ${driver.label}, com redução de ${currency(Math.max(driver.value, 0))}.`
+    : totalEconomy < 0
+      ? `O gasto total aumentou ${currency(Math.abs(totalEconomy))} (${totalEconomyRate == null ? '—' : percent(Math.abs(totalEconomyRate))}) no mesmo recorte. O principal vetor foi ${driver.label}, com aumento de ${currency(Math.abs(Math.min(driver.value, 0)))}.`
+      : 'O gasto total ficou estável em relação ao mesmo recorte da competência anterior.'
+  const rows = [
+    { label: 'Mão de obra · custo', current: currency(current.valorMaoObra), previous: currency(previous.valorMaoObra), delta: variation.valorMaoObraPercentual, kind: 'cost' as const },
+    { label: 'Mão de obra · quantidade', current: quantity(current.quantidadeMaoObra), previous: quantity(previous.quantidadeMaoObra), delta: variation.quantidadeMaoObraPercentual, kind: 'volume' as const },
+    { label: 'Lanches e bebidas · custo', current: currency(current.valorLanches), previous: currency(previous.valorLanches), delta: variation.valorLanchesPercentual, kind: 'cost' as const },
+    { label: 'Lanches e bebidas · quantidade', current: quantity(current.quantidadeLanches), previous: quantity(previous.quantidadeLanches), delta: variation.quantidadeLanchesPercentual, kind: 'volume' as const },
+  ]
+
+  return (
+    <section className="dashboard-card dashboard-comparison-card">
+      <div className="dashboard-card-header">
+        <div>
+          <span className="ui-eyebrow">COMPETÊNCIA × ANTERIOR</span>
+          <h2>Comparativo no mesmo intervalo realizado</h2>
+          <p>Corte em {shortDate(comparison.dataCorte || '')} · {shortDate(current.periodoInicio)} a {shortDate(current.periodoFim)} versus {shortDate(previous.periodoInicio)} a {shortDate(previous.periodoFim)} · {comparison.diasComparados} dia(s)</p>
+        </div>
+      </div>
+
+      <div className="dashboard-economy-grid" aria-label="Economia ou aumento de custo em relação à competência anterior">
+        <EconomyCard label="Mão de obra" current={current.valorMaoObra} previous={previous.valorMaoObra} />
+        <EconomyCard label="Lanches e bebidas" current={current.valorLanches} previous={previous.valorLanches} />
+        <EconomyCard label="Resultado total" current={currentTotal} previous={previousTotal} featured />
+      </div>
+
+      <div className="dashboard-comparison-insight">
+        <span className="material-symbols-rounded" aria-hidden="true">insights</span>
+        <div>
+          <strong>Leitura executiva</strong>
+          <p>{financialInsight}</p>
+          <small>{volumeSentence('Mão de obra', variation.quantidadeMaoObraPercentual)} {volumeSentence('Lanches e bebidas', variation.quantidadeLanchesPercentual)}</small>
+        </div>
+      </div>
+
+      <div className="dashboard-comparison-chart" aria-label="Comparativo visual de custos entre competências">
+        <div className="dashboard-comparison-chart-header">
+          <strong>Comparação de custo</strong>
+          <div><span><i className="is-current" />{currentLabel}</span><span><i className="is-previous" />{previousLabel}</span></div>
+        </div>
+        {chartItems.map((item) => (
+          <div className="dashboard-comparison-chart-row" key={item.label}>
+            <strong>{item.label}</strong>
+            <div className="dashboard-comparison-chart-series">
+              <div className="dashboard-comparison-chart-line"><span>{previousLabel}</span><div><i className="is-previous" style={{ width: `${Math.max((item.previous / chartMax) * 100, item.previous ? 2 : 0)}%` }} /></div><small>{currency(item.previous)}</small></div>
+              <div className="dashboard-comparison-chart-line"><span>{currentLabel}</span><div><i className="is-current" style={{ width: `${Math.max((item.current / chartMax) * 100, item.current ? 2 : 0)}%` }} /></div><small>{currency(item.current)}</small></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="dashboard-comparison-table" role="table" aria-label="Comparativo entre competência selecionada e anterior">
+        <div className="dashboard-comparison-row dashboard-comparison-head" role="row">
+          <span role="columnheader">Indicador</span>
+          <strong role="columnheader">{currentLabel}</strong>
+          <strong role="columnheader">{previousLabel}</strong>
+          <strong role="columnheader">Delta</strong>
+        </div>
+        {rows.map((item) => {
+          const deltaClass = item.kind === 'volume'
+            ? 'is-volume'
+            : item.delta == null || item.delta === 0
+              ? 'is-neutral'
+              : item.delta > 0
+                ? 'is-up'
+                : 'is-down'
+          const deltaIcon = item.delta == null || item.delta === 0 ? 'remove' : item.delta > 0 ? 'arrow_upward' : 'arrow_downward'
+          return (
+            <div className="dashboard-comparison-row" role="row" key={item.label}>
+              <span role="cell">{item.label}</span>
+              <strong role="cell">{item.current}</strong>
+              <span role="cell">{item.previous}</span>
+              <span role="cell" className={`dashboard-comparison-delta ${deltaClass}`}><span className="material-symbols-rounded" aria-hidden="true">{deltaIcon}</span>{signedPercent(item.delta)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -204,16 +379,6 @@ export function DashboardPage() {
   const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
   const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null ? 'neutral' : kpis.atingimentoMetaPercentual > 100 ? 'danger' : kpis.atingimentoMetaPercentual > 85 ? 'warning' : 'success'
 
-  const paretoOperations = useMemo(() => {
-    if (!data) return []
-    const total = data.porOperacao.reduce((sum, item) => sum + item.realizado, 0)
-    let accumulated = 0
-    return data.porOperacao.slice(0, 10).map((item) => {
-      accumulated += item.realizado
-      return { ...item, acumulado: total ? (accumulated / total) * 100 : 0 }
-    })
-  }, [data])
-
   const metaAlertMessage = data?.alertaMeta.status === 'FORA_DA_META' ? `Mantido o ritmo atual, a projeção supera a meta em ${currency(Math.max(data.alertaMeta.desvioProjetadoMeta || 0, 0))}.` : data?.alertaMeta.mensagem || ''
   const remainingDailyLimit = data && kpis?.metaMaoObra != null && data.projecao.diasRestantes > 0 ? (kpis.metaMaoObra - kpis.realizadoMaoObra) / data.projecao.diasRestantes : null
   const remainingDailyMessage = remainingDailyLimit == null ? '' : remainingDailyLimit >= 0 ? `Limite médio restante: ${currency(remainingDailyLimit)}/dia por ${data?.projecao.diasRestantes || 0} dia(s).` : `A meta realizada já foi excedida em ${currency(Math.abs((kpis?.metaMaoObra || 0) - (kpis?.realizadoMaoObra || 0)))}.`
@@ -254,6 +419,7 @@ export function DashboardPage() {
             <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta da competência, sem rateio por dimensão" tone="neutral" />
             <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
           </div>
+          <CompetenceComparison comparison={data.comparativoCompetencia} />
           <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}><div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div><div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div><div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div></section>
           <ProjectionChart points={data.evolucaoMetaProjecao} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>
@@ -262,12 +428,8 @@ export function DashboardPage() {
       ) : (
         <div className="dashboard-view">
           <div className="dashboard-analytics-summary"><MetricCard label="Solicitações analisadas" value={String(kpis.totalSolicitacoes)} detail="Após aplicação dos filtros" /><MetricCard label="Divergências de comparecimento" value={String(kpis.divergenciasComparecimento)} detail="Quantidade solicitada ≠ comparecida" tone={kpis.divergenciasComparecimento ? 'warning' : 'success'} /><MetricCard label="Desvio financeiro" value={currency(kpis.diferencaValor)} detail="Realizado − previsto" tone={differenceTone} /><MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail="Meta global da competência" tone={metaTone} /></div>
-          <div className="dashboard-two-columns">
-            <section className="dashboard-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">PARETO</span><h2>Concentração por operação</h2><p>Participação acumulada do custo realizado.</p></div></div><div className="dashboard-pareto">{paretoOperations.map((item) => <div className="dashboard-pareto-row" key={item.chave}><strong>{item.chave}</strong><span>{currency(item.realizado)}</span><div><i style={{ width: `${Math.min(item.acumulado, 100)}%` }} /></div><small>{percent(item.acumulado)} acumulado</small></div>)}{!paretoOperations.length && <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}</div></section>
-            <HorizontalRanking title="Responsável pelo custo" subtitle="Separação entre custos Unilog, cliente e demais classificações." items={data.porResponsavelCusto} limit={6} />
-          </div>
-          <div className="dashboard-two-columns"><HorizontalRanking title="Supervisores" subtitle="Distribuição do custo realizado por supervisão." items={data.porSupervisor} limit={8} /><HorizontalRanking title="Atividades" subtitle="Atividades com maior concentração de custos extras." items={data.porAtividade} limit={8} /></div>
           <AdvancedAnalytics data={data} />
+          <div className="dashboard-two-columns"><HorizontalRanking title="Responsável pelo custo" subtitle="Separação entre custos Unilog, cliente e demais classificações." items={data.porResponsavelCusto} limit={6} /><HorizontalRanking title="Atividades" subtitle="Atividades com maior concentração de custos extras." items={data.porAtividade} limit={8} /></div>
         </div>
       )}</> : null}
     </div>

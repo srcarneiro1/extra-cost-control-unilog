@@ -23,6 +23,7 @@ const DashboardService = (() => {
     const period = competencePeriod_(selectedCompetence);
     const kpis = summarize_(filteredRows, metaValue);
     const projection = projection_(filteredRows, kpis.realizadoMaoObra, metaValue, period);
+    const comparison = competenceComparison_(allRows, periodRows, selectedCompetence, filters);
 
     return {
       competencia: selectedCompetence,
@@ -34,6 +35,7 @@ const DashboardService = (() => {
       kpis: kpis,
       projecao: projection,
       alertaMeta: metaAlert_(projection),
+      comparativoCompetencia: comparison,
       porTipo: group_(filteredRows, function (record) { return typeLabel_(record.TIPO_SOLICITACAO); }),
       porOperacao: group_(filteredRows, function (record) { return record.OPERACAO; }),
       porFornecedor: group_(filteredRows, function (record) { return record.FORNECEDOR; }),
@@ -82,6 +84,155 @@ const DashboardService = (() => {
     if (filters.responsavelCusto && ValidationService.normalizeUpper(record.RESPONSAVEL_CUSTO) !== filters.responsavelCusto) return false;
     if (filters.atividade && ValidationService.normalizeUpper(record.ATIVIDADE) !== filters.atividade) return false;
     return true;
+  }
+
+  function competenceComparison_(allRows, periodRows, selectedCompetence, filters) {
+    const period = competencePeriod_(selectedCompetence);
+    const cutoff = lastRealizedDate_(periodRows, period);
+
+    if (!cutoff) {
+      return {
+        disponivel: false,
+        criterioCorte: 'ULTIMA_DATA_COM_REALIZADO',
+        dataCorte: null,
+        diasComparados: 0,
+        atual: null,
+        anterior: null,
+        variacao: null,
+      };
+    }
+
+    const daysCompared = dayDiff_(period.start, parseIsoDate_(cutoff)) + 1;
+    const previousCompetence = previousCompetence_(selectedCompetence);
+    const previousPeriod = competencePeriod_(previousCompetence);
+    const previousEnd = addDays_(previousPeriod.start, Math.max(daysCompared - 1, 0));
+    const currentStartKey = dayKey_(period.start);
+    const previousStartKey = dayKey_(previousPeriod.start);
+    const previousEndKey = dayKey_(previousEnd);
+
+    const currentRows = (periodRows || []).filter(function (record) {
+      const date = safeDate_(record.DATA_OPERACIONAL);
+      return date && date >= currentStartKey && date <= cutoff && matchesFilters_(record, filters);
+    });
+
+    const previousRows = (allRows || []).filter(function (record) {
+      if (competenceOf_(record) !== previousCompetence) return false;
+      const date = safeDate_(record.DATA_OPERACIONAL);
+      return date && date >= previousStartKey && date <= previousEndKey && matchesFilters_(record, filters);
+    });
+
+    const currentSnapshot = comparisonSnapshot_(
+      currentRows,
+      selectedCompetence,
+      currentStartKey,
+      cutoff
+    );
+    const previousSnapshot = comparisonSnapshot_(
+      previousRows,
+      previousCompetence,
+      previousStartKey,
+      previousEndKey
+    );
+
+    return {
+      disponivel: true,
+      criterioCorte: 'ULTIMA_DATA_COM_REALIZADO',
+      dataCorte: cutoff,
+      diasComparados: daysCompared,
+      atual: currentSnapshot,
+      anterior: previousSnapshot,
+      variacao: comparisonVariation_(currentSnapshot, previousSnapshot),
+    };
+  }
+
+  function lastRealizedDate_(rows, period) {
+    const start = dayKey_(period.start);
+    const periodEnd = dayKey_(period.end);
+    const today = dateOnlyToday_();
+    const end = today < periodEnd ? today : periodEnd;
+    let latest = '';
+
+    if (end < start) return '';
+
+    (rows || []).forEach(function (record) {
+      if (!hasRealizedData_(record)) return;
+      const date = safeDate_(record.DATA_OPERACIONAL);
+      if (!date || date < start || date > end) return;
+      if (!latest || date > latest) latest = date;
+    });
+
+    return latest;
+  }
+
+  function hasRealizedData_(record) {
+    const type = ValidationService.normalizeUpper(record.TIPO_SOLICITACAO);
+
+    if (type === TYPE_LABOR) {
+      return hasValue_(record.VALOR_REAL) || hasValue_(record.QTD_COMPARECIDA);
+    }
+
+    if (type === TYPE_SNACKS) {
+      return hasValue_(record.VALOR_REAL) ||
+        hasValue_(record.VALOR_PREVISTO) ||
+        hasValue_(record.QTD_ALIMENTACAO) ||
+        hasValue_(record.QTD_BEBIDA);
+    }
+
+    return false;
+  }
+
+  function comparisonSnapshot_(rows, competence, start, end) {
+    let laborValue = 0;
+    let laborQuantity = 0;
+    let snackValue = 0;
+    let snackQuantity = 0;
+
+    (rows || []).forEach(function (record) {
+      const type = ValidationService.normalizeUpper(record.TIPO_SOLICITACAO);
+
+      if (type === TYPE_LABOR) {
+        laborValue += realizedValue_(record);
+        laborQuantity += number_(record.QTD_COMPARECIDA);
+      } else if (type === TYPE_SNACKS) {
+        snackValue += realizedValue_(record);
+        snackQuantity += number_(record.QTD_ALIMENTACAO) + number_(record.QTD_BEBIDA);
+      }
+    });
+
+    return {
+      competencia: competence,
+      periodoInicio: start,
+      periodoFim: end,
+      valorMaoObra: round2_(laborValue),
+      quantidadeMaoObra: round2_(laborQuantity),
+      valorLanches: round2_(snackValue),
+      quantidadeLanches: round2_(snackQuantity),
+    };
+  }
+
+  function comparisonVariation_(current, previous) {
+    return {
+      valorMaoObraPercentual: percentageChange_(current.valorMaoObra, previous.valorMaoObra),
+      quantidadeMaoObraPercentual: percentageChange_(current.quantidadeMaoObra, previous.quantidadeMaoObra),
+      valorLanchesPercentual: percentageChange_(current.valorLanches, previous.valorLanches),
+      quantidadeLanchesPercentual: percentageChange_(current.quantidadeLanches, previous.quantidadeLanches),
+    };
+  }
+
+  function percentageChange_(current, previous) {
+    if (!previous) return null;
+    return round2_(((current - previous) / previous) * 100);
+  }
+
+  function previousCompetence_(competence) {
+    const parts = competence.split('-');
+    const year = Number(parts[0]);
+    const monthIndex = Number(parts[1]) - 1;
+    return Utilities.formatDate(
+      new Date(year, monthIndex - 1, 1, 12, 0, 0, 0),
+      DateService.TIMEZONE,
+      'yyyy-MM'
+    );
   }
 
   function summarize_(rows, metaValue) {
