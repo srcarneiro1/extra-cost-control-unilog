@@ -7,6 +7,8 @@ export interface GatewayAuthEnv {
   APP_SESSION_SECRET?: string;
 }
 
+export type AppProfile = 'OWNER' | 'ADMINISTRATIVO' | 'OPERACIONAL';
+
 export type GatewayIdentity =
   | {
       mode: 'access';
@@ -207,11 +209,60 @@ export function clearAppSessionCookie(): string {
   ].join('; ');
 }
 
+export function identityProfile(identity: GatewayIdentity): AppProfile {
+  if (identity.mode === 'test') return 'OWNER';
+  const profile = String(identity.profile || '').trim().toUpperCase();
+  if (profile === 'OWNER' || profile === 'ADMINISTRATIVO' || profile === 'OPERACIONAL') {
+    return profile;
+  }
+  return 'OPERACIONAL';
+}
+
+export function identityOperation(identity: GatewayIdentity): string {
+  if (identity.mode === 'test') return 'TODOS';
+  return String(identity.operation || '').trim().toUpperCase();
+}
+
+export function identityEmail(identity: GatewayIdentity): string {
+  return identity.mode === 'access' ? identity.email : 'TEST_TOKEN';
+}
+
+export function isOwner(identity: GatewayIdentity): boolean {
+  return identityProfile(identity) === 'OWNER';
+}
+
+export function canManageCatalogs(identity: GatewayIdentity): boolean {
+  const profile = identityProfile(identity);
+  return profile === 'OWNER' || profile === 'ADMINISTRATIVO';
+}
+
+export function canAdministerSolicitations(identity: GatewayIdentity): boolean {
+  return canManageCatalogs(identity);
+}
+
+export function operationScope(identity: GatewayIdentity): string | null {
+  if (isOwner(identity)) return null;
+  const operation = identityOperation(identity);
+  return operation && operation !== 'TODOS' ? operation : null;
+}
+
+export function hasValidOperationScope(identity: GatewayIdentity): boolean {
+  if (identityProfile(identity) !== 'OPERACIONAL') return true;
+  return Boolean(operationScope(identity));
+}
+
 export async function authorizeAppSessionRequest(
   request: Request,
   env: GatewayAuthEnv,
 ): Promise<GatewayIdentity | null> {
   return authorizeWithSession_(request, env);
+}
+
+export async function authorizeCloudflareAccessRequest(
+  request: Request,
+  env: GatewayAuthEnv,
+): Promise<GatewayIdentity | null> {
+  return authorizeWithAccess_(request, env);
 }
 
 export async function authorizeGatewayRequest(
@@ -225,8 +276,7 @@ export async function authorizeGatewayRequest(
     };
   }
 
-  const sessionIdentity = await authorizeWithSession_(request, env);
-  if (sessionIdentity) return sessionIdentity;
-
-  return authorizeWithAccess_(request, env);
+  // Cloudflare Access permanece como a barreira externa do site, mas a autorização
+  // funcional do aplicativo exige a sessão própria criada pelo login da plataforma.
+  return authorizeWithSession_(request, env);
 }

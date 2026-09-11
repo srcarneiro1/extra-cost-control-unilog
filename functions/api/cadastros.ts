@@ -1,4 +1,5 @@
 import { authorizeGatewayRequest, type GatewayAuthEnv } from '../_auth';
+import { validateAreaAccess } from '../_access-control';
 
 interface Env extends GatewayAuthEnv {
   APPS_SCRIPT_URL: string;
@@ -19,31 +20,25 @@ async function proxyCatalogRequest(
   request: Request,
   env: Env,
   servicePayload: Record<string, unknown>,
+  administrative: boolean,
 ): Promise<Response> {
   const identity = await authorizeGatewayRequest(request, env);
 
   if (!identity) {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Acesso ao gateway não autorizado.',
-        },
-      },
+      { ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } },
       401,
     );
   }
 
+  if (administrative) {
+    const denied = validateAreaAccess(identity, 'CADASTROS');
+    if (denied) return denied;
+  }
+
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'GATEWAY_CONFIG_ERROR',
-          message: 'Gateway não configurado no ambiente Cloudflare.',
-        },
-      },
+      { ok: false, error: { code: 'GATEWAY_CONFIG_ERROR', message: 'Gateway não configurado no ambiente Cloudflare.' } },
       500,
     );
   }
@@ -53,9 +48,7 @@ async function proxyCatalogRequest(
 
   const upstreamResponse = await fetch(targetUrl.toString(), {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       ...servicePayload,
       _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
@@ -64,19 +57,13 @@ async function proxyCatalogRequest(
   });
 
   const upstreamText = await upstreamResponse.text();
-
   let upstreamPayload: unknown;
+
   try {
     upstreamPayload = JSON.parse(upstreamText);
   } catch {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UPSTREAM_INVALID_RESPONSE',
-          message: 'Apps Script retornou uma resposta inválida.',
-        },
-      },
+      { ok: false, error: { code: 'UPSTREAM_INVALID_RESPONSE', message: 'Apps Script retornou uma resposta inválida.' } },
       502,
     );
   }
@@ -87,10 +74,7 @@ async function proxyCatalogRequest(
     'ok' in upstreamPayload &&
     (upstreamPayload as { ok?: unknown }).ok === true;
 
-  return jsonResponse(
-    upstreamPayload,
-    apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502,
-  );
+  return jsonResponse(upstreamPayload, apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502);
 }
 
 function optionalParam(url: URL, name: string): string {
@@ -119,6 +103,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           }
         : { modo: 'ADMIN' }
       : {},
+    adminMode,
   );
 };
 
@@ -127,22 +112,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     const parsed = await context.request.json();
-    payload =
-      typeof parsed === 'object' && parsed !== null
-        ? (parsed as Record<string, unknown>)
-        : {};
+    payload = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
   } catch {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'INVALID_JSON',
-          message: 'Corpo JSON inválido.',
-        },
-      },
+      { ok: false, error: { code: 'INVALID_JSON', message: 'Corpo JSON inválido.' } },
       400,
     );
   }
 
-  return proxyCatalogRequest(context.request, context.env, payload);
+  return proxyCatalogRequest(context.request, context.env, payload, true);
 };

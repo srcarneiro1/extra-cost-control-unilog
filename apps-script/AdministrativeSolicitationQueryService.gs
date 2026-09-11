@@ -6,8 +6,6 @@ const AdministrativeSolicitationQueryService = (() => {
     METADATA: 'METADADOS',
   });
   const TYPE_LABOR = 'MAO_DE_OBRA';
-  const METADATA_CACHE_KEY = 'admin_solicitations_metadata_v2';
-  const METADATA_CACHE_SECONDS = 300;
 
   function execute(payload) {
     const input = payload || {};
@@ -18,7 +16,7 @@ const AdministrativeSolicitationQueryService = (() => {
     );
 
     if (action === ACTIONS.DETAIL) return detail_(input);
-    if (action === ACTIONS.METADATA) return metadata_();
+    if (action === ACTIONS.METADATA) return metadata_(input);
     return list_(input);
   }
 
@@ -41,15 +39,14 @@ const AdministrativeSolicitationQueryService = (() => {
         pageSize
       );
     } else if (isMonthFilter_(filters)) {
-      // Qualquer competência mensal pode usar leitura reversa em blocos.
-      // Isso evita carregar toda a aba SOLICITACOES para consultar meses históricos.
       const periodRows = SheetRepository.readObjectsForMonthFromEnd(
         SHEET_SOLICITACOES,
         'DATA_CRIACAO',
         filters.anoRegistro,
         filters.mesRegistro
       );
-      const filteredRows = periodRows
+      const scopedPeriodRows = applyOperationScope_(periodRows, filters.operacaoEscopo);
+      const filteredRows = scopedPeriodRows
         .filter(function (record) {
           return matchesNonPeriodFilters_(record, filters);
         })
@@ -59,13 +56,14 @@ const AdministrativeSolicitationQueryService = (() => {
 
       total = filteredRows.length;
       rows = filteredRows.slice(offset, offset + pageSize);
-      summary = summarize_(periodRows);
+      summary = summarize_(scopedPeriodRows);
     } else {
       const allRows = SheetRepository.readObjects(SHEET_SOLICITACOES);
       const periodRows = allRows.filter(function (record) {
         return matchesPeriod_(record, filters);
       });
-      const filteredRows = periodRows
+      const scopedPeriodRows = applyOperationScope_(periodRows, filters.operacaoEscopo);
+      const filteredRows = scopedPeriodRows
         .filter(function (record) {
           return matchesNonPeriodFilters_(record, filters);
         })
@@ -75,8 +73,7 @@ const AdministrativeSolicitationQueryService = (() => {
 
       total = filteredRows.length;
       rows = filteredRows.slice(offset, offset + pageSize);
-      summary = summarize_(periodRows);
-      writeMetadataCache_(buildMetadata_(allRows));
+      summary = summarize_(scopedPeriodRows);
     }
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -97,13 +94,13 @@ const AdministrativeSolicitationQueryService = (() => {
     };
   }
 
-  function metadata_() {
-    const cached = readMetadataCache_();
-    if (cached) return cached;
-
-    const result = buildMetadata_(SheetRepository.readObjects(SHEET_SOLICITACOES));
-    writeMetadataCache_(result);
-    return result;
+  function metadata_(input) {
+    const operationScope = ValidationService.normalizeUpper(input.operacaoEscopo || '');
+    const rows = applyOperationScope_(
+      SheetRepository.readObjects(SHEET_SOLICITACOES),
+      operationScope
+    );
+    return buildMetadata_(rows);
   }
 
   function buildMetadata_(rows) {
@@ -149,6 +146,7 @@ const AdministrativeSolicitationQueryService = (() => {
       input.idSolicitacao,
       'ID da solicitação'
     );
+    const operationScope = ValidationService.normalizeUpper(input.operacaoEscopo || '');
 
     const found = SheetRepository.findRowByField(
       SHEET_SOLICITACOES,
@@ -156,7 +154,10 @@ const AdministrativeSolicitationQueryService = (() => {
       solicitationId
     );
 
-    if (!found) {
+    if (
+      !found ||
+      (operationScope && ValidationService.normalizeUpper(found.record.OPERACAO) !== operationScope)
+    ) {
       ValidationService.fail('Solicitação não encontrada: ' + solicitationId + '.');
     }
 
@@ -171,6 +172,7 @@ const AdministrativeSolicitationQueryService = (() => {
       anoRegistro: ValidationService.normalizeText(input.anoRegistro || ''),
       mesRegistro: ValidationService.normalizeText(input.mesRegistro || ''),
       dataRegistro: ValidationService.normalizeText(input.dataRegistro || ''),
+      operacaoEscopo: ValidationService.normalizeUpper(input.operacaoEscopo || ''),
     };
   }
 
@@ -181,7 +183,8 @@ const AdministrativeSolicitationQueryService = (() => {
       filters.status ||
       filters.anoRegistro ||
       filters.mesRegistro ||
-      filters.dataRegistro
+      filters.dataRegistro ||
+      filters.operacaoEscopo
     );
   }
 
@@ -205,6 +208,13 @@ const AdministrativeSolicitationQueryService = (() => {
   }
 
   function matchesNonPeriodFilters_(record, filters) {
+    if (
+      filters.operacaoEscopo &&
+      ValidationService.normalizeUpper(record.OPERACAO) !== filters.operacaoEscopo
+    ) {
+      return false;
+    }
+
     const indicators = indicators_(record);
 
     if (
@@ -237,6 +247,13 @@ const AdministrativeSolicitationQueryService = (() => {
     }
 
     return true;
+  }
+
+  function applyOperationScope_(rows, operationScope) {
+    if (!operationScope) return rows || [];
+    return (rows || []).filter(function (record) {
+      return ValidationService.normalizeUpper(record.OPERACAO) === operationScope;
+    });
   }
 
   function statusKey_(record, indicators) {
@@ -412,27 +429,6 @@ const AdministrativeSolicitationQueryService = (() => {
     }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
-  }
-
-  function readMetadataCache_() {
-    try {
-      const cached = CacheService.getScriptCache().get(METADATA_CACHE_KEY);
-      return cached ? JSON.parse(cached) : null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  function writeMetadataCache_(value) {
-    try {
-      CacheService.getScriptCache().put(
-        METADATA_CACHE_KEY,
-        JSON.stringify(value),
-        METADATA_CACHE_SECONDS
-      );
-    } catch (error) {
-      // Cache é apenas otimização.
-    }
   }
 
   return {

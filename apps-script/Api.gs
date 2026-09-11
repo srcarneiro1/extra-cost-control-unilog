@@ -6,28 +6,13 @@ const Api = (() => {
       const route = normalizeRoute_(e && e.parameter && e.parameter.route);
 
       if (route === 'health') {
-        return JsonResponse.ok({
-          service: 'extra-cost-control-unilog',
-          version: 'mvp1',
-        });
+        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: 'mvp1' });
       }
-
-      if (route === 'auth') {
-        return JsonResponse.unauthorized('Autenticação disponível somente pelo gateway protegido.');
-      }
-
-      if (route === 'cadastros') {
-        return JsonResponse.unauthorized('Acesso aos cadastros disponível somente pelo gateway protegido.');
-      }
-
-      if (route === 'solicitacoes_admin') {
-        return JsonResponse.unauthorized('Consulta administrativa disponível somente pelo gateway protegido.');
-      }
-
-      if (route === 'dashboard' || route === 'dashboard_export') {
-        return JsonResponse.unauthorized('Dashboard disponível somente pelo gateway protegido.');
-      }
-
+      if (route === 'auth') return JsonResponse.unauthorized('Autenticação disponível somente pelo gateway protegido.');
+      if (route === 'usuarios') return JsonResponse.unauthorized('Administração de usuários disponível somente pelo gateway protegido.');
+      if (route === 'cadastros') return JsonResponse.unauthorized('Acesso aos cadastros disponível somente pelo gateway protegido.');
+      if (route === 'solicitacoes_admin') return JsonResponse.unauthorized('Consulta administrativa disponível somente pelo gateway protegido.');
+      if (route === 'dashboard' || route === 'dashboard_export') return JsonResponse.unauthorized('Dashboard disponível somente pelo gateway protegido.');
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
       return handleError_(error);
@@ -42,12 +27,17 @@ const Api = (() => {
       if (route === 'auth') {
         const servicePayload = authorizeGateway_(payload);
         const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
-
-        if (action === 'LOGIN') {
-          return JsonResponse.ok(UserAuthService.authenticate(servicePayload));
-        }
-
+        if (action === 'LOGIN') return JsonResponse.ok(UserAuthService.authenticate(servicePayload));
         ValidationService.fail('Ação de autenticação inválida.');
+      }
+
+      if (route === 'usuarios') {
+        const servicePayload = authorizeGateway_(payload);
+        const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
+        if (action === 'LISTAR') return JsonResponse.ok(UserAdminService.list());
+        if (action === 'SALVAR') return JsonResponse.ok(UserAdminService.save(servicePayload));
+        if (action === 'REDEFINIR_SENHA') return JsonResponse.ok(UserAdminService.resetPassword(servicePayload));
+        ValidationService.fail('Ação de administração de usuários inválida.');
       }
 
       if (route === 'cadastros') {
@@ -56,36 +46,20 @@ const Api = (() => {
         const mode = ValidationService.normalizeUpper(servicePayload && servicePayload.modo);
 
         if (action) {
-          const isNamedCatalogAction = [
-            'SALVAR_OPERACAO',
-            'SALVAR_SUPERVISOR',
-            'SALVAR_FUNCAO',
-            'SALVAR_ATIVIDADE',
-          ].indexOf(action) >= 0;
-          const isStructuredCatalogAction = [
-            'SALVAR_FERIADO',
-            'SALVAR_META_MO',
-          ].indexOf(action) >= 0;
-
+          const isNamedCatalogAction = ['SALVAR_OPERACAO', 'SALVAR_SUPERVISOR', 'SALVAR_FUNCAO', 'SALVAR_ATIVIDADE'].indexOf(action) >= 0;
+          const isStructuredCatalogAction = ['SALVAR_FERIADO', 'SALVAR_META_MO'].indexOf(action) >= 0;
           const result = isNamedCatalogAction
             ? CatalogAdminNamedEntityService.execute(servicePayload)
             : isStructuredCatalogAction
               ? CatalogAdminStructuredEntityService.execute(servicePayload)
               : CatalogAdminService.execute(servicePayload);
-
           CatalogAdminQueryService.clearCache();
           CatalogAdminScopeCacheService.clear();
           return JsonResponse.ok(result);
         }
 
-        if (mode === 'ADMIN_SCOPE') {
-          return JsonResponse.ok(CatalogAdminScopeCacheService.get(servicePayload));
-        }
-
-        if (mode === 'ADMIN') {
-          return JsonResponse.ok(CatalogAdminService.getAdministrativeCatalogs());
-        }
-
+        if (mode === 'ADMIN_SCOPE') return JsonResponse.ok(CatalogAdminScopeCacheService.get(servicePayload));
+        if (mode === 'ADMIN') return JsonResponse.ok(CatalogAdminService.getAdministrativeCatalogs());
         return JsonResponse.ok(CatalogService.getActiveCatalogs());
       }
 
@@ -97,53 +71,40 @@ const Api = (() => {
       }
 
       if (route === 'solicitacoes_admin') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(AdministrativeSolicitationCacheService.get(servicePayload));
+        return JsonResponse.ok(AdministrativeSolicitationCacheService.get(authorizeGateway_(payload)));
       }
 
       if (route === 'dashboard') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(DashboardCacheService.get(servicePayload));
+        return JsonResponse.ok(DashboardCacheService.get(authorizeGateway_(payload)));
       }
 
       if (route === 'dashboard_export') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(DashboardExportService.getExport(servicePayload));
+        return JsonResponse.ok(DashboardExportService.getExport(authorizeGateway_(payload)));
       }
 
       if (route === 'triagem') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(writeAndInvalidate_(function () {
-          return TriageService.apply(servicePayload);
-        }));
+        const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        return JsonResponse.ok(writeAndInvalidate_(function () { return TriageService.apply(servicePayload); }));
       }
 
       if (route === 'comparecimento') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(writeAndInvalidate_(function () {
-          return AttendanceService.register(servicePayload);
-        }));
+        const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        return JsonResponse.ok(writeAndInvalidate_(function () { return AttendanceService.register(servicePayload); }));
       }
 
       if (route === 'jornada_parcial') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(writeAndInvalidate_(function () {
-          return PartialShiftService.register(servicePayload);
-        }));
+        const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        return JsonResponse.ok(writeAndInvalidate_(function () { return PartialShiftService.register(servicePayload); }));
       }
 
       if (route === 'correcao_solicitacao') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(writeAndInvalidate_(function () {
-          return SolicitationCorrectionService.correct(servicePayload);
-        }));
+        const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        return JsonResponse.ok(writeAndInvalidate_(function () { return SolicitationCorrectionService.correct(servicePayload); }));
       }
 
       if (route === 'exclusao_solicitacao') {
-        const servicePayload = authorizeGateway_(payload);
-        return JsonResponse.ok(writeAndInvalidate_(function () {
-          return SolicitationDeletionService.remove(servicePayload);
-        }));
+        const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        return JsonResponse.ok(writeAndInvalidate_(function () { return SolicitationDeletionService.remove(servicePayload); }));
       }
 
       return JsonResponse.notFound('Rota não encontrada.');
@@ -160,18 +121,10 @@ const Api = (() => {
   }
 
   function authorizeGateway_(payload) {
-    const expectedToken = PropertiesService
-      .getScriptProperties()
-      .getProperty(PROPERTY_GATEWAY_TOKEN);
+    const expectedToken = PropertiesService.getScriptProperties().getProperty(PROPERTY_GATEWAY_TOKEN);
+    if (!expectedToken) throw new Error('Propriedade GATEWAY_TOKEN não configurada no Apps Script.');
 
-    if (!expectedToken) {
-      throw new Error('Propriedade GATEWAY_TOKEN não configurada no Apps Script.');
-    }
-
-    const providedToken = String(
-      payload && payload._gatewayToken ? payload._gatewayToken : ''
-    ).trim();
-
+    const providedToken = String(payload && payload._gatewayToken ? payload._gatewayToken : '').trim();
     if (!providedToken || providedToken !== expectedToken) {
       const error = new Error('Acesso não autorizado.');
       error.name = 'AuthorizationError';
@@ -184,30 +137,15 @@ const Api = (() => {
   }
 
   function parseJsonBody_(e) {
-    const contents = e && e.postData && e.postData.contents
-      ? String(e.postData.contents).trim()
-      : '';
-
-    if (!contents) {
-      ValidationService.fail('Corpo JSON obrigatório para esta operação.');
-    }
-
-    try {
-      return JSON.parse(contents);
-    } catch (error) {
-      ValidationService.fail('Corpo JSON inválido.');
-    }
+    const contents = e && e.postData && e.postData.contents ? String(e.postData.contents).trim() : '';
+    if (!contents) ValidationService.fail('Corpo JSON obrigatório para esta operação.');
+    try { return JSON.parse(contents); }
+    catch (error) { ValidationService.fail('Corpo JSON inválido.'); }
   }
 
   function handleError_(error) {
-    if (error && error.name === 'AuthorizationError') {
-      return JsonResponse.unauthorized(error.message || 'Acesso não autorizado.');
-    }
-
-    if (error && error.name === 'ValidationError') {
-      return JsonResponse.badRequest(error.message, error.details || null);
-    }
-
+    if (error && error.name === 'AuthorizationError') return JsonResponse.unauthorized(error.message || 'Acesso não autorizado.');
+    if (error && error.name === 'ValidationError') return JsonResponse.badRequest(error.message, error.details || null);
     return JsonResponse.error(error);
   }
 
@@ -215,8 +153,5 @@ const Api = (() => {
     return String(value || 'health').trim().toLowerCase();
   }
 
-  return {
-    handleGet,
-    handlePost,
-  };
+  return { handleGet, handlePost };
 })();
