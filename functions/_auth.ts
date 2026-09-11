@@ -207,6 +207,13 @@ export function clearAppSessionCookie(): string {
   ].join('; ');
 }
 
+export async function authorizeAppSessionRequest(
+  request: Request,
+  env: GatewayAuthEnv,
+): Promise<GatewayIdentity | null> {
+  return authorizeWithSession_(request, env);
+}
+
 export async function authorizeGatewayRequest(
   request: Request,
   env: GatewayAuthEnv
