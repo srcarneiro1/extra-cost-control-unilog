@@ -3,12 +3,12 @@ import type { DashboardAnalytics, DashboardResponse } from '../types/dashboard'
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-const LINEARITY_QUADRANTS = [
-  { title: 'Alto custo · não recorrente', detail: 'Alto impacto com menor recorrência.' },
-  { title: 'Alto custo · recorrente', detail: 'Maior prioridade de atuação.' },
-  { title: 'Baixo custo · não recorrente', detail: 'Impacto menor e pontual.' },
-  { title: 'Baixo custo · recorrente', detail: 'Recorrente com menor impacto.' },
-] as const
+const LINEARITY_QUADRANTS = {
+  topLeft: 'Alto custo · não recorrente',
+  topRight: 'Alto custo · recorrente',
+  bottomLeft: 'Baixo custo · não recorrente',
+  bottomRight: 'Baixo custo · recorrente',
+} as const
 
 function currency(value: number | null | undefined) {
   if (value == null) return '—'
@@ -272,17 +272,14 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
       </div>
 
       {items.length ? (
-        <>
-          <div className="analytics-linearity-legend" aria-label="Interpretação dos quadrantes">
-            {LINEARITY_QUADRANTS.map((item) => (
-              <div key={item.title} className="analytics-linearity-legend-item">
-                <strong>{item.title}</strong>
-                <span>{item.detail}</span>
-              </div>
-            ))}
+        <div className="analytics-linearity-stage">
+          <div className="analytics-linearity-edge-labels analytics-linearity-edge-labels-top" aria-label="Quadrantes de alto custo">
+            <span>{LINEARITY_QUADRANTS.topLeft}</span>
+            <span>{LINEARITY_QUADRANTS.topRight}</span>
           </div>
 
           <svg className="analytics-svg analytics-linearity-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dispersão de linearidade e custo por depositante">
+            <rect x={left} y={top} width={chartWidth} height={chartHeight} className="analytics-quadrant-frame" />
             <line x1={centerX} x2={centerX} y1={top} y2={height - bottom} className="analytics-quadrant-line" />
             <line x1={left} x2={width - right} y1={centerY} y2={centerY} className="analytics-quadrant-line" />
 
@@ -326,7 +323,12 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
               Custo realizado →
             </text>
           </svg>
-        </>
+
+          <div className="analytics-linearity-edge-labels analytics-linearity-edge-labels-bottom" aria-label="Quadrantes de baixo custo">
+            <span>{LINEARITY_QUADRANTS.bottomLeft}</span>
+            <span>{LINEARITY_QUADRANTS.bottomRight}</span>
+          </div>
+        </div>
       ) : (
         <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>
       )}
