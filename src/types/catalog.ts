@@ -93,6 +93,8 @@ export interface CatalogosAdminResumoDto {
   atividades: number
   funcoes: number
   produtos: number
+  feriados?: number
+  metas?: number
 }
 
 export interface CatalogosAdminDto {
