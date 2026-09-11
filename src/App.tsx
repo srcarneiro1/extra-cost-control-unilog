@@ -4,6 +4,7 @@ import { AppShell, type AppSection } from './components/AppShell'
 import { CadastrosPagePaginated } from './components/CadastrosPagePaginated'
 import { DashboardPage } from './components/DashboardPage'
 import { LoginPage } from './components/LoginPage'
+import { UsersPage } from './components/UsersPage'
 import {
   fetchCatalogoAdminScope,
   fetchCatalogos,
@@ -24,14 +25,14 @@ function currentPeriod() {
   }
 }
 
-function adjacentDashboardCompetence(offset: number) {
+function adjacentDashboardCompetence(offset: number, operation = 'TODOS') {
   const now = new Date()
   const closingMonth = now.getMonth() + (now.getDate() >= 21 ? 1 : 0)
   const target = new Date(now.getFullYear(), closingMonth + offset, 1)
   return {
     ano: String(target.getFullYear()),
     mesCompetencia: String(target.getMonth() + 1).padStart(2, '0'),
-    operacao: 'TODOS' as const,
+    operacao: operation,
     supervisor: 'TODOS' as const,
     fornecedor: 'TODOS' as const,
     tipo: 'TODOS' as const,
@@ -62,6 +63,8 @@ export function App() {
 
   useEffect(() => {
     if (!user) return
+    const canManageCatalogs = user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
+    const operation = user.profile === 'OWNER' || !user.operation ? 'TODOS' : user.operation
 
     const firstWave = window.setTimeout(() => {
       const period = currentPeriod()
@@ -74,15 +77,16 @@ export function App() {
       }).catch(() => undefined)
 
       void fetchAdministrativeSolicitationMetadata().catch(() => undefined)
-      void fetchCatalogos().catch(() => undefined)
-
-      prefetchCatalogoAdminScope('RESUMO')
-      prefetchCatalogoAdminScope('OPERACOES')
-      prefetchCatalogoAdminScope('SUPERVISORES')
-      prefetchCatalogoAdminScope('FUNCOES')
-      prefetchCatalogoAdminScope('ATIVIDADES')
-      prefetchCatalogoAdminScope('FORNECEDORES')
-      prefetchCatalogoAdminScope('PRODUTOS')
+      if (canManageCatalogs) {
+        void fetchCatalogos().catch(() => undefined)
+        prefetchCatalogoAdminScope('RESUMO')
+        prefetchCatalogoAdminScope('OPERACOES')
+        prefetchCatalogoAdminScope('SUPERVISORES')
+        prefetchCatalogoAdminScope('FUNCOES')
+        prefetchCatalogoAdminScope('ATIVIDADES')
+        prefetchCatalogoAdminScope('FORNECEDORES')
+        prefetchCatalogoAdminScope('PRODUTOS')
+      }
     }, 900)
 
     const secondWave = window.setTimeout(() => {
@@ -95,23 +99,25 @@ export function App() {
         mesRegistro: period.mesRegistro,
       }).catch(() => undefined)
 
-      prefetchDashboard(adjacentDashboardCompetence(-1))
-      prefetchCatalogoAdminScope('FERIADOS')
-      prefetchCatalogoAdminScope('METAS')
+      prefetchDashboard(adjacentDashboardCompetence(-1, operation))
+      if (canManageCatalogs) {
+        prefetchCatalogoAdminScope('FERIADOS')
+        prefetchCatalogoAdminScope('METAS')
 
-      void fetchCatalogoAdminScope('PRECOS_MO', {
-        pagina: 1,
-        tamanhoPagina: 25,
-      }).catch(() => undefined)
+        void fetchCatalogoAdminScope('PRECOS_MO', {
+          pagina: 1,
+          tamanhoPagina: 25,
+        }).catch(() => undefined)
 
-      void fetchCatalogoAdminScope('PRECOS_PRODUTOS', {
-        pagina: 1,
-        tamanhoPagina: 25,
-      }).catch(() => undefined)
+        void fetchCatalogoAdminScope('PRECOS_PRODUTOS', {
+          pagina: 1,
+          tamanhoPagina: 25,
+        }).catch(() => undefined)
+      }
     }, 2200)
 
     const thirdWave = window.setTimeout(() => {
-      prefetchDashboard(adjacentDashboardCompetence(-2))
+      prefetchDashboard(adjacentDashboardCompetence(-2, operation))
     }, 4200)
 
     return () => {
@@ -121,7 +127,15 @@ export function App() {
     }
   }, [user])
 
+  function canNavigate(nextSection: AppSection) {
+    if (!user) return false
+    if (nextSection === 'usuarios') return user.profile === 'OWNER'
+    if (nextSection === 'cadastros') return user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
+    return true
+  }
+
   function handleNavigate(nextSection: AppSection) {
+    if (!canNavigate(nextSection)) return
     setMountedSections((current) => {
       if (current.has(nextSection)) return current
       const next = new Set(current)
@@ -134,11 +148,9 @@ export function App() {
   async function handleLogout() {
     const currentUser = user
     await logout(currentUser)
-    if (currentUser?.provider !== 'cloudflare') {
-      setUser(null)
-      setSection('dashboard')
-      setMountedSections(new Set<AppSection>(['dashboard']))
-    }
+    setUser(null)
+    setSection('dashboard')
+    setMountedSections(new Set<AppSection>(['dashboard']))
   }
 
   if (user === undefined) {
@@ -161,9 +173,15 @@ export function App() {
         </div>
       )}
 
-      {mountedSections.has('cadastros') && (
+      {mountedSections.has('cadastros') && canNavigate('cadastros') && (
         <div hidden={section !== 'cadastros'}>
           <CadastrosPagePaginated />
+        </div>
+      )}
+
+      {mountedSections.has('usuarios') && canNavigate('usuarios') && (
+        <div hidden={section !== 'usuarios'}>
+          <UsersPage />
         </div>
       )}
     </AppShell>
