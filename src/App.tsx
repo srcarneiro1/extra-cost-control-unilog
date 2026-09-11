@@ -8,6 +8,7 @@ import {
   fetchCatalogos,
   prefetchCatalogoAdminScope,
 } from './services/catalogService'
+import { prefetchDashboard } from './services/dashboardService'
 import {
   fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
@@ -18,6 +19,22 @@ function currentPeriod() {
   return {
     anoRegistro: String(now.getFullYear()),
     mesRegistro: String(now.getMonth() + 1).padStart(2, '0'),
+  }
+}
+
+function adjacentDashboardCompetence(offset: number) {
+  const now = new Date()
+  const closingMonth = now.getMonth() + (now.getDate() >= 21 ? 1 : 0)
+  const target = new Date(now.getFullYear(), closingMonth + offset, 1)
+  return {
+    ano: String(target.getFullYear()),
+    mesCompetencia: String(target.getMonth() + 1).padStart(2, '0'),
+    operacao: 'TODOS' as const,
+    supervisor: 'TODOS' as const,
+    fornecedor: 'TODOS' as const,
+    tipo: 'TODOS' as const,
+    responsavelCusto: 'TODOS' as const,
+    atividade: 'TODOS' as const,
   }
 }
 
@@ -60,6 +77,7 @@ export function App() {
         mesRegistro: period.mesRegistro,
       }).catch(() => undefined)
 
+      prefetchDashboard(adjacentDashboardCompetence(-1))
       prefetchCatalogoAdminScope('FERIADOS')
       prefetchCatalogoAdminScope('METAS')
 
@@ -74,9 +92,14 @@ export function App() {
       }).catch(() => undefined)
     }, 2200)
 
+    const thirdWave = window.setTimeout(() => {
+      prefetchDashboard(adjacentDashboardCompetence(-2))
+    }, 4200)
+
     return () => {
       window.clearTimeout(firstWave)
       window.clearTimeout(secondWave)
+      window.clearTimeout(thirdWave)
     }
   }, [])
 

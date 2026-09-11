@@ -13,7 +13,7 @@ const DashboardExportService = (() => {
     const competence = selectedCompetence_(input);
     const filters = normalizeFilters_(input);
 
-    const rows = SheetRepository.readObjects(SHEET_SOLICITACOES)
+    const rows = readCompetenceRows_(competence)
       .filter(function (record) {
         return competenceOf_(record) === competence;
       })
@@ -50,6 +50,46 @@ const DashboardExportService = (() => {
       linhas: rows,
       total: rows.length,
     };
+  }
+
+  function readCompetenceRows_(competence) {
+    const storedCompetences = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'COMPETENCIA');
+    const operationalDates = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'DATA_OPERACIONAL');
+    const total = Math.max(storedCompetences.length, operationalDates.length);
+    let needsLegacyFallback = false;
+
+    for (let index = 0; index < total; index += 1) {
+      const rawStored = storedCompetences[index] == null ? '' : storedCompetences[index];
+      const stored = ValidationService.normalizeText(rawStored);
+
+      if (/^\d{4}-\d{2}$/.test(stored)) {
+        if (stored === competence && String(rawStored) !== stored) {
+          needsLegacyFallback = true;
+          break;
+        }
+        continue;
+      }
+
+      const operationalDate = operationalDates[index];
+      if (!operationalDate) continue;
+
+      try {
+        if (DateService.competence(operationalDate) === competence) {
+          needsLegacyFallback = true;
+          break;
+        }
+      } catch (error) {
+        // Registro inválido fora da competência consultada não bloqueia a exportação.
+      }
+    }
+
+    return needsLegacyFallback
+      ? SheetRepository.readObjects(SHEET_SOLICITACOES)
+      : SheetRepository.readObjectsByFieldValues(
+          SHEET_SOLICITACOES,
+          'COMPETENCIA',
+          [competence]
+        );
   }
 
   function toExportRow_(record, type) {

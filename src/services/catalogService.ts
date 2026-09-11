@@ -1,3 +1,4 @@
+import { invalidateDashboardCache } from './dashboardService'
 import type {
   CatalogAdminScope,
   CatalogAdminScopeQuery,
@@ -104,6 +105,7 @@ async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
   if (!response.ok || !payload.ok) throwApiError(response, payload)
 
   invalidateCatalogCaches()
+  invalidateDashboardCache()
   return payload.data
 }
 

@@ -8,9 +8,14 @@ const DashboardService = (() => {
   function getDashboard(payload) {
     const input = payload || {};
     const selectedCompetence = selectedCompetence_(input);
-    const allRows = SheetRepository.readObjects(SOLICITATIONS_SHEET);
-    const periodRows = allRows.filter(function (record) {
+    const previousCompetence = previousCompetence_(selectedCompetence);
+    const readModel = readDashboardRows_(selectedCompetence, previousCompetence);
+    const relevantRows = readModel.rows;
+    const periodRows = relevantRows.filter(function (record) {
       return competenceOf_(record) === selectedCompetence;
+    });
+    const previousPeriodRows = relevantRows.filter(function (record) {
+      return competenceOf_(record) === previousCompetence;
     });
     const filters = normalizeFilters_(input);
     const filteredRows = periodRows.filter(function (record) {
@@ -23,7 +28,7 @@ const DashboardService = (() => {
     const period = competencePeriod_(selectedCompetence);
     const kpis = summarize_(filteredRows, metaValue);
     const projection = projection_(filteredRows, kpis.realizadoMaoObra, metaValue, period);
-    const comparison = competenceComparison_(allRows, periodRows, selectedCompetence, filters);
+    const comparison = competenceComparison_(previousPeriodRows, periodRows, selectedCompetence, filters);
 
     return {
       competencia: selectedCompetence,
@@ -31,7 +36,7 @@ const DashboardService = (() => {
       periodoFim: DateService.toIsoDate(period.end),
       metaEscopo: 'GLOBAL_COMPETENCIA',
       metaFonte: META_SHEET,
-      filtros: filterOptions_(allRows, periodRows, selectedCompetence),
+      filtros: filterOptions_(readModel.indexRows, periodRows, selectedCompetence),
       kpis: kpis,
       projecao: projection,
       alertaMeta: metaAlert_(projection),
@@ -60,6 +65,51 @@ const DashboardService = (() => {
     return year + '-' + month;
   }
 
+  function readDashboardRows_(selectedCompetence, previousCompetence) {
+    const indexRows = solicitationIndexRows_();
+    const targetCompetences = {};
+    targetCompetences[selectedCompetence] = true;
+    targetCompetences[previousCompetence] = true;
+
+    const hasLegacyTargetRows = indexRows.some(function (record) {
+      const stored = ValidationService.normalizeText(record.COMPETENCIA);
+      if (/^\d{4}-\d{2}$/.test(stored)) return false;
+      const derived = competenceOf_(record);
+      return Boolean(targetCompetences[derived]);
+    });
+
+    return {
+      indexRows: indexRows,
+      rows: hasLegacyTargetRows
+        ? SheetRepository.readObjects(SOLICITATIONS_SHEET)
+        : SheetRepository.readObjectsByFieldValues(
+            SOLICITATIONS_SHEET,
+            'COMPETENCIA',
+            [selectedCompetence, previousCompetence]
+          ),
+    };
+  }
+
+  function solicitationIndexRows_() {
+    const ids = SheetRepository.readFieldValues(SOLICITATIONS_SHEET, 'ID_SOLICITACAO');
+    const types = SheetRepository.readFieldValues(SOLICITATIONS_SHEET, 'TIPO_SOLICITACAO');
+    const competences = SheetRepository.readFieldValues(SOLICITATIONS_SHEET, 'COMPETENCIA');
+    const operationalDates = SheetRepository.readFieldValues(SOLICITATIONS_SHEET, 'DATA_OPERACIONAL');
+    const total = Math.max(ids.length, types.length, competences.length, operationalDates.length);
+    const rows = [];
+
+    for (let index = 0; index < total; index += 1) {
+      rows.push({
+        ID_SOLICITACAO: ids[index] == null ? '' : ids[index],
+        TIPO_SOLICITACAO: types[index] == null ? '' : types[index],
+        COMPETENCIA: competences[index] == null ? '' : competences[index],
+        DATA_OPERACIONAL: operationalDates[index] == null ? '' : operationalDates[index],
+      });
+    }
+
+    return rows;
+  }
+
   function normalizeFilters_(input) {
     return {
       operacao: normalizedFilter_(input.operacao),
@@ -86,7 +136,7 @@ const DashboardService = (() => {
     return true;
   }
 
-  function competenceComparison_(allRows, periodRows, selectedCompetence, filters) {
+  function competenceComparison_(previousPeriodRows, periodRows, selectedCompetence, filters) {
     const period = competencePeriod_(selectedCompetence);
     const cutoff = lastRealizedDate_(periodRows, period);
 
@@ -115,7 +165,7 @@ const DashboardService = (() => {
       return date && date >= currentStartKey && date <= cutoff && matchesFilters_(record, filters);
     });
 
-    const previousRows = (allRows || []).filter(function (record) {
+    const previousRows = (previousPeriodRows || []).filter(function (record) {
       if (competenceOf_(record) !== previousCompetence) return false;
       const date = safeDate_(record.DATA_OPERACIONAL);
       return date && date >= previousStartKey && date <= previousEndKey && matchesFilters_(record, filters);
