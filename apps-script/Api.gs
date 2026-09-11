@@ -16,6 +16,10 @@ const Api = (() => {
         return JsonResponse.unauthorized('Autenticação disponível somente pelo gateway protegido.');
       }
 
+      if (route === 'usuarios') {
+        return JsonResponse.unauthorized('Administração de usuários disponível somente pelo gateway protegido.');
+      }
+
       if (route === 'cadastros') {
         return JsonResponse.unauthorized('Acesso aos cadastros disponível somente pelo gateway protegido.');
       }
@@ -48,6 +52,25 @@ const Api = (() => {
         }
 
         ValidationService.fail('Ação de autenticação inválida.');
+      }
+
+      if (route === 'usuarios') {
+        const servicePayload = authorizeGateway_(payload);
+        const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
+
+        if (action === 'LISTAR') {
+          return JsonResponse.ok(UserAdminService.list());
+        }
+
+        if (action === 'SALVAR') {
+          return JsonResponse.ok(UserAdminService.save(servicePayload));
+        }
+
+        if (action === 'REDEFINIR_SENHA') {
+          return JsonResponse.ok(UserAdminService.resetPassword(servicePayload));
+        }
+
+        ValidationService.fail('Ação de administração de usuários inválida.');
       }
 
       if (route === 'cadastros') {
