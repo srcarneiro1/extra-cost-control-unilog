@@ -1,4 +1,13 @@
-import { authorizeGatewayRequest, type GatewayAuthEnv } from '../_auth';
+import {
+  authorizeGatewayRequest,
+  identityEmail,
+  type GatewayAuthEnv,
+} from '../_auth';
+import {
+  enforceCreationScope,
+  enforceOperationScope,
+  validateAreaAccess,
+} from '../_access-control';
 
 interface Env extends GatewayAuthEnv {
   APPS_SCRIPT_URL: string;
@@ -22,13 +31,7 @@ async function proxyToAppsScript(
 ): Promise<Response> {
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'GATEWAY_CONFIG_ERROR',
-          message: 'Gateway não configurado no ambiente Cloudflare.',
-        },
-      },
+      { ok: false, error: { code: 'GATEWAY_CONFIG_ERROR', message: 'Gateway não configurado no ambiente Cloudflare.' } },
       500
     );
   }
@@ -38,30 +41,19 @@ async function proxyToAppsScript(
 
   const upstreamResponse = await fetch(targetUrl.toString(), {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      ...payload,
-      _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
-    }),
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN }),
     redirect: 'follow',
   });
 
   const upstreamText = await upstreamResponse.text();
-
   let upstreamPayload: unknown;
+
   try {
     upstreamPayload = JSON.parse(upstreamText);
   } catch {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UPSTREAM_INVALID_RESPONSE',
-          message: 'Apps Script retornou uma resposta inválida.',
-        },
-      },
+      { ok: false, error: { code: 'UPSTREAM_INVALID_RESPONSE', message: 'Apps Script retornou uma resposta inválida.' } },
       502
     );
   }
@@ -72,32 +64,25 @@ async function proxyToAppsScript(
     'ok' in upstreamPayload &&
     (upstreamPayload as { ok?: unknown }).ok === true;
 
-  return jsonResponse(
-    upstreamPayload,
-    apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502
-  );
+  return jsonResponse(upstreamPayload, apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502);
 }
 
 function optionalParam(url: URL, name: string): string {
   return String(url.searchParams.get(name) || '').trim();
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { request, env } = context;
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const identity = await authorizeGatewayRequest(request, env);
 
   if (!identity) {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Acesso ao gateway não autorizado.',
-        },
-      },
+      { ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } },
       401
     );
   }
+
+  const denied = validateAreaAccess(identity, 'SOLICITACOES');
+  if (denied) return denied;
 
   const url = new URL(request.url);
   const idSolicitacao = optionalParam(url, 'id');
@@ -106,10 +91,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   let payload: Record<string, unknown>;
 
   if (idSolicitacao) {
-    payload = {
-      acao: 'DETALHAR',
-      idSolicitacao,
-    };
+    payload = { acao: 'DETALHAR', idSolicitacao };
   } else if (metadata === '1') {
     payload = { acao: 'METADADOS' };
   } else {
@@ -135,25 +117,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     };
   }
 
-  return proxyToAppsScript(env, 'solicitacoes_admin', payload);
+  return proxyToAppsScript(env, 'solicitacoes_admin', enforceOperationScope(identity, payload));
 };
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { request, env } = context;
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const identity = await authorizeGatewayRequest(request, env);
 
   if (!identity) {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Acesso ao gateway não autorizado.',
-        },
-      },
+      { ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } },
       401
     );
   }
+
+  const denied = validateAreaAccess(identity, 'SOLICITACOES');
+  if (denied) return denied;
 
   let payload: Record<string, unknown>;
 
@@ -161,13 +139,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     payload = (await request.json()) as Record<string, unknown>;
   } catch {
     return jsonResponse(
-      {
-        ok: false,
-        error: {
-          code: 'INVALID_JSON',
-          message: 'Corpo JSON inválido.',
-        },
-      },
+      { ok: false, error: { code: 'INVALID_JSON', message: 'Corpo JSON inválido.' } },
       400
     );
   }
@@ -176,15 +148,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const adminRead = optionalParam(url, 'admin') === '1';
 
   if (adminRead) {
-    return proxyToAppsScript(env, 'solicitacoes_admin', payload);
+    return proxyToAppsScript(env, 'solicitacoes_admin', enforceOperationScope(identity, payload));
   }
 
-  const trustedPayload = identity.mode === 'access'
-    ? {
-        ...payload,
-        usuarioCriacao: identity.email,
-      }
-    : payload;
+  const trustedPayload = enforceCreationScope(identity, {
+    ...payload,
+    usuarioCriacao: identityEmail(identity),
+  });
 
   return proxyToAppsScript(env, 'solicitacoes', trustedPayload);
 };
