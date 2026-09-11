@@ -147,8 +147,12 @@ const DashboardService = (() => {
 
   function lastRealizedDate_(rows, period) {
     const start = dayKey_(period.start);
-    const end = dayKey_(period.end);
+    const periodEnd = dayKey_(period.end);
+    const today = dateOnlyToday_();
+    const end = today < periodEnd ? today : periodEnd;
     let latest = '';
+
+    if (end < start) return '';
 
     (rows || []).forEach(function (record) {
       if (!hasRealizedData_(record)) return;
