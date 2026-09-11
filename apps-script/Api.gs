@@ -41,7 +41,10 @@ const Api = (() => {
         const mode = ValidationService.normalizeUpper(servicePayload && servicePayload.modo);
 
         if (action) {
-          const result = CatalogAdminService.execute(servicePayload);
+          const isNamedCatalogAction = action === 'SALVAR_OPERACAO' || action === 'SALVAR_SUPERVISOR';
+          const result = isNamedCatalogAction
+            ? CatalogAdminNamedEntityService.execute(servicePayload)
+            : CatalogAdminService.execute(servicePayload);
           CatalogAdminQueryService.clearCache();
           CatalogAdminScopeCacheService.clear();
           return JsonResponse.ok(result);

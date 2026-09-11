@@ -10,6 +10,8 @@ const CatalogAdminQueryService = (() => {
 
   const SCOPES = Object.freeze({
     SUMMARY: 'RESUMO',
+    OPERATIONS: 'OPERACOES',
+    SUPERVISORS: 'SUPERVISORES',
     PROVIDERS: 'FORNECEDORES',
     PRODUCTS: 'PRODUTOS',
     LABOR_PRICES: 'PRECOS_MO',
@@ -38,6 +40,8 @@ const CatalogAdminQueryService = (() => {
 
     let result;
     if (scope === SCOPES.SUMMARY) result = summary_();
+    if (scope === SCOPES.OPERATIONS) result = operations_();
+    if (scope === SCOPES.SUPERVISORS) result = supervisors_();
     if (scope === SCOPES.PROVIDERS) result = providers_();
     if (scope === SCOPES.PRODUCTS) result = products_();
     if (scope === SCOPES.LABOR_PRICES) result = laborPrices_(input);
@@ -58,6 +62,18 @@ const CatalogAdminQueryService = (() => {
         funcoes: activeNamedDtos_(functionRows, 'FUNCAO').length,
         produtos: activeCount_(SheetRepository.readObjects(PRODUCT_SHEET)),
       },
+    };
+  }
+
+  function operations_() {
+    return {
+      operacoes: namedAdminDtos_(SheetRepository.readObjects(OPERATION_SHEET), 'OPERACAO'),
+    };
+  }
+
+  function supervisors_() {
+    return {
+      supervisores: namedAdminDtos_(SheetRepository.readObjects(SUPERVISOR_SHEET), 'SUPERVISOR'),
     };
   }
 
@@ -188,6 +204,18 @@ const CatalogAdminQueryService = (() => {
     if (value === '' || value == null) return PRICE_PAGE_SIZE;
     const parsed = Number(value);
     return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, 100) : PRICE_PAGE_SIZE;
+  }
+
+  function namedAdminDtos_(rows, fieldName) {
+    return (rows || [])
+      .map(function (row) {
+        return {
+          nome: ValidationService.normalizeText(row[fieldName]),
+          ativo: ValidationService.isTruthy(row.ATIVO),
+        };
+      })
+      .filter(function (item) { return Boolean(item.nome); })
+      .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
   }
 
   function activeFoodProviders_(providerRows) {
@@ -343,6 +371,8 @@ const CatalogAdminQueryService = (() => {
     try {
       CacheService.getScriptCache().removeAll([
         cacheKey_(SCOPES.SUMMARY),
+        cacheKey_(SCOPES.OPERATIONS),
+        cacheKey_(SCOPES.SUPERVISORS),
         cacheKey_(SCOPES.PROVIDERS),
         cacheKey_(SCOPES.PRODUCTS),
       ]);
