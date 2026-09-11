@@ -41,10 +41,23 @@ const Api = (() => {
         const mode = ValidationService.normalizeUpper(servicePayload && servicePayload.modo);
 
         if (action) {
-          const isNamedCatalogAction = action === 'SALVAR_OPERACAO' || action === 'SALVAR_SUPERVISOR';
+          const isNamedCatalogAction = [
+            'SALVAR_OPERACAO',
+            'SALVAR_SUPERVISOR',
+            'SALVAR_FUNCAO',
+            'SALVAR_ATIVIDADE',
+          ].indexOf(action) >= 0;
+          const isStructuredCatalogAction = [
+            'SALVAR_FERIADO',
+            'SALVAR_META_MO',
+          ].indexOf(action) >= 0;
+
           const result = isNamedCatalogAction
             ? CatalogAdminNamedEntityService.execute(servicePayload)
-            : CatalogAdminService.execute(servicePayload);
+            : isStructuredCatalogAction
+              ? CatalogAdminStructuredEntityService.execute(servicePayload)
+              : CatalogAdminService.execute(servicePayload);
+
           CatalogAdminQueryService.clearCache();
           CatalogAdminScopeCacheService.clear();
           return JsonResponse.ok(result);

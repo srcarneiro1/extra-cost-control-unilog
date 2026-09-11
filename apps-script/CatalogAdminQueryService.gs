@@ -4,6 +4,8 @@ const CatalogAdminQueryService = (() => {
   const PROVIDER_SHEET = 'CAD_FORNECEDORES';
   const ACTIVITY_SHEET = 'CAD_ATIVIDADES';
   const FUNCTION_SHEET = 'CAD_FUNCOES';
+  const HOLIDAY_SHEET = 'CAD_FERIADOS';
+  const META_SHEET = 'METAS_MO';
   const PRODUCT_SHEET = 'CAD_PRODUTOS';
   const LABOR_PRICE_SHEET = 'PRECOS_MO';
   const PRODUCT_PRICE_SHEET = 'PRECOS_PRODUTOS';
@@ -12,6 +14,10 @@ const CatalogAdminQueryService = (() => {
     SUMMARY: 'RESUMO',
     OPERATIONS: 'OPERACOES',
     SUPERVISORS: 'SUPERVISORES',
+    FUNCTIONS: 'FUNCOES',
+    ACTIVITIES: 'ATIVIDADES',
+    HOLIDAYS: 'FERIADOS',
+    GOALS: 'METAS',
     PROVIDERS: 'FORNECEDORES',
     PRODUCTS: 'PRODUTOS',
     LABOR_PRICES: 'PRECOS_MO',
@@ -42,6 +48,10 @@ const CatalogAdminQueryService = (() => {
     if (scope === SCOPES.SUMMARY) result = summary_();
     if (scope === SCOPES.OPERATIONS) result = operations_();
     if (scope === SCOPES.SUPERVISORS) result = supervisors_();
+    if (scope === SCOPES.FUNCTIONS) result = functions_();
+    if (scope === SCOPES.ACTIVITIES) result = activities_();
+    if (scope === SCOPES.HOLIDAYS) result = holidays_();
+    if (scope === SCOPES.GOALS) result = goals_();
     if (scope === SCOPES.PROVIDERS) result = providers_();
     if (scope === SCOPES.PRODUCTS) result = products_();
     if (scope === SCOPES.LABOR_PRICES) result = laborPrices_(input);
@@ -53,6 +63,9 @@ const CatalogAdminQueryService = (() => {
 
   function summary_() {
     const functionRows = SheetRepository.readObjects(FUNCTION_SHEET);
+    const holidayRows = safeReadObjects_(HOLIDAY_SHEET);
+    const metaRows = metaRows_();
+
     return {
       resumoAtivos: {
         operacoes: activeCount_(SheetRepository.readObjects(OPERATION_SHEET)),
@@ -61,6 +74,8 @@ const CatalogAdminQueryService = (() => {
         atividades: activeCount_(SheetRepository.readObjects(ACTIVITY_SHEET)),
         funcoes: activeNamedDtos_(functionRows, 'FUNCAO').length,
         produtos: activeCount_(SheetRepository.readObjects(PRODUCT_SHEET)),
+        feriados: activeCount_(holidayRows),
+        metas: metaRows.length,
       },
     };
   }
@@ -77,6 +92,34 @@ const CatalogAdminQueryService = (() => {
     };
   }
 
+  function functions_() {
+    return {
+      funcoes: namedAdminDtos_(SheetRepository.readObjects(FUNCTION_SHEET), 'FUNCAO'),
+    };
+  }
+
+  function activities_() {
+    return {
+      atividades: namedAdminDtos_(SheetRepository.readObjects(ACTIVITY_SHEET), 'ATIVIDADE'),
+    };
+  }
+
+  function holidays_() {
+    return {
+      feriados: safeReadObjects_(HOLIDAY_SHEET)
+        .map(holidayAdminDto_)
+        .filter(function (item) { return Boolean(item.data); })
+        .sort(function (a, b) { return String(a.data).localeCompare(String(b.data)); }),
+    };
+  }
+
+  function goals_() {
+    return {
+      metas: metaRows_()
+        .sort(function (a, b) { return String(b.competencia).localeCompare(String(a.competencia)); }),
+    };
+  }
+
   function providers_() {
     return {
       fornecedores: SheetRepository.readObjects(PROVIDER_SHEET)
@@ -90,7 +133,7 @@ const CatalogAdminQueryService = (() => {
     const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
     const productRows = SheetRepository.readObjects(PRODUCT_SHEET);
     const productPriceRows = SheetRepository.readObjects(PRODUCT_PRICE_SHEET);
-    const activeFoodProviders = activeFoodProviders_(providerRows);
+    const activeFoodProviders = activeEligibleProviders_(providerRows, 'ALIMENTACAO');
     const linkedProducts = productsLinkedToActiveProvider_(productPriceRows, activeFoodProviders);
 
     return {
@@ -107,11 +150,14 @@ const CatalogAdminQueryService = (() => {
   function laborPrices_(input) {
     const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
     const functionRows = SheetRepository.readObjects(FUNCTION_SHEET);
+    const activeLaborProviders = activeEligibleProviders_(providerRows, 'MAO_DE_OBRA');
     const search = ValidationService.normalizeUpper(input.busca || '');
+
     const laborPriceRows = SheetRepository.readObjects(LABOR_PRICE_SHEET)
       .map(laborPriceAdminDto_)
       .filter(function (item) {
         if (!item.fornecedor || !item.funcao || !item.vigenciaInicio) return false;
+        if (!activeLaborProviders[ValidationService.normalizeUpper(item.fornecedor)]) return false;
         if (!search) return true;
         return [item.fornecedor, item.funcao, item.turno, item.tipoDia]
           .map(function (value) { return ValidationService.normalizeUpper(value || ''); })
@@ -122,10 +168,12 @@ const CatalogAdminQueryService = (() => {
     const paged = paginatePrices_(laborPriceRows, input);
 
     return {
-      funcoes: activeNamedDtos_(functionRows, 'FUNCAO'),
+      funcoes: activeNamedAdminDtos_(functionRows, 'FUNCAO'),
       fornecedores: providerRows
         .map(providerAdminDto_)
-        .filter(function (item) { return Boolean(item.nome); })
+        .filter(function (item) {
+          return Boolean(item.nome) && item.ativo && item.maoDeObra;
+        })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }),
       precosMaoObra: paged.items,
       paginacao: paged.pagination,
@@ -136,7 +184,7 @@ const CatalogAdminQueryService = (() => {
     const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
     const productRows = SheetRepository.readObjects(PRODUCT_SHEET);
     const productPriceRows = SheetRepository.readObjects(PRODUCT_PRICE_SHEET);
-    const activeFoodProviders = activeFoodProviders_(providerRows);
+    const activeFoodProviders = activeEligibleProviders_(providerRows, 'ALIMENTACAO');
     const linkedProducts = productsLinkedToActiveProvider_(productPriceRows, activeFoodProviders);
     const search = ValidationService.normalizeUpper(input.busca || '');
 
@@ -218,14 +266,18 @@ const CatalogAdminQueryService = (() => {
       .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
   }
 
-  function activeFoodProviders_(providerRows) {
+  function activeNamedAdminDtos_(rows, fieldName) {
+    return namedAdminDtos_(rows, fieldName).filter(function (item) { return item.ativo; });
+  }
+
+  function activeEligibleProviders_(providerRows, eligibilityField) {
     const active = {};
     (providerRows || []).forEach(function (row) {
       const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
       if (
         provider &&
         ValidationService.isTruthy(row.ATIVO) &&
-        ValidationService.isTruthy(row.ALIMENTACAO)
+        ValidationService.isTruthy(row[eligibilityField])
       ) {
         active[provider] = true;
       }
@@ -288,6 +340,60 @@ const CatalogAdminQueryService = (() => {
       categoria: ValidationService.normalizeUpper(row.CATEGORIA),
       ativo: ValidationService.isTruthy(row.ATIVO),
     };
+  }
+
+  function holidayAdminDto_(row) {
+    return {
+      data: row.DATA ? safeIsoDate_(row.DATA) : '',
+      denominacao: ValidationService.normalizeText(row.DENOMINACAO),
+      tipo: ValidationService.normalizeUpper(row.TIPO),
+      municipio: ValidationService.normalizeUpper(row.MUNICIPIO),
+      uf: ValidationService.normalizeUpper(row.UF),
+      ativo: ValidationService.isTruthy(row.ATIVO),
+      fonte: ValidationService.normalizeText(row.FONTE),
+    };
+  }
+
+  function metaRows_() {
+    try {
+      const spreadsheet = SheetRepository.getSpreadsheet();
+      const sheet = spreadsheet.getSheetByName(META_SHEET);
+      if (!sheet) return [];
+      const values = sheet.getDataRange().getValues();
+      if (values.length <= 1) return [];
+
+      return values.slice(1).map(function (row) {
+        const competence = normalizeCompetence_(row[0]);
+        const value = moneyNumber_(row[1]);
+        if (!competence) return null;
+        return { competencia: competence, valor: value };
+      }).filter(Boolean);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function normalizeCompetence_(value) {
+    if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
+      return Utilities.formatDate(value, DateService.TIMEZONE, 'yyyy-MM');
+    }
+
+    const text = String(value == null ? '' : value).trim();
+    if (/^\d{4}-\d{2}$/.test(text)) return text.slice(0, 7);
+
+    try {
+      return DateService.toIsoDate(value).slice(0, 7);
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function safeReadObjects_(sheetName) {
+    try {
+      return SheetRepository.readObjects(sheetName);
+    } catch (error) {
+      return [];
+    }
   }
 
   function laborPriceAdminDto_(row) {
@@ -373,6 +479,10 @@ const CatalogAdminQueryService = (() => {
         cacheKey_(SCOPES.SUMMARY),
         cacheKey_(SCOPES.OPERATIONS),
         cacheKey_(SCOPES.SUPERVISORS),
+        cacheKey_(SCOPES.FUNCTIONS),
+        cacheKey_(SCOPES.ACTIVITIES),
+        cacheKey_(SCOPES.HOLIDAYS),
+        cacheKey_(SCOPES.GOALS),
         cacheKey_(SCOPES.PROVIDERS),
         cacheKey_(SCOPES.PRODUCTS),
       ]);

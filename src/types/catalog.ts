@@ -2,7 +2,7 @@ export type TipoSolicitacao = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
 export type WhatsappDestino = 'NENHUM' | 'NUMERO' | 'GRUPO'
 export type CategoriaProduto = 'ALIMENTACAO' | 'BEBIDA'
 export type TipoDia = 'UTIL' | 'SABADO' | 'DOMINGO_FERIADO'
-export type CatalogAdminScope = 'RESUMO' | 'OPERACOES' | 'SUPERVISORES' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
+export type CatalogAdminScope = 'RESUMO' | 'OPERACOES' | 'SUPERVISORES' | 'FUNCOES' | 'ATIVIDADES' | 'FERIADOS' | 'METAS' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
 
 export interface CatalogoNomeDto {
   nome: string
@@ -10,6 +10,21 @@ export interface CatalogoNomeDto {
 
 export interface CatalogoAdminNomeDto extends CatalogoNomeDto {
   ativo: boolean
+}
+
+export interface FeriadoAdminDto {
+  data: string
+  denominacao: string
+  tipo: string
+  municipio: string
+  uf: string
+  ativo: boolean
+  fonte: string
+}
+
+export interface MetaMaoObraAdminDto {
+  competencia: string
+  valor: number
 }
 
 export interface FornecedorDto {
@@ -78,6 +93,8 @@ export interface CatalogosAdminResumoDto {
   atividades: number
   funcoes: number
   produtos: number
+  feriados?: number
+  metas?: number
 }
 
 export interface CatalogosAdminDto {
@@ -107,7 +124,10 @@ export interface CatalogosAdminScopeDto {
   resumoAtivos?: CatalogosAdminResumoDto
   operacoes?: CatalogoAdminNomeDto[]
   supervisores?: CatalogoAdminNomeDto[]
-  funcoes?: CatalogoNomeDto[]
+  funcoes?: CatalogoAdminNomeDto[]
+  atividades?: CatalogoAdminNomeDto[]
+  feriados?: FeriadoAdminDto[]
+  metas?: MetaMaoObraAdminDto[]
   fornecedores?: FornecedorAdminDto[]
   produtos?: ProdutoAdminDto[]
   precosMaoObra?: PrecoMaoObraAdminDto[]
@@ -118,6 +138,21 @@ export interface CatalogosAdminScopeDto {
 export interface SaveCatalogoAdminNomeInput {
   nome: string
   ativo: boolean
+}
+
+export interface SaveFeriadoAdminInput {
+  data: string
+  denominacao: string
+  tipo: string
+  municipio: string
+  uf: string
+  ativo: boolean
+  fonte: string
+}
+
+export interface SaveMetaMaoObraAdminInput {
+  competencia: string
+  valor: number
 }
 
 export interface SaveFornecedorAdminInput {
@@ -172,6 +207,14 @@ export type CatalogosAdminScopeApiResponse =
 
 export type CatalogoAdminNomeApiResponse =
   | { ok: true; data: CatalogoAdminNomeDto }
+  | { ok: false; error: ApiErrorDto }
+
+export type FeriadoAdminApiResponse =
+  | { ok: true; data: FeriadoAdminDto }
+  | { ok: false; error: ApiErrorDto }
+
+export type MetaMaoObraAdminApiResponse =
+  | { ok: true; data: MetaMaoObraAdminDto }
   | { ok: false; error: ApiErrorDto }
 
 export type FornecedorAdminApiResponse =

@@ -44,6 +44,8 @@ export function App() {
       prefetchCatalogoAdminScope('RESUMO')
       prefetchCatalogoAdminScope('OPERACOES')
       prefetchCatalogoAdminScope('SUPERVISORES')
+      prefetchCatalogoAdminScope('FUNCOES')
+      prefetchCatalogoAdminScope('ATIVIDADES')
       prefetchCatalogoAdminScope('FORNECEDORES')
       prefetchCatalogoAdminScope('PRODUTOS')
     }, 900)
@@ -57,6 +59,9 @@ export function App() {
         anoRegistro: period.anoRegistro,
         mesRegistro: period.mesRegistro,
       }).catch(() => undefined)
+
+      prefetchCatalogoAdminScope('FERIADOS')
+      prefetchCatalogoAdminScope('METAS')
 
       void fetchCatalogoAdminScope('PRECOS_MO', {
         pagina: 1,
