@@ -9,8 +9,12 @@ import type {
   CatalogosAdminScopeDto,
   CatalogosApiResponse,
   CatalogosDto,
+  FeriadoAdminApiResponse,
+  FeriadoAdminDto,
   FornecedorAdminApiResponse,
   FornecedorAdminDto,
+  MetaMaoObraAdminApiResponse,
+  MetaMaoObraAdminDto,
   ProdutoAdminApiResponse,
   ProdutoAdminDto,
   PrecoMaoObraAdminApiResponse,
@@ -18,7 +22,9 @@ import type {
   PrecoProdutoAdminApiResponse,
   PrecoProdutoAdminDto,
   SaveCatalogoAdminNomeInput,
+  SaveFeriadoAdminInput,
   SaveFornecedorAdminInput,
+  SaveMetaMaoObraAdminInput,
   SaveProdutoAdminInput,
   SavePrecoMaoObraAdminInput,
   SavePrecoProdutoAdminInput,
@@ -302,6 +308,22 @@ export async function saveSupervisorAdmin(input: SaveCatalogoAdminNomeInput): Pr
   return postAdmin<CatalogoAdminNomeDto>({ acao: 'SALVAR_SUPERVISOR', ...input })
 }
 
+export async function saveFuncaoAdmin(input: SaveCatalogoAdminNomeInput): Promise<CatalogoAdminNomeDto> {
+  return postAdmin<CatalogoAdminNomeDto>({ acao: 'SALVAR_FUNCAO', ...input })
+}
+
+export async function saveAtividadeAdmin(input: SaveCatalogoAdminNomeInput): Promise<CatalogoAdminNomeDto> {
+  return postAdmin<CatalogoAdminNomeDto>({ acao: 'SALVAR_ATIVIDADE', ...input })
+}
+
+export async function saveFeriadoAdmin(input: SaveFeriadoAdminInput): Promise<FeriadoAdminDto> {
+  return postAdmin<FeriadoAdminDto>({ acao: 'SALVAR_FERIADO', ...input })
+}
+
+export async function saveMetaMaoObraAdmin(input: SaveMetaMaoObraAdminInput): Promise<MetaMaoObraAdminDto> {
+  return postAdmin<MetaMaoObraAdminDto>({ acao: 'SALVAR_META_MO', ...input })
+}
+
 export async function saveFornecedorAdmin(input: SaveFornecedorAdminInput): Promise<FornecedorAdminDto> {
   return postAdmin<FornecedorAdminDto>({ acao: 'SALVAR_FORNECEDOR', ...input })
 }
@@ -320,6 +342,8 @@ export async function savePrecoProdutoAdmin(input: SavePrecoProdutoAdminInput): 
 
 export type _CatalogResponseGuards =
   | CatalogoAdminNomeApiResponse
+  | FeriadoAdminApiResponse
+  | MetaMaoObraAdminApiResponse
   | FornecedorAdminApiResponse
   | ProdutoAdminApiResponse
   | PrecoMaoObraAdminApiResponse
