@@ -334,7 +334,11 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
             <span>{LINEARITY_QUADRANTS.bottomRight}</span>
           </div>
 
-          <div className="analytics-linearity-axis-caption">Índice de linearidade →</div>
+          <svg className="analytics-linearity-axis-caption-svg" viewBox={`0 0 ${width} 18`} aria-hidden="true">
+            <text x={width / 2} y="12" textAnchor="middle" className="analytics-axis-title">
+              Índice de linearidade →
+            </text>
+          </svg>
         </div>
       ) : (
         <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>
