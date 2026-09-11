@@ -1,4 +1,4 @@
-import { authorizeGatewayRequest, type GatewayAuthEnv } from '../../_auth';
+import { authorizeAppSessionRequest, type GatewayAuthEnv } from '../../_auth';
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -11,23 +11,10 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 export const onRequestGet: PagesFunction<GatewayAuthEnv> = async ({ request, env }) => {
-  const identity = await authorizeGatewayRequest(request, env);
+  const identity = await authorizeAppSessionRequest(request, env);
 
-  if (!identity) {
-    return jsonResponse({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão não autenticada.' } }, 401);
-  }
-
-  if (identity.mode === 'test') {
-    return jsonResponse({
-      ok: true,
-      data: {
-        email: 'test-token',
-        name: 'Teste do gateway',
-        profile: 'OWNER',
-        operation: '',
-        provider: 'test',
-      },
-    });
+  if (!identity || identity.mode !== 'access' || identity.provider !== 'session') {
+    return jsonResponse({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } }, 401);
   }
 
   return jsonResponse({
@@ -35,9 +22,9 @@ export const onRequestGet: PagesFunction<GatewayAuthEnv> = async ({ request, env
     data: {
       email: identity.email,
       name: identity.name || identity.email,
-      profile: identity.profile || 'ADMINISTRATIVO',
+      profile: identity.profile || 'OPERACIONAL',
       operation: identity.operation || '',
-      provider: identity.provider,
+      provider: 'session',
     },
   });
 };
