@@ -69,7 +69,7 @@ const statusQueryMap: Record<string, string> = {
   Concluído: 'CONCLUIDO',
 }
 
-const pageSizeOptions = Array.from({ length: 19 }, (_, index) => 10 + index * 5)
+const allPageSizeOptions = Array.from({ length: 19 }, (_, index) => 10 + index * 5)
 
 function currentPeriod() {
   const now = new Date()
@@ -508,6 +508,14 @@ export function AdminSolicitationsPageCurrentPeriod() {
     setRegistrationDate('TODOS')
     setPeriodSummary(metadata?.resumo || null)
   }
+
+  const pageSizeLimit = total <= 10 ? 10 : Math.min(100, Math.ceil(total / 5) * 5)
+  const pageSizeOptions = allPageSizeOptions.filter((size) => size <= pageSizeLimit)
+
+  useEffect(() => {
+    if (pageSize <= pageSizeLimit) return
+    setPageSize(pageSizeLimit)
+  }, [pageSize, pageSizeLimit])
 
   const pageStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const pageEnd = Math.min(currentPage * pageSize, total)
