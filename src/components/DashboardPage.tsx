@@ -115,9 +115,7 @@ function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceC
         <div>
           <span className="ui-eyebrow">COMPETÊNCIA × ANTERIOR</span>
           <h2>Comparativo no mesmo intervalo realizado</h2>
-          <p>
-            Corte em {shortDate(comparison.dataCorte || '')} · {shortDate(current.periodoInicio)} a {shortDate(current.periodoFim)} versus {shortDate(previous.periodoInicio)} a {shortDate(previous.periodoFim)} · {comparison.diasComparados} dia(s)
-          </p>
+          <p>Corte em {shortDate(comparison.dataCorte || '')} · {shortDate(current.periodoInicio)} a {shortDate(current.periodoFim)} versus {shortDate(previous.periodoInicio)} a {shortDate(previous.periodoFim)} · {comparison.diasComparados} dia(s)</p>
         </div>
       </div>
       <div className="dashboard-comparison-table" role="table" aria-label="Comparativo entre competência selecionada e anterior">
@@ -276,16 +274,6 @@ export function DashboardPage() {
   const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
   const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null ? 'neutral' : kpis.atingimentoMetaPercentual > 100 ? 'danger' : kpis.atingimentoMetaPercentual > 85 ? 'warning' : 'success'
 
-  const paretoOperations = useMemo(() => {
-    if (!data) return []
-    const total = data.porOperacao.reduce((sum, item) => sum + item.realizado, 0)
-    let accumulated = 0
-    return data.porOperacao.slice(0, 10).map((item) => {
-      accumulated += item.realizado
-      return { ...item, acumulado: total ? (accumulated / total) * 100 : 0 }
-    })
-  }, [data])
-
   const metaAlertMessage = data?.alertaMeta.status === 'FORA_DA_META' ? `Mantido o ritmo atual, a projeção supera a meta em ${currency(Math.max(data.alertaMeta.desvioProjetadoMeta || 0, 0))}.` : data?.alertaMeta.mensagem || ''
   const remainingDailyLimit = data && kpis?.metaMaoObra != null && data.projecao.diasRestantes > 0 ? (kpis.metaMaoObra - kpis.realizadoMaoObra) / data.projecao.diasRestantes : null
   const remainingDailyMessage = remainingDailyLimit == null ? '' : remainingDailyLimit >= 0 ? `Limite médio restante: ${currency(remainingDailyLimit)}/dia por ${data?.projecao.diasRestantes || 0} dia(s).` : `A meta realizada já foi excedida em ${currency(Math.abs((kpis?.metaMaoObra || 0) - (kpis?.realizadoMaoObra || 0)))}.`
@@ -335,12 +323,8 @@ export function DashboardPage() {
       ) : (
         <div className="dashboard-view">
           <div className="dashboard-analytics-summary"><MetricCard label="Solicitações analisadas" value={String(kpis.totalSolicitacoes)} detail="Após aplicação dos filtros" /><MetricCard label="Divergências de comparecimento" value={String(kpis.divergenciasComparecimento)} detail="Quantidade solicitada ≠ comparecida" tone={kpis.divergenciasComparecimento ? 'warning' : 'success'} /><MetricCard label="Desvio financeiro" value={currency(kpis.diferencaValor)} detail="Realizado − previsto" tone={differenceTone} /><MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail="Meta global da competência" tone={metaTone} /></div>
-          <div className="dashboard-two-columns">
-            <section className="dashboard-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">PARETO</span><h2>Concentração por operação</h2><p>Participação acumulada do custo realizado.</p></div></div><div className="dashboard-pareto">{paretoOperations.map((item) => <div className="dashboard-pareto-row" key={item.chave}><strong>{item.chave}</strong><span>{currency(item.realizado)}</span><div><i style={{ width: `${Math.min(item.acumulado, 100)}%` }} /></div><small>{percent(item.acumulado)} acumulado</small></div>)}{!paretoOperations.length && <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}</div></section>
-            <HorizontalRanking title="Responsável pelo custo" subtitle="Separação entre custos Unilog, cliente e demais classificações." items={data.porResponsavelCusto} limit={6} />
-          </div>
-          <div className="dashboard-two-columns"><HorizontalRanking title="Supervisores" subtitle="Distribuição do custo realizado por supervisão." items={data.porSupervisor} limit={8} /><HorizontalRanking title="Atividades" subtitle="Atividades com maior concentração de custos extras." items={data.porAtividade} limit={8} /></div>
           <AdvancedAnalytics data={data} />
+          <div className="dashboard-two-columns"><HorizontalRanking title="Responsável pelo custo" subtitle="Separação entre custos Unilog, cliente e demais classificações." items={data.porResponsavelCusto} limit={6} /><HorizontalRanking title="Atividades" subtitle="Atividades com maior concentração de custos extras." items={data.porAtividade} limit={8} /></div>
         </div>
       )}</> : null}
     </div>
