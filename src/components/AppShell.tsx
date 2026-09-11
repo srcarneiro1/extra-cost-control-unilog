@@ -5,7 +5,7 @@ import type { AuthUser } from '../services/authService'
 const BRAND_LOGO='/brand/unilog-logo-white-transparent.svg'
 const MOBILE_SIDEBAR_ID='extra-cost-mobile-sidebar'
 
-export type AppSection='dashboard'|'solicitacoes'|'cadastros'
+export type AppSection='dashboard'|'solicitacoes'|'cadastros'|'usuarios'
 
 type Props=PropsWithChildren<{
   section:AppSection
@@ -21,11 +21,14 @@ export function AppShell({children,section,onNavigate,user,onLogout}:Props){
   const mobileMenuButtonRef=useRef<HTMLButtonElement>(null)
   const wasMobileOpen=useRef(false)
 
+  const canManageCatalogs=user.profile==='OWNER'||user.profile==='ADMINISTRATIVO'
+  const canManageUsers=user.profile==='OWNER'
+
   useEffect(()=>{
-    if(section!=='solicitacoes')return
+    if(section!=='solicitacoes'||!canManageCatalogs)return
     const timeout=window.setTimeout(()=>prefetchCatalogoAdminScope('FORNECEDORES'),1200)
     return()=>window.clearTimeout(timeout)
-  },[section])
+  },[section,canManageCatalogs])
 
   useEffect(()=>{
     if(wasMobileOpen.current&&!mobileOpen)mobileMenuButtonRef.current?.focus()
@@ -81,8 +84,8 @@ export function AppShell({children,section,onNavigate,user,onLogout}:Props){
 
   const identityLabel=user.name||user.email
   const avatar=(user.name||user.email||'A').slice(0,1).toUpperCase()
-  const pageTitle=section==='dashboard'?'Visão geral':section==='cadastros'?'Cadastros':'Solicitações'
-  const scopeTitle=section==='dashboard'?'Executivo · Custos extras':section==='cadastros'?'Administrativo · Catálogos':'Administrativo · Custos extras'
+  const pageTitle=section==='dashboard'?'Visão geral':section==='cadastros'?'Cadastros':section==='usuarios'?'Usuários':'Solicitações'
+  const scopeTitle=section==='dashboard'?'Executivo · Custos extras':section==='cadastros'?'Administrativo · Catálogos':section==='usuarios'?'Owner · Gestão de acessos':'Custos extras'
   const profileLabel=user.profile==='OWNER'?'Owner':user.profile==='OPERACIONAL'?'Operacional':'Administrativo'
 
   return <div className={`app-shell ${collapsed?'sidebar-collapsed':''}`}>
@@ -97,7 +100,8 @@ export function AppShell({children,section,onNavigate,user,onLogout}:Props){
       <nav className="sidebar-nav" aria-label="Seções do Extra Cost Control">
         <div><button type="button" className={`sidebar-link ${section==='dashboard'?'active':''}`.trim()} aria-current={section==='dashboard'?'page':undefined} onClick={()=>navigate('dashboard')}><span className="material-symbols-rounded" aria-hidden="true">space_dashboard</span><span className="nav-label">Visão geral</span></button></div>
         <div><button type="button" className={`sidebar-link ${section==='solicitacoes'?'active':''}`.trim()} aria-current={section==='solicitacoes'?'page':undefined} onClick={()=>navigate('solicitacoes')}><span className="material-symbols-rounded" aria-hidden="true">receipt_long</span><span className="nav-label">Solicitações</span></button></div>
-        <div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><button type="button" className={`sidebar-link ${section==='cadastros'?'active':''}`.trim()} aria-current={section==='cadastros'?'page':undefined} onPointerEnter={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onFocus={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onClick={()=>navigate('cadastros')}><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></button></div>
+        {canManageCatalogs&&<div className="admin-nav-item"><span className="nav-section-label">ADMINISTRAÇÃO</span><button type="button" className={`sidebar-link ${section==='cadastros'?'active':''}`.trim()} aria-current={section==='cadastros'?'page':undefined} onPointerEnter={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onFocus={()=>prefetchCatalogoAdminScope('FORNECEDORES')} onClick={()=>navigate('cadastros')}><span className="material-symbols-rounded" aria-hidden="true">tune</span><span className="nav-label">Cadastros</span></button></div>}
+        {canManageUsers&&<div><button type="button" className={`sidebar-link ${section==='usuarios'?'active':''}`.trim()} aria-current={section==='usuarios'?'page':undefined} onClick={()=>navigate('usuarios')}><span className="material-symbols-rounded" aria-hidden="true">manage_accounts</span><span className="nav-label">Usuários</span></button></div>}
       </nav>
 
       <div className="sidebar-user"><div className="user-avatar">{avatar}</div><div className="sidebar-user-copy" title={user.email}><strong>{identityLabel}</strong><span>{profileLabel}{user.operation?` · ${user.operation}`:''}</span></div><button type="button" onClick={onLogout} title="Sair" aria-label="Sair do Extra Cost Control"><span className="material-symbols-rounded" aria-hidden="true">logout</span></button></div>
