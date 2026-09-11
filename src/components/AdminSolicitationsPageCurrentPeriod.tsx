@@ -69,6 +69,8 @@ const statusQueryMap: Record<string, string> = {
   Concluído: 'CONCLUIDO',
 }
 
+const pageSizeOptions = Array.from({ length: 19 }, (_, index) => 10 + index * 5)
+
 function currentPeriod() {
   const now = new Date()
   return {
@@ -667,9 +669,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
             <div className="admin-pagination-size">
               <span>Registros por página</span>
               <select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))} aria-label="Registros por página">
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="20">20</option>
+                {pageSizeOptions.map((size) => <option key={size} value={size}>{size}</option>)}
               </select>
             </div>
             <span className="admin-pagination-range">{pageStart}–{pageEnd} de {total}</span>
