@@ -2,8 +2,6 @@ import {
   canAdministerSolicitations,
   canManageCatalogs,
   hasValidOperationScope,
-  identityOperation,
-  identityProfile,
   isOwner,
   operationScope,
   type GatewayIdentity,
@@ -81,12 +79,10 @@ export function enforceCreationScope(
   identity: GatewayIdentity,
   payload: Record<string, unknown>,
 ): Record<string, unknown> {
-  const profile = identityProfile(identity);
-  if (profile !== 'OPERACIONAL') return payload;
-
-  const operation = identityOperation(identity);
+  const scope = operationScope(identity);
+  if (!scope) return payload;
   return {
     ...payload,
-    operacao: operation,
+    operacao: scope,
   };
 }
