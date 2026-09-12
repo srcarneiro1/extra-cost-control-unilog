@@ -1,0 +1,140 @@
+.nx-catalog-page{display:grid;gap:16px;min-width:0}
+.nx-catalog-message.p-message{width:100%;margin:0;border-radius:12px}
+
+.nx-catalog-navigation{min-width:0;max-width:100%}
+.nx-catalog-tabmenu.p-tabmenu{max-width:100%;overflow:hidden}
+.nx-catalog-tabmenu .p-tabmenu-nav{
+  display:flex;
+  gap:6px;
+  max-width:100%;
+  padding:4px 2px 10px;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  border:0;
+  background:transparent;
+}
+.nx-catalog-tabmenu .p-tabmenuitem{flex:0 0 auto}
+.nx-catalog-tabmenu .p-menuitem-link{
+  min-height:42px;
+  padding:.7rem .9rem;
+  border:1px solid #e0e4e8!important;
+  border-radius:10px!important;
+  background:#fff!important;
+  color:#646b75!important;
+  box-shadow:none!important;
+  font-size:10px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.nx-catalog-tabmenu .p-tabmenuitem.p-highlight .p-menuitem-link{
+  border-color:#171b24!important;
+  background:#171b24!important;
+  color:#fff!important;
+}
+.nx-catalog-tabmenu .p-menuitem-icon{font-size:12px}
+.nx-catalog-mobile-nav{display:none;width:100%}
+
+.nx-catalog-panel.p-card{min-width:0;overflow:hidden}
+.nx-catalog-toolbar{
+  display:flex;
+  align-items:center;
+  padding:13px 18px;
+  border-top:1px solid #edf0f2;
+  border-bottom:1px solid #edf0f2;
+  background:#fbfcfd;
+}
+.nx-catalog-toolbar .nx-prime-search{width:min(480px,100%)}
+.nx-catalog-table{min-width:0}
+.nx-catalog-table .p-datatable-wrapper{
+  max-width:100%;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.nx-catalog-table table{min-width:720px}
+.nx-catalog-price-table table{min-width:1040px}
+.nx-catalog-table .p-datatable-thead>tr>th{
+  padding:.82rem .9rem;
+  border-color:#edf0f2;
+  background:#f8f9fb;
+  color:#59616c;
+  font-size:9px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  white-space:nowrap;
+}
+.nx-catalog-table .p-datatable-tbody>tr>td{
+  padding:.82rem .9rem;
+  border-color:#edf0f2;
+  color:#444b55;
+  font-size:11px;
+  line-height:1.4;
+  vertical-align:middle;
+}
+.nx-catalog-table .p-datatable-tbody>tr:hover{background:#fbfcfd}
+.nx-catalog-action.p-button{min-height:34px;white-space:nowrap}
+.nx-catalog-badges{display:flex;flex-wrap:wrap;gap:5px}
+.nx-catalog-paginator.p-paginator{
+  border:0;
+  border-top:1px solid #edf0f2;
+  border-radius:0;
+  background:#fff;
+  padding:.65rem .8rem;
+}
+
+.nx-catalog-editor{min-width:0}
+.nx-catalog-form-stack{display:grid;gap:16px;min-width:0}
+.nx-catalog-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
+.nx-catalog-field{display:grid;gap:7px;min-width:0;color:#525965}
+.nx-catalog-field>span{font-size:10px;font-weight:750}
+.nx-catalog-field>small{font-size:9px;line-height:1.45;color:#858b94}
+.nx-catalog-field .p-inputtext,
+.nx-catalog-field .p-dropdown,
+.nx-catalog-field .p-inputnumber,
+.nx-catalog-field .p-inputnumber-input{width:100%;min-width:0}
+.nx-catalog-field .p-inputtext,
+.nx-catalog-field .p-dropdown{min-height:44px}
+.nx-catalog-switch-field{align-content:start}
+.nx-catalog-switch-row{min-height:44px;display:flex;align-items:center;gap:10px}
+.nx-catalog-switch-row strong{font-size:10px;color:#555d68}
+.nx-catalog-checkbox-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.nx-catalog-check{
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:10px 12px;
+  border:1px solid #e3e6ea;
+  border-radius:10px;
+  background:#fafbfc;
+  color:#555d68;
+  font-size:10px;
+  font-weight:700;
+  cursor:pointer;
+}
+.nx-catalog-check .p-checkbox{flex:0 0 auto}
+
+@media(max-width:900px){
+  .nx-catalog-form-grid{grid-template-columns:1fr}
+  .nx-catalog-checkbox-grid{grid-template-columns:1fr}
+}
+
+@media(max-width:760px){
+  .nx-catalog-tabmenu{display:none}
+  .nx-catalog-mobile-nav{display:flex}
+  .nx-catalog-toolbar{padding:11px 12px}
+  .nx-catalog-toolbar .nx-prime-search{width:100%}
+  .nx-catalog-table table{min-width:680px}
+  .nx-catalog-price-table table{min-width:940px}
+  .nx-catalog-paginator.p-paginator{justify-content:center;padding:.55rem .35rem}
+  .nx-catalog-paginator .p-paginator-current{width:100%;text-align:center;margin:0 0 5px}
+}
+
+@media(max-width:480px){
+  .nx-catalog-table table{min-width:640px}
+  .nx-catalog-price-table table{min-width:900px}
+  .nx-catalog-check{min-height:44px}
+}
