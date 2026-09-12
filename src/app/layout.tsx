@@ -18,6 +18,7 @@ import './prime-analytics.css'
 import './prime-workflow.css'
 import './prime-cadastros.css'
 import './prime-solicitations.css'
+import './prime-dashboard.css'
 import './prime-legacy-detox.css'
 
 export const metadata: Metadata = {
