@@ -1,9 +1,10 @@
-/* Unified visual language for the migrated PrimeReact interface.
-   Loaded last: this file intentionally normalizes legacy colors and spacing. */
+/* Canonical visual language for the Next.js + PrimeReact interface.
+   This file is loaded last and is the visual source of truth for active screens. */
 
 :root{
   --unilog-red:#db0812;
   --unilog-red-dark:#b8070f;
+  --unilog-red-soft:#fdecee;
   --unilog-ink:#171b24;
   --unilog-ink-2:#242a36;
   --unilog-graphite:#494a56;
@@ -18,179 +19,136 @@
   --unilog-warning:#a87900;
   --unilog-danger:#c91a23;
   --unilog-radius:14px;
+  --unilog-control-radius:10px;
   --unilog-shadow:0 6px 22px rgba(18,24,34,.045);
+  --unilog-shadow-raised:0 18px 44px rgba(18,24,34,.12);
+
+  /* PrimeReact Lara exposes these variables. Override the indigo defaults so
+     focus/highlight states never reintroduce colors outside the Unilog system. */
+  --primary-color:var(--unilog-red);
+  --primary-color-text:#fff;
+  --highlight-bg:var(--unilog-red-soft);
+  --highlight-text-color:var(--unilog-ink-2);
+  --focus-ring:0 0 0 .2rem rgba(219,8,18,.11);
 }
+
+body{background:var(--unilog-canvas)!important;color:var(--unilog-ink-2)}
 
 /* --------------------------------------------------------------------------
    SHELL
    -------------------------------------------------------------------------- */
-.nx-sidebar{
-  background:linear-gradient(180deg,#171b24 0%,#202632 100%)!important;
-}
+.nx-sidebar{background:linear-gradient(180deg,#171b24 0%,#202632 100%)!important}
 .nx-sidebar-brand{margin-bottom:18px!important}
-.nx-navigation{
-  align-content:start!important;
-  grid-auto-rows:max-content!important;
-  gap:5px!important;
-}
+.nx-navigation{align-content:start!important;grid-auto-rows:max-content!important;gap:5px!important}
 .nx-admin-group{align-self:start!important}
 .nx-nav-caption{padding:18px 12px 7px!important}
-.nx-nav-item{
-  min-height:44px!important;
-  border-radius:10px!important;
-}
-.nx-nav-item.is-active{
-  background:#303642!important;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
-}
-.nx-nav-item.is-active:before{
-  top:9px!important;
-  bottom:9px!important;
-  width:3px!important;
-  background:var(--unilog-red)!important;
-}
-.nx-user-card{
-  background:transparent!important;
-  border-top:1px solid rgba(255,255,255,.1)!important;
-}
+.nx-nav-item{min-height:44px!important;border-radius:10px!important}
+.nx-nav-item.is-active{background:#303642!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.025)}
+.nx-nav-item.is-active:before{top:9px!important;bottom:9px!important;width:3px!important;background:var(--unilog-red)!important}
+.nx-user-card{background:transparent!important;border-top:1px solid rgba(255,255,255,.1)!important}
 .nx-avatar.p-avatar{background:#515968!important}
-.nx-user-card>.nx-icon-button{
-  width:40px!important;
-  height:40px!important;
-  border-radius:10px!important;
-}
+.nx-user-card>.nx-icon-button{width:40px!important;height:40px!important;border-radius:10px!important}
+.nx-topbar{border-bottom-color:var(--unilog-border)!important}
+.nx-topbar-title strong{color:var(--unilog-ink)!important}
 
 @media(max-width:1180px){
-  .nx-sidebar{
-    width:min(78vw,292px)!important;
-    padding:18px 12px max(14px,env(safe-area-inset-bottom))!important;
-  }
-  .nx-navigation{
-    display:grid!important;
-    flex:1 1 auto!important;
-    align-content:start!important;
-    grid-auto-rows:max-content!important;
-    gap:5px!important;
-    padding-bottom:18px!important;
-  }
+  .nx-sidebar{width:min(78vw,292px)!important;padding:18px 12px max(14px,env(safe-area-inset-bottom))!important}
+  .nx-navigation{display:grid!important;flex:1 1 auto!important;align-content:start!important;grid-auto-rows:max-content!important;gap:5px!important;padding-bottom:18px!important}
   .nx-admin-group:first-of-type{margin-top:8px!important}
-  .nx-user-card{
-    margin-top:auto!important;
-    padding-top:14px!important;
-  }
+  .nx-user-card{margin-top:auto!important;padding-top:14px!important}
 }
 
 /* --------------------------------------------------------------------------
-   CARDS
+   PRIME COMPONENTS — GLOBAL NORMALIZATION
    -------------------------------------------------------------------------- */
-.p-card,
-.nx-prime-panel.p-card,
-.nx-dashboard-filter-card.p-card,
-.nx-dashboard-section-card.p-card,
-.nx-analytics-card.p-card,
-.nx-dashboard-metric-card.p-card,
-.nx-dashboard-alert-card.p-card{
+.p-component{font-family:Inter,Roboto,Arial,Helvetica,sans-serif}
+.p-button{border-radius:var(--unilog-control-radius)!important;box-shadow:none!important}
+.p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-secondary):not(.p-button-danger):not(.p-button-success):not(.p-button-warning){background:var(--unilog-red);border-color:var(--unilog-red);color:#fff}
+.p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-secondary):not(.p-button-danger):not(.p-button-success):not(.p-button-warning):enabled:hover{background:var(--unilog-red-dark);border-color:var(--unilog-red-dark)}
+.p-button.p-button-outlined{background:#fff;color:var(--unilog-graphite);border-color:#d7dbe0}
+.p-button.p-button-outlined:enabled:hover{background:#f7f8f9;color:var(--unilog-ink);border-color:#c9cdd2}
+.p-button.p-button-text{color:var(--unilog-graphite)}
+.p-button.p-button-text:enabled:hover{background:#f2f3f5;color:var(--unilog-ink)}
+.p-inputtext,.p-dropdown,.p-password-input,.p-inputtextarea{border-radius:var(--unilog-control-radius)!important;border-color:#d9dde3!important;box-shadow:none!important}
+.p-inputtext:enabled:focus,.p-inputtextarea:enabled:focus,.p-dropdown:not(.p-disabled).p-focus{border-color:var(--unilog-red)!important;box-shadow:0 0 0 3px rgba(219,8,18,.08)!important}
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight,.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight.p-focus{background:var(--unilog-red-soft)!important;color:var(--unilog-ink-2)!important}
+.p-checkbox .p-checkbox-box.p-highlight,.p-checkbox.p-highlight .p-checkbox-box{background:var(--unilog-red)!important;border-color:var(--unilog-red)!important}
+.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider{background:var(--unilog-red)!important}
+.p-selectbutton .p-button.p-highlight,.nx-dashboard-tabs .p-button.p-highlight{background:var(--unilog-ink)!important;border-color:var(--unilog-ink)!important;color:#fff!important}
+.p-tabmenu .p-tabmenu-nav .p-menuitem.p-highlight .p-menuitem-link{border-color:var(--unilog-red)!important;color:var(--unilog-red)!important}
+.p-paginator .p-paginator-page.p-highlight{background:var(--unilog-ink)!important;color:#fff!important;border-color:var(--unilog-ink)!important}
+.p-datatable .p-datatable-thead>tr>th{background:#f8f9fb!important;color:#59616c!important;border-color:var(--unilog-border-soft)!important}
+.p-datatable .p-datatable-tbody>tr>td{border-color:var(--unilog-border-soft)!important;color:#444b55}
+.p-datatable .p-datatable-tbody>tr:hover{background:#fbfcfd!important}
+.p-dialog{border:1px solid var(--unilog-border)!important;border-radius:18px!important;box-shadow:var(--unilog-shadow-raised)!important}
+.p-dialog .p-dialog-header,.p-dialog .p-dialog-footer{background:#fbfcfd!important;border-color:var(--unilog-border-soft)!important}
+.p-toolbar{border-color:var(--unilog-border-soft)!important}
+.p-tag.p-tag-success{background:#edf6f0!important;color:#35694a!important}
+.p-tag.p-tag-warning{background:#fff6d8!important;color:#8c6800!important}
+.p-tag.p-tag-danger{background:#fff0f1!important;color:#a81920!important}
+.p-tag.p-tag-secondary{background:#f1f2f4!important;color:#59616c!important}
+
+/* --------------------------------------------------------------------------
+   CARDS / PANELS
+   -------------------------------------------------------------------------- */
+.p-card,.nx-prime-panel.p-card,.nx-dashboard-filter-card.p-card,.nx-dashboard-section-card.p-card,.nx-analytics-card.p-card,.nx-dashboard-metric-card.p-card,.nx-dashboard-alert-card.p-card{
   border:1px solid var(--unilog-border)!important;
   border-radius:var(--unilog-radius)!important;
   background:var(--unilog-surface)!important;
   box-shadow:var(--unilog-shadow)!important;
 }
-.dashboard-card-header,
-.nx-chart-card-header{
+.dashboard-card-header,.nx-chart-card-header{
   padding:16px 18px!important;
   border-bottom:1px solid var(--unilog-border-soft)!important;
   background:linear-gradient(180deg,#fff 0%,#fcfcfd 100%)!important;
 }
-.dashboard-card-header .ui-eyebrow,
-.nx-chart-card-header .ui-eyebrow{
-  color:var(--unilog-muted)!important;
-}
-.dashboard-card-header h2,
-.nx-chart-card-header h2{
-  color:var(--unilog-ink-2)!important;
-}
-.dashboard-card-header p,
-.nx-chart-card-header p{
-  color:var(--unilog-graphite-2)!important;
-}
+.dashboard-card-header .ui-eyebrow,.nx-chart-card-header .ui-eyebrow{color:var(--unilog-muted)!important}
+.dashboard-card-header h2,.nx-chart-card-header h2{color:var(--unilog-ink-2)!important}
+.dashboard-card-header p,.nx-chart-card-header p{color:var(--unilog-graphite-2)!important}
+.ui-panel-header,.nx-prime-panel-header{border-color:var(--unilog-border-soft)!important}
+.ui-eyebrow{color:var(--unilog-muted)!important}
 
-/* KPI colors: brand accent for information, semantic colors only for states. */
+/* KPI colors: graphite for information; semantic colors only for states. */
 .dashboard-metric-info{border-left-color:var(--unilog-graphite)!important}
 .dashboard-metric-success{border-left-color:var(--unilog-success)!important}
 .dashboard-metric-warning{border-left-color:var(--unilog-warning)!important}
 .dashboard-metric-danger{border-left-color:var(--unilog-danger)!important}
 .nx-dashboard-metric-card .p-card-content>strong{color:var(--unilog-ink-2)!important}
-.nx-dashboard-metric-card .p-card-content>span,
-.nx-dashboard-metric-card .p-card-content>small{color:var(--unilog-muted)!important}
+.nx-dashboard-metric-card .p-card-content>span,.nx-dashboard-metric-card .p-card-content>small{color:var(--unilog-muted)!important}
 
 /* --------------------------------------------------------------------------
    PRIME CHARTS
    -------------------------------------------------------------------------- */
-.nx-chart-card.p-card>.p-card-body,
-.nx-chart-card.p-card>.p-card-body>.p-card-content{
-  padding:0!important;
-}
-.nx-chart-stage{
-  position:relative;
-  width:100%;
-  height:300px;
-  padding:16px 18px 18px;
-  background:#fff;
-}
-.nx-chart-stage-pareto{height:330px}
+.nx-chart-card.p-card>.p-card-body,.nx-chart-card.p-card>.p-card-body>.p-card-content{padding:0!important}
+.nx-chart-stage{position:relative;width:100%;height:300px;padding:16px 18px 18px;background:#fff;min-width:0}
+.nx-chart-stage-pareto{height:350px;padding-bottom:24px}
 .nx-chart-stage-scatter{height:360px}
+.nx-dashboard-ranking-stage{height:300px}
+.nx-dashboard-projection-stage{height:320px}
 .nx-chart-stage canvas{max-width:100%!important}
-.analytics-highlight{
-  align-self:flex-start;
-  padding:6px 9px;
-  border:1px solid rgba(219,8,18,.16);
-  border-radius:999px;
-  background:rgba(219,8,18,.055);
-  color:var(--unilog-red)!important;
-  font-size:9px!important;
-  font-weight:800!important;
-  white-space:nowrap;
-}
+.analytics-highlight{align-self:flex-start;padding:6px 9px;border:1px solid rgba(219,8,18,.16);border-radius:999px;background:rgba(219,8,18,.055);color:var(--unilog-red)!important;font-size:9px!important;font-weight:800!important;white-space:nowrap}
 
-/* Heatmap: keep custom structure, but normalize it to brand neutrals. */
+/* Heatmap stays custom because it is a matrix, but inherits the same palette. */
 .analytics-heatmap-head strong{color:var(--unilog-muted)!important}
-.analytics-heatmap-row>strong{
-  background:#fff!important;
-  color:var(--unilog-ink-2)!important;
-  border-right-color:var(--unilog-border)!important;
-}
-.analytics-heatmap-row>span{
-  border-color:#e4e6e9!important;
-  background:color-mix(in srgb,var(--unilog-red) calc(var(--heat) * 42%),#f4f5f6)!important;
-  color:var(--unilog-ink-2)!important;
-}
-.analytics-heatmap-row>span[style*="--heat:1"],
-.analytics-heatmap-row>span[style*="--heat:0.9"],
-.analytics-heatmap-row>span[style*="--heat:0.8"]{color:#fff!important}
+.analytics-heatmap-row>strong{background:#fff!important;color:var(--unilog-ink-2)!important;border-right-color:var(--unilog-border)!important}
+.analytics-heatmap-row>span{border-color:#e4e6e9!important;background:color-mix(in srgb,var(--unilog-red) calc(var(--heat) * 42%),#f4f5f6)!important;color:var(--unilog-ink-2)!important}
+.analytics-heatmap-row>span[style*="--heat:1"],.analytics-heatmap-row>span[style*="--heat:0.9"],.analytics-heatmap-row>span[style*="--heat:0.8"]{color:#fff!important}
 
-/* Opportunity cards also use restrained state accents. */
-.analytics-opportunity{
-  border-color:var(--unilog-border)!important;
-  background:#fafbfc!important;
-}
-.analytics-opportunity>span{
-  background:#f1f2f4!important;
-  color:var(--unilog-graphite)!important;
-}
-.analytics-opportunity-alta{border-left-color:var(--unilog-danger)!important}
-.analytics-opportunity-media{border-left-color:var(--unilog-warning)!important}
-.analytics-opportunity-info{border-left-color:var(--unilog-graphite)!important}
+/* Evidence / opportunity cards use semantic Tags, not decorative status colors. */
+.nx-opportunity-list{display:grid!important;gap:10px!important;padding:14px!important}
+.nx-opportunity-card{display:grid!important;grid-template-columns:34px minmax(0,1fr)!important;gap:12px!important;padding:14px!important;border:1px solid var(--unilog-border)!important;border-left:3px solid var(--unilog-graphite)!important;border-radius:12px!important;background:#fafbfc!important}
+.nx-opportunity-index{display:grid!important;place-items:center;width:30px!important;height:30px!important;border-radius:50%!important;background:#f1f2f4!important;color:var(--unilog-graphite)!important;font-weight:800!important}
+.nx-opportunity-copy{display:grid!important;gap:5px!important;min-width:0}
+.nx-opportunity-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.nx-opportunity-title-row>strong{min-width:0;color:var(--unilog-ink-2);overflow-wrap:anywhere}
+.nx-opportunity-copy p,.nx-opportunity-copy small{margin:0!important;line-height:1.45!important;color:var(--unilog-muted)!important}
+.nx-opportunity-copy small>strong{color:var(--unilog-graphite)!important}
 
 /* --------------------------------------------------------------------------
-   EXECUTIVE DASHBOARD CHARTS STILL CUSTOM
+   EXECUTIVE CUSTOM STRUCTURES
    -------------------------------------------------------------------------- */
-.dashboard-comparison-chart-header .is-current,
-.dashboard-comparison-chart-line i.is-current,
-.legend-real,
-.chart-legend-realized{background:var(--unilog-graphite)!important}
-.dashboard-comparison-chart-header .is-previous,
-.dashboard-comparison-chart-line i.is-previous,
-.legend-planned{background:#cfd3d9!important}
+.dashboard-comparison-chart-header .is-current,.dashboard-comparison-chart-line i.is-current,.legend-real,.chart-legend-realized{background:var(--unilog-graphite)!important}
+.dashboard-comparison-chart-header .is-previous,.dashboard-comparison-chart-line i.is-previous,.legend-planned{background:#cfd3d9!important}
 .chart-legend-expected{background:#9aa0a8!important}
 .chart-legend-projection{background:var(--unilog-red)!important}
 .dashboard-chart-realized{stroke:var(--unilog-graphite)!important}
@@ -199,8 +157,12 @@
 .dashboard-chart-grid{stroke:#eceef1!important}
 .dashboard-bar-real{background:var(--unilog-graphite)!important}
 .dashboard-bar-planned{background:#d6d9dd!important}
+.dashboard-daily-item{background:#fff!important}
+.dashboard-daily-item>strong{color:var(--unilog-ink-2)!important}
+.dashboard-daily-item>span,.dashboard-daily-item>small{color:var(--unilog-muted)!important}
+.dashboard-comparison-insight{border-color:var(--unilog-border-soft)!important;background:#fafbfc!important}
 
-/* Meta card: success/warning/error are semantics, not arbitrary palette. */
+/* Meta status colors are semantic. */
 .dashboard-meta-alert-dentro_da_meta{border-left-color:var(--unilog-success)!important}
 .dashboard-meta-alert-dentro_da_meta .dashboard-meta-alert-icon{background:#edf6f0!important;color:var(--unilog-success)!important}
 .dashboard-meta-alert-no_limite_da_meta{border-left-color:var(--unilog-warning)!important}
@@ -208,21 +170,24 @@
 .dashboard-meta-alert-fora_da_meta{border-left-color:var(--unilog-danger)!important}
 .dashboard-meta-alert-fora_da_meta .dashboard-meta-alert-icon{background:#fff0f1!important;color:var(--unilog-danger)!important}
 
-/* Controls use the same brand accent. */
-.p-dropdown:not(.p-disabled).p-focus,
-.p-inputtext:enabled:focus{
-  border-color:var(--unilog-red)!important;
-  box-shadow:0 0 0 3px rgba(219,8,18,.08)!important;
-}
-.nx-dashboard-tabs .p-button.p-highlight{
-  background:var(--unilog-ink)!important;
-  color:#fff!important;
-}
+/* --------------------------------------------------------------------------
+   SOLICITAÇÕES / CADASTROS / USUÁRIOS / WORKFLOW
+   -------------------------------------------------------------------------- */
+.admin-page .ui-panel,.catalog-page .ui-panel,.workflow-section,.nx-prime-data-panel{border-color:var(--unilog-border)!important;background:#fff!important}
+.nx-table-toolbar,.catalog-list-toolbar{background:#fbfcfd!important;border-color:var(--unilog-border-soft)!important}
+.workflow-section-heading,.nx-workflow-section-heading{border-color:var(--unilog-border-soft)!important}
+.nx-workflow-section-icon{background:#f1f2f4!important;color:var(--unilog-graphite)!important}
+.workflow-detail-field{border-color:var(--unilog-border-soft)!important;background:#fafbfc!important}
+.workflow-detail-field>span{color:var(--unilog-muted)!important}
+.workflow-detail-field>strong{color:var(--unilog-ink-2)!important}
+.nx-catalog-action.p-button{color:var(--unilog-graphite)!important}
 
 @media(max-width:900px){
   .nx-chart-stage{height:280px;padding:14px 12px 16px}
-  .nx-chart-stage-pareto{height:330px}
+  .nx-chart-stage-pareto{height:350px;padding-bottom:28px}
   .nx-chart-stage-scatter{height:320px}
+  .nx-dashboard-ranking-stage{height:290px}
+  .nx-dashboard-projection-stage{height:290px}
 }
 
 @media(max-width:600px){
@@ -230,8 +195,12 @@
   .nx-chart-card-header h2{font-size:14px!important}
   .nx-chart-card-header p{font-size:10px!important;line-height:1.45!important}
   .nx-chart-stage{height:250px;padding:12px 8px 14px}
-  .nx-chart-stage-pareto{height:300px}
+  .nx-chart-stage-pareto{height:320px;padding:10px 6px 32px}
   .nx-chart-stage-scatter{height:285px}
+  .nx-dashboard-ranking-stage{height:280px}
+  .nx-dashboard-projection-stage{height:270px}
   .analytics-highlight{display:none}
   .analytics-heatmap{padding:10px!important}
+  .nx-opportunity-card{grid-template-columns:30px minmax(0,1fr)!important;padding:12px!important;gap:10px!important}
+  .nx-opportunity-title-row{align-items:flex-start;display:grid;gap:6px}
 }
