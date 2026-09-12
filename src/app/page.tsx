@@ -6,12 +6,26 @@ import { Button } from 'primereact/button'
 import { InputText } from 'primereact/inputtext'
 import { Password } from 'primereact/password'
 import { Tag } from 'primereact/tag'
+import { AdminSolicitationsPageCurrentPeriod } from '@/components/AdminSolicitationsPageCurrentPeriod'
+import { CadastrosPagePaginated } from '@/components/CadastrosPagePaginated'
+import { DashboardPage } from '@/components/DashboardPage'
+import { UsersPage } from '@/components/UsersPage'
+import {
+  fetchCatalogoAdminScope,
+  fetchCatalogos,
+  prefetchCatalogoAdminScope,
+} from '@/services/catalogService'
+import { prefetchDashboard } from '@/services/dashboardService'
 import {
   getCurrentUser,
   login,
   logout,
   type AuthUser,
 } from '@/services/authService'
+import {
+  fetchAdministrativeSolicitationMetadata,
+  fetchAdministrativeSolicitations,
+} from '@/services/solicitationService'
 
 type Section = 'dashboard' | 'solicitacoes' | 'cadastros' | 'usuarios'
 
@@ -30,33 +44,46 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'usuarios', label: 'Usuários', icon: 'pi pi-users', administrative: true, ownerOnly: true },
 ]
 
-const SECTION_COPY: Record<Section, { title: string; eyebrow: string; description: string }> = {
-  dashboard: {
-    eyebrow: 'EXECUTIVO',
-    title: 'Visão geral',
-    description: 'Indicadores e leitura consolidada dos custos extras.',
-  },
-  solicitacoes: {
-    eyebrow: 'OPERAÇÃO',
-    title: 'Solicitações',
-    description: 'Fluxo operacional, triagem e acompanhamento dos lançamentos.',
-  },
-  cadastros: {
-    eyebrow: 'ADMINISTRAÇÃO',
-    title: 'Cadastros',
-    description: 'Catálogos, fornecedores, preços e parâmetros da operação.',
-  },
-  usuarios: {
-    eyebrow: 'CONTROLE DE ACESSO',
-    title: 'Usuários',
-    description: 'Perfis, escopos e credenciais da plataforma.',
-  },
+const SECTION_COPY: Record<Section, { title: string; scope: string }> = {
+  dashboard: { title: 'Visão geral', scope: 'Executivo · Custos extras' },
+  solicitacoes: { title: 'Solicitações', scope: 'Custos extras' },
+  cadastros: { title: 'Cadastros', scope: 'Administrativo · Catálogos' },
+  usuarios: { title: 'Usuários', scope: 'Owner · Gestão de acessos' },
+}
+
+function currentPeriod() {
+  const now = new Date()
+  return {
+    anoRegistro: String(now.getFullYear()),
+    mesRegistro: String(now.getMonth() + 1).padStart(2, '0'),
+  }
+}
+
+function adjacentDashboardCompetence(offset: number, operation = 'TODOS') {
+  const now = new Date()
+  const closingMonth = now.getMonth() + (now.getDate() >= 21 ? 1 : 0)
+  const target = new Date(now.getFullYear(), closingMonth + offset, 1)
+  return {
+    ano: String(target.getFullYear()),
+    mesCompetencia: String(target.getMonth() + 1).padStart(2, '0'),
+    operacao: operation,
+    supervisor: 'TODOS' as const,
+    fornecedor: 'TODOS' as const,
+    tipo: 'TODOS' as const,
+    responsavelCusto: 'TODOS' as const,
+    atividade: 'TODOS' as const,
+  }
 }
 
 function canAccess(user: AuthUser, item: NavItem) {
   if (item.ownerOnly) return user.profile === 'OWNER'
   if (item.administrative) return user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
   return true
+}
+
+function canNavigate(user: AuthUser, section: Section) {
+  const item = NAV_ITEMS.find((candidate) => candidate.key === section)
+  return item ? canAccess(user, item) : false
 }
 
 function profileLabel(profile: string) {
@@ -161,7 +188,6 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
               label={loading ? 'Entrando…' : 'Entrar'}
               icon={loading ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'}
               iconPos="right"
-              loading={false}
               disabled={loading}
               className="nx-primary-button"
             />
@@ -177,8 +203,11 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
   )
 }
 
-function AppShellPreview({ user, onExit }: { user: AuthUser; onExit: () => Promise<void> }) {
+function FunctionalShell({ user, onExit }: { user: AuthUser; onExit: () => Promise<void> }) {
   const [section, setSection] = useState<Section>('dashboard')
+  const [mountedSections, setMountedSections] = useState<Set<Section>>(
+    () => new Set<Section>(['dashboard']),
+  )
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const copy = SECTION_COPY[section]
@@ -187,6 +216,79 @@ function AppShellPreview({ user, onExit }: { user: AuthUser; onExit: () => Promi
     () => NAV_ITEMS.filter((item) => canAccess(user, item)),
     [user],
   )
+
+  useEffect(() => {
+    const canManageCatalogs = user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
+    const operation = user.profile === 'OWNER' || !user.operation ? 'TODOS' : user.operation
+
+    const firstWave = window.setTimeout(() => {
+      const period = currentPeriod()
+      void fetchAdministrativeSolicitations({
+        pagina: 1,
+        tamanhoPagina: 20,
+        anoRegistro: period.anoRegistro,
+        mesRegistro: period.mesRegistro,
+      }).catch(() => undefined)
+      void fetchAdministrativeSolicitationMetadata().catch(() => undefined)
+
+      if (canManageCatalogs) {
+        void fetchCatalogos().catch(() => undefined)
+        prefetchCatalogoAdminScope('RESUMO')
+        prefetchCatalogoAdminScope('OPERACOES')
+        prefetchCatalogoAdminScope('SUPERVISORES')
+        prefetchCatalogoAdminScope('FUNCOES')
+        prefetchCatalogoAdminScope('ATIVIDADES')
+        prefetchCatalogoAdminScope('FORNECEDORES')
+        prefetchCatalogoAdminScope('PRODUTOS')
+      }
+    }, 900)
+
+    const secondWave = window.setTimeout(() => {
+      const period = currentPeriod()
+      void fetchAdministrativeSolicitations({
+        pagina: 2,
+        tamanhoPagina: 20,
+        anoRegistro: period.anoRegistro,
+        mesRegistro: period.mesRegistro,
+      }).catch(() => undefined)
+      prefetchDashboard(adjacentDashboardCompetence(-1, operation))
+
+      if (canManageCatalogs) {
+        prefetchCatalogoAdminScope('FERIADOS')
+        prefetchCatalogoAdminScope('METAS')
+        void fetchCatalogoAdminScope('PRECOS_MO', {
+          pagina: 1,
+          tamanhoPagina: 25,
+        }).catch(() => undefined)
+        void fetchCatalogoAdminScope('PRECOS_PRODUTOS', {
+          pagina: 1,
+          tamanhoPagina: 25,
+        }).catch(() => undefined)
+      }
+    }, 2200)
+
+    const thirdWave = window.setTimeout(() => {
+      prefetchDashboard(adjacentDashboardCompetence(-2, operation))
+    }, 4200)
+
+    return () => {
+      window.clearTimeout(firstWave)
+      window.clearTimeout(secondWave)
+      window.clearTimeout(thirdWave)
+    }
+  }, [user])
+
+  function navigate(next: Section) {
+    if (!canNavigate(user, next)) return
+    setMountedSections((current) => {
+      if (current.has(next)) return current
+      const updated = new Set(current)
+      updated.add(next)
+      return updated
+    })
+    setSection(next)
+    setMobileOpen(false)
+  }
 
   return (
     <main className={`nx-app ${collapsed ? 'is-collapsed' : ''}`}>
@@ -221,24 +323,24 @@ function AppShellPreview({ user, onExit }: { user: AuthUser; onExit: () => Promi
         </div>
 
         <nav className="nx-navigation" aria-label="Navegação principal">
-          {allowedItems.map((item, index) => (
-            <div key={item.key} className={item.administrative && index > 1 ? 'nx-admin-group' : ''}>
-              {item.administrative && index === allowedItems.findIndex((candidate) => candidate.administrative) && (
-                <span className="nx-nav-caption">ADMINISTRAÇÃO</span>
-              )}
-              <button
-                type="button"
-                className={`nx-nav-item ${section === item.key ? 'is-active' : ''}`}
-                onClick={() => {
-                  setSection(item.key)
-                  setMobileOpen(false)
-                }}
-              >
-                <i className={item.icon} />
-                <span>{item.label}</span>
-              </button>
-            </div>
-          ))}
+          {allowedItems.map((item) => {
+            const firstAdministrative = item.administrative &&
+              allowedItems.findIndex((candidate) => candidate.administrative) === allowedItems.indexOf(item)
+
+            return (
+              <div key={item.key} className={firstAdministrative ? 'nx-admin-group' : ''}>
+                {firstAdministrative && <span className="nx-nav-caption">ADMINISTRAÇÃO</span>}
+                <button
+                  type="button"
+                  className={`nx-nav-item ${section === item.key ? 'is-active' : ''}`}
+                  onClick={() => navigate(item.key)}
+                >
+                  <i className={item.icon} />
+                  <span>{item.label}</span>
+                </button>
+              </div>
+            )
+          })}
         </nav>
 
         <div className="nx-user-card">
@@ -247,7 +349,7 @@ function AppShellPreview({ user, onExit }: { user: AuthUser; onExit: () => Promi
             shape="circle"
             className="nx-avatar"
           />
-          <div className="nx-user-copy">
+          <div className="nx-user-copy" title={user.email}>
             <strong>{user.name || user.email}</strong>
             <span>{profileLabel(user.profile)} · {user.operation || 'Sem operação'}</span>
           </div>
@@ -275,76 +377,37 @@ function AppShellPreview({ user, onExit }: { user: AuthUser; onExit: () => Promi
           </div>
 
           <div className="nx-topbar-status">
+            <span className="nx-scope-chip">
+              <small>Escopo ativo</small>
+              <strong>{copy.scope}</strong>
+            </span>
             <Tag value={profileLabel(user.profile)} severity="secondary" rounded />
             <span className="nx-gateway-state"><i /> Gateway conectado</span>
           </div>
         </header>
 
-        <div className="nx-content">
-          <header className="nx-page-heading">
-            <div>
-              <span className="nx-overline">{copy.eyebrow}</span>
-              <h1>{copy.title}</h1>
-              <p>{copy.description}</p>
-            </div>
-            <Tag value={user.operation || 'TODOS'} severity="secondary" rounded />
-          </header>
-
-          <section className="nx-foundation-banner">
-            <div className="nx-foundation-icon"><i className="pi pi-sparkles" /></div>
-            <div>
-              <span className="nx-overline">NOVA FUNDAÇÃO VISUAL</span>
-              <h2>Next.js + PrimeReact</h2>
-              <p>
-                A identidade visual já está aplicada. Nesta branch, as telas funcionais serão reconectadas
-                depois da validação do novo shell e dos componentes base.
-              </p>
-            </div>
-          </section>
-
-          <div className="nx-metric-grid">
-            <article className="nx-metric-card">
-              <span className="nx-metric-icon"><i className="pi pi-bolt" /></span>
-              <div><small>STACK</small><strong>Next.js</strong><span>App Router</span></div>
-            </article>
-            <article className="nx-metric-card">
-              <span className="nx-metric-icon"><i className="pi pi-palette" /></span>
-              <div><small>COMPONENTES</small><strong>PrimeReact</strong><span>tema Unilog</span></div>
-            </article>
-            <article className="nx-metric-card">
-              <span className="nx-metric-icon"><i className="pi pi-cloud" /></span>
-              <div><small>DEPLOY</small><strong>Cloudflare</strong><span>Pages + Functions</span></div>
-            </article>
-            <article className="nx-metric-card">
-              <span className="nx-metric-icon"><i className="pi pi-database" /></span>
-              <div><small>BACKEND</small><strong>Preservado</strong><span>Apps Script + Sheets</span></div>
-            </article>
+        <div className="nx-content nx-functional-content">
+          <div hidden={section !== 'dashboard'}>
+            <DashboardPage />
           </div>
 
-          <section className="nx-demo-panel">
-            <div className="nx-demo-header">
-              <div>
-                <span className="nx-overline">SISTEMA VISUAL</span>
-                <h2>Componentes preparados para as próximas telas</h2>
-                <p>Estados, campos, botões, tags e superfícies seguem a mesma linguagem do login.</p>
-              </div>
-              <Button label="Ação primária" icon="pi pi-plus" className="nx-primary-button nx-compact-button" />
+          {mountedSections.has('solicitacoes') && (
+            <div hidden={section !== 'solicitacoes'}>
+              <AdminSolicitationsPageCurrentPeriod />
             </div>
-            <div className="nx-demo-content">
-              <div className="nx-demo-copy">
-                <Tag value="Ativo" severity="success" rounded />
-                <Tag value="Administrativo" severity="secondary" rounded />
-                <Tag value="Atenção" severity="warning" rounded />
-              </div>
-              <div className="nx-demo-field">
-                <label htmlFor="demo-search">Busca padronizada</label>
-                <span className="p-input-icon-left nx-field-icon">
-                  <i className="pi pi-search" />
-                  <InputText id="demo-search" placeholder="Buscar na plataforma…" />
-                </span>
-              </div>
+          )}
+
+          {mountedSections.has('cadastros') && canNavigate(user, 'cadastros') && (
+            <div hidden={section !== 'cadastros'}>
+              <CadastrosPagePaginated />
             </div>
-          </section>
+          )}
+
+          {mountedSections.has('usuarios') && canNavigate(user, 'usuarios') && (
+            <div hidden={section !== 'usuarios'}>
+              <UsersPage />
+            </div>
+          )}
         </div>
       </section>
     </main>
@@ -382,5 +445,5 @@ export default function Home() {
 
   if (!user) return <LoginExperience onAuthenticated={setUser} />
 
-  return <AppShellPreview user={user} onExit={handleLogout} />
+  return <FunctionalShell user={user} onExit={handleLogout} />
 }
