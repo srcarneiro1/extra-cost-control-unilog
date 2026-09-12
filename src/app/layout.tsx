@@ -17,6 +17,7 @@ import '../styles/accessibility.css'
 import './next-shell.css'
 import './prime-modernization.css'
 import './prime-refinement.css'
+import './prime-analytics.css'
 
 export const metadata: Metadata = {
   title: 'Extra Cost Control | Unilog Express',
