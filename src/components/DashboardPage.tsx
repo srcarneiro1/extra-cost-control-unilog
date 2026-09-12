@@ -131,12 +131,12 @@ function volumeSentence(label: string, variation: number | null | undefined) {
 function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceComparison | undefined }) {
   if (!comparison?.disponivel || !comparison.atual || !comparison.anterior || !comparison.variacao) {
     return (
-      <section className="dashboard-card dashboard-comparison-card">
+      <Card className="dashboard-card dashboard-comparison-card nx-dashboard-section-card">
         <div className="dashboard-card-header">
           <div><span className="ui-eyebrow">COMPETÊNCIA × ANTERIOR</span><h2>Comparativo no mesmo intervalo realizado</h2><p>O corte é definido pela última data operacional com realizado válido.</p></div>
         </div>
         <div className="ui-empty-state"><div><strong>Comparativo ainda indisponível</strong><p>É necessário existir movimento realizado na competência selecionada.</p></div></div>
-      </section>
+      </Card>
     )
   }
 
@@ -179,7 +179,7 @@ function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceC
   ]
 
   return (
-    <section className="dashboard-card dashboard-comparison-card">
+    <Card className="dashboard-card dashboard-comparison-card nx-dashboard-section-card">
       <div className="dashboard-card-header">
         <div>
           <span className="ui-eyebrow">COMPETÊNCIA × ANTERIOR</span>
@@ -245,7 +245,7 @@ function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceC
           )
         })}
       </div>
-    </section>
+    </Card>
   )
 }
 
@@ -254,7 +254,7 @@ function HorizontalRanking({ title, subtitle, items, limit = 8 }: { title: strin
   const max = Math.max(...visible.map((item) => Math.max(item.realizado, item.previsto)), 1)
 
   return (
-    <section className="dashboard-card">
+    <Card className="dashboard-card nx-dashboard-section-card">
       <div className="dashboard-card-header">
         <div><span className="ui-eyebrow">ANÁLISE</span><h2>{title}</h2><p>{subtitle}</p></div>
       </div>
@@ -273,7 +273,7 @@ function HorizontalRanking({ title, subtitle, items, limit = 8 }: { title: strin
         ))}
       </div>
       <div className="dashboard-legend"><span><i className="legend-planned" />Previsto</span><span><i className="legend-real" />Realizado</span></div>
-    </section>
+    </Card>
   )
 }
 
@@ -313,7 +313,7 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
   const usableHeight = height - padding * 2
 
   return (
-    <section className="dashboard-card dashboard-projection-card">
+    <Card className="dashboard-card dashboard-projection-card nx-dashboard-section-card">
       <div className="dashboard-card-header"><div><span className="ui-eyebrow">META E TENDÊNCIA</span><h2>Realizado × Meta esperada × Projeção</h2><p>Acumulado de mão de obra ao longo da competência 21–20. Passe o cursor sobre os pontos para ver os valores.</p></div></div>
       {points.length ? (
         <div className="dashboard-chart-wrap">
@@ -339,7 +339,7 @@ function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
           <div className="dashboard-chart-legend"><span><i className="chart-legend-realized" />Realizado</span><span><i className="chart-legend-expected" />Meta esperada</span><span><i className="chart-legend-projection" />Projeção</span></div>
         </div>
       ) : <div className="ui-empty-state"><div><strong>Sem série para exibir</strong></div></div>}
-    </section>
+    </Card>
   )
 }
 
@@ -463,10 +463,17 @@ export function DashboardPage() {
             <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
           </div>
           <CompetenceComparison comparison={data.comparativoCompetencia} />
-          <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}><div className="dashboard-meta-alert-icon"><i className={data.alertaMeta.status === 'FORA_DA_META' ? 'pi pi-exclamation-triangle' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'pi pi-exclamation-circle' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'pi pi-check-circle' : 'pi pi-info-circle'} aria-hidden="true" /></div><div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div><div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div></section>
+          <Card className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()} nx-dashboard-alert-card`}>
+            <div className="dashboard-meta-alert-icon"><i className={data.alertaMeta.status === 'FORA_DA_META' ? 'pi pi-exclamation-triangle' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'pi pi-exclamation-circle' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'pi pi-check-circle' : 'pi pi-info-circle'} aria-hidden="true" /></div>
+            <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div>
+            <div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div>
+          </Card>
           <ProjectionChart points={data.evolucaoMetaProjecao} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>
-          <section className="dashboard-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">EVOLUÇÃO</span><h2>Movimento diário da competência</h2><p>Data operacional dentro da janela 21–20.</p></div></div><div className="dashboard-daily-grid">{data.evolucaoDiaria.length ? data.evolucaoDiaria.map((item) => <div className="dashboard-daily-item" key={item.data}><span>{shortDate(item.data).slice(0, 5)}</span><strong>{currency(item.realizado)}</strong><small>Prev. {currency(item.previsto)}</small></div>) : <div className="ui-empty-state"><div><strong>Sem movimento</strong><p>Não há custos na combinação de filtros selecionada.</p></div></div>}</div></section>
+          <Card className="dashboard-card nx-dashboard-section-card">
+            <div className="dashboard-card-header"><div><span className="ui-eyebrow">EVOLUÇÃO</span><h2>Movimento diário da competência</h2><p>Data operacional dentro da janela 21–20.</p></div></div>
+            <div className="dashboard-daily-grid">{data.evolucaoDiaria.length ? data.evolucaoDiaria.map((item) => <div className="dashboard-daily-item" key={item.data}><span>{shortDate(item.data).slice(0, 5)}</span><strong>{currency(item.realizado)}</strong><small>Prev. {currency(item.previsto)}</small></div>) : <div className="ui-empty-state"><div><strong>Sem movimento</strong><p>Não há custos na combinação de filtros selecionada.</p></div></div>}</div>
+          </Card>
         </div>
       ) : (
         <div className="dashboard-view">
