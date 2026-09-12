@@ -3,6 +3,7 @@ import type {
   AdministrativeSolicitationListQuery,
   AdministrativeSolicitationListResponse,
   AdministrativeSolicitationMetadata,
+  SolicitationStatus,
 } from '../types/solicitation'
 import { invalidateDashboardCache } from './dashboardService'
 
@@ -304,6 +305,19 @@ export function registerAdministrativeAttendance(input: {
   qtdComparecida: number
 }): Promise<unknown> {
   return postRequest('/api/comparecimento', input)
+}
+
+export function updateAdministrativeSolicitationStatus(input: {
+  idSolicitacao: string
+  status: SolicitationStatus
+  motivo?: string
+}): Promise<{
+  idSolicitacao: string
+  statusAnterior: SolicitationStatus
+  status: SolicitationStatus
+  alterado: boolean
+}> {
+  return postRequest('/api/status-solicitacao', input)
 }
 
 export interface PartialShiftEntryInput {
