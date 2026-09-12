@@ -2,8 +2,8 @@
 
 **Projeto:** Extra Cost Control — UNILOG  
 **Repositório oficial:** `srcarneiro1/extra-cost-control-unilog`  
-**Status:** evolução do MVP / modernização visual em homologação  
-**Última consolidação:** 12/09/2026 — Next.js + PrimeReact + audit visual completo
+**Status:** evolução pós-merge / refinamento visual em homologação  
+**Última consolidação:** 12/09/2026 — Next.js + PrimeReact + refinamento de densidade visual
 
 ---
 
@@ -105,7 +105,7 @@ Usuário autenticado
 → Google Sheets
 ```
 
-Frontend ativo no branch de modernização:
+Frontend vigente:
 
 ```text
 Next.js 15 App Router
@@ -137,7 +137,7 @@ out/ → dist/
 
 para preservar a configuração existente do Cloudflare Pages.
 
-A migração visual não deve mover o backend para Next Route Handlers nem alterar contratos `/api/*` neste momento.
+A modernização visual não deve mover o backend para Next Route Handlers nem alterar contratos `/api/*` sem decisão explícita.
 
 ---
 
@@ -501,11 +501,15 @@ Fonte detalhada:
 
 `docs/PRIMEREACT_DESIGN_SYSTEM.md`
 
-CSS final:
+CSS base:
 
 `src/app/prime-design-system.css`
 
-Esse arquivo é carregado por último e é a camada visual canônica enquanto estilos antigos ainda são retirados gradualmente.
+Refinamento visual pós-homologação:
+
+`src/app/prime-polish.css`
+
+`prime-polish.css` é carregado depois do design system para ajustes de densidade, alinhamento de busca e feedback semântico de KPI. Não deve virar uma segunda fonte de regras funcionais.
 
 ## 11.1 Paleta canônica
 
@@ -549,7 +553,13 @@ sombra baixa
 header separado por borda suave
 ```
 
-Não criar novos cards com estilo paralelo.
+KPIs semânticos:
+
+- success/warning/danger usam borda lateral + gradiente muito suave + halo discreto;
+- info usa grafite, não azul;
+- card permanece majoritariamente branco;
+- hover desktop pode elevar discretamente o card;
+- respeitar `prefers-reduced-motion`.
 
 ## 11.3 Controles
 
@@ -575,6 +585,14 @@ Chart
 ```
 
 HTML customizado só quando a estrutura não possuir equivalente apropriado.
+
+Busca compartilhada:
+
+- `SearchField` é o componente de referência;
+- ícone PrimeIcon deve ficar centralizado com `top:50%` + `translateY(-50%)`;
+- neutralizar `margin-top` do tema;
+- input precisa de padding esquerdo consistente;
+- não corrigir alinhamento por tela.
 
 ---
 
@@ -607,7 +625,29 @@ Regras de eixo:
 - gráfico nunca pode ter `min-width` maior que o card no mobile;
 - tooltips preservam nomes/valores completos.
 
-## 12.1 Estado atual do Dashboard
+## 12.1 Densidade e ocupação
+
+Regra pós-homologação:
+
+- `.p-chart` precisa ocupar 100% da largura e altura do stage;
+- o canvas precisa preencher o wrapper `.p-chart`;
+- não aceitar grandes áreas brancas causadas por wrapper interno menor que o stage;
+- charts horizontais com poucas categorias devem ser compactos;
+- cards de chart em grid não devem esticar pela altura do irmão mais alto;
+- projeção temporal usa altura menor que um painel analítico completo;
+- scatter pode ter altura maior, sem exagero.
+
+Referência desktop atual:
+
+```text
+chart padrão ≈ 248px
+ranking horizontal ≈ 230px
+projeção ≈ 252px
+scatter ≈ 276px
+Pareto ≈ 292px
+```
+
+## 12.2 Estado atual do Dashboard
 
 Visão Executiva:
 
@@ -641,7 +681,8 @@ Correção obrigatória já incorporada ao padrão: Pareto não pode apresentar 
 - filtros com `auto-fit/minmax`;
 - evitar duas colunas gigantes quando cabem quatro ou mais;
 - DataTable mantém leitura tabular;
-- gráficos ocupam a largura do card e usam canvas responsivo.
+- gráficos ocupam integralmente o stage e usam canvas responsivo;
+- densidade dos gráficos deve priorizar leitura sem criar grandes vazios.
 
 ## Mobile
 
@@ -664,11 +705,12 @@ Eles não são a fonte visual final.
 
 Regras:
 
-1. `prime-design-system.css` é carregado por último;
-2. novos componentes não podem adicionar cores a estilos legados;
-3. só remover uma folha antiga depois de confirmar que nenhum componente ativo depende dela;
-4. retirada de CSS legado deve ocorrer em mudanças pequenas e verificáveis;
-5. não fazer limpeza em massa no mesmo commit de regra funcional.
+1. `prime-design-system.css` define a linguagem visual base;
+2. `prime-polish.css` contém refinamentos visuais pós-homologação e é carregado por último;
+3. novos componentes não podem adicionar cores a estilos legados;
+4. só remover uma folha antiga depois de confirmar que nenhum componente ativo depende dela;
+5. retirada de CSS legado deve ocorrer em mudanças pequenas e verificáveis;
+6. não fazer limpeza em massa no mesmo commit de regra funcional.
 
 ---
 
@@ -678,10 +720,10 @@ Regras:
 | --- | --- | --- |
 | Login | PrimeReact | migrado |
 | Shell/topbar/sidebar | Next + PrimeIcons/Avatar/Tag | migrado |
-| Dashboard filtros/KPIs | PrimeReact | migrado |
-| Dashboard rankings | PrimeReact Chart | migrado |
-| Dashboard projeção | PrimeReact Chart | migrado |
-| Analytics bar/line/scatter | PrimeReact Chart | migrado |
+| Dashboard filtros/KPIs | PrimeReact | migrado + refinamento semântico |
+| Dashboard rankings | PrimeReact Chart | migrado + densidade compacta |
+| Dashboard projeção | PrimeReact Chart | migrado + densidade compacta |
+| Analytics bar/line/scatter | PrimeReact Chart | migrado + ocupação integral do stage |
 | Analytics heatmap | custom matrix + tokens Unilog | aceito |
 | Oportunidades | Card + Tag | migrado |
 | Solicitações | DataTable + controls + Dialog | migrado |
@@ -691,6 +733,7 @@ Regras:
 | Usuários | DataTable/controls/Dialog | migrado |
 | Usuários mobile | record cards | migrado |
 | Workflow detalhe/triagem | Dialog + controls PrimeReact | migrado |
+| Busca compartilhada | InputText + PrimeIcon | ícone centralizado no componente-base |
 | Comparativo competência | custom composto + tokens Unilog | aceito |
 | Movimento diário | grade informacional + tokens Unilog | aceito |
 
@@ -753,30 +796,40 @@ Não implementar silenciosamente:
 
 ---
 
-# 19. ESTADO DE HOMOLOGAÇÃO / PR
+# 19. HISTÓRICO RECENTE DE MERGE
 
-A modernização Next.js + PrimeReact está sendo conduzida no PR #59 em branch isolada.
+PR #59 — modernização Next.js + PrimeReact + Chart.js:
 
-Regras desse PR:
+- homologado pelo usuário;
+- mergeado em `main` em 12/09/2026;
+- merge commit: `0a2ec8b7bed5e3073b18bca0cfa2fd477abd2f47`.
 
-- permanece Draft durante homologação;
-- não mergear sem aprovação explícita;
-- confirmar Cloudflare no head exato antes de chamar uma versão de validada;
-- qualquer regressão visual deve ser corrigida antes do merge;
-- backend e regras de negócio permanecem intactos.
+Após o merge, refinamentos visuais devem ser feitos em branches/PRs separados.
+
+Branch atual de refinamento:
+
+```text
+refine/dashboard-density-search-kpis
+```
+
+Escopo dessa branch:
+
+- reduzir desperdício vertical dos charts no Web App;
+- fazer `.p-chart`/canvas ocupar 100% do stage;
+- corrigir ícone de busca compartilhado;
+- recuperar feedback semântico discreto dos cards KPI;
+- nenhuma alteração de backend/regra de negócio.
 
 ---
 
 # 20. PRÓXIMAS AÇÕES
 
-1. concluir homologação visual do PR #59 em desktop e mobile;
-2. validar Dashboard Executivo e Analytics com dados reais e nomes longos;
-3. validar Solicitações desktop + record cards mobile;
-4. validar todas as seções de Cadastros e dialogs;
-5. validar Usuários e reset de senha;
-6. validar workflow de detalhe/triagem/comparecimento/correção;
-7. remover CSS legado apenas após confirmar ausência de consumidores ativos;
-8. somente então marcar PR ready e mergear mediante aprovação explícita.
+1. homologar densidade dos gráficos em desktop/notebook;
+2. homologar busca em Solicitações, Cadastros e Usuários;
+3. homologar KPIs success/warning/danger em Visão Executiva e Analytics;
+4. confirmar que o refinamento não alterou mobile já homologado;
+5. confirmar build do head exato no Cloudflare;
+6. mergear somente após aprovação explícita.
 
 ---
 
@@ -795,6 +848,8 @@ Arquitetura vigente: Next.js + React + PrimeReact no Cloudflare Pages; Pages Fun
 Regra central: o solicitante informa a necessidade; o Administrativo define fornecedor, congela preços e registra o realizado.
 
 Preserve backend, histórico e regras de negócio. Mudanças visuais devem usar a paleta Unilog e componentes PrimeReact, com Chart.js via PrimeReact Chart para gráficos compatíveis.
+
+Charts devem ocupar integralmente seu stage e usar densidade proporcional aos dados. Campos de busca usam o componente compartilhado com ícone centralizado. KPIs semânticos devem diferenciar sucesso/atenção/desvio de forma discreta e acessível.
 
 Não mergear PR sem build verde no head exato e homologação explícita do usuário.
 ```
