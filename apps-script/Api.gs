@@ -92,6 +92,11 @@ const Api = (() => {
         return JsonResponse.ok(writeAndInvalidate_(function () { return AttendanceService.register(servicePayload); }));
       }
 
+      if (route === 'status_solicitacao') {
+        const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        return JsonResponse.ok(writeAndInvalidate_(function () { return SolicitationStatusService.transition(servicePayload); }));
+      }
+
       if (route === 'jornada_parcial') {
         const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
         return JsonResponse.ok(writeAndInvalidate_(function () { return PartialShiftService.register(servicePayload); }));
