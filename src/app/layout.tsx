@@ -22,6 +22,7 @@ import './prime-legacy-detox.css'
 import './prime-responsive-records.css'
 import './prime-request-filters.css'
 import './prime-visual-integrity.css'
+import './prime-design-system.css'
 
 export const metadata: Metadata = {
   title: 'Extra Cost Control | Unilog Express',
