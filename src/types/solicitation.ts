@@ -28,7 +28,9 @@ export interface AdministrativeSolicitationListItem {
   qtdSolicitada: number | null
   qtdComparecida: number | null
   produtoAlimentacao: string
+  qtdAlimentacao: number | null
   produtoBebida: string
+  qtdBebida: number | null
   valorPrevisto: number | null
   valorReal: number | null
   triagemConcluida: boolean
