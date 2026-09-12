@@ -33,11 +33,7 @@ const AdministrativeSolicitationQueryService = (() => {
 
     if (!hasFilters) {
       total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
-      rows = SheetRepository.readObjectsWindowFromEnd(
-        SHEET_SOLICITACOES,
-        offset,
-        pageSize
-      );
+      rows = SheetRepository.readObjectsWindowFromEnd(SHEET_SOLICITACOES, offset, pageSize);
     } else if (isMonthFilter_(filters)) {
       const periodRows = SheetRepository.readObjectsForMonthFromEnd(
         SHEET_SOLICITACOES,
@@ -47,29 +43,19 @@ const AdministrativeSolicitationQueryService = (() => {
       );
       const scopedPeriodRows = applyOperationScope_(periodRows, filters.operacaoEscopo);
       const filteredRows = scopedPeriodRows
-        .filter(function (record) {
-          return matchesNonPeriodFilters_(record, filters);
-        })
-        .sort(function (left, right) {
-          return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
-        });
+        .filter(function (record) { return matchesNonPeriodFilters_(record, filters); })
+        .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); });
 
       total = filteredRows.length;
       rows = filteredRows.slice(offset, offset + pageSize);
       summary = summarize_(scopedPeriodRows);
     } else {
       const allRows = SheetRepository.readObjects(SHEET_SOLICITACOES);
-      const periodRows = allRows.filter(function (record) {
-        return matchesPeriod_(record, filters);
-      });
+      const periodRows = allRows.filter(function (record) { return matchesPeriod_(record, filters); });
       const scopedPeriodRows = applyOperationScope_(periodRows, filters.operacaoEscopo);
       const filteredRows = scopedPeriodRows
-        .filter(function (record) {
-          return matchesNonPeriodFilters_(record, filters);
-        })
-        .sort(function (left, right) {
-          return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
-        });
+        .filter(function (record) { return matchesNonPeriodFilters_(record, filters); })
+        .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); });
 
       total = filteredRows.length;
       rows = filteredRows.slice(offset, offset + pageSize);
@@ -87,19 +73,14 @@ const AdministrativeSolicitationQueryService = (() => {
       resumo: summary,
       itens: rows
         .slice()
-        .sort(function (left, right) {
-          return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
-        })
+        .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); })
         .map(toListItem_),
     };
   }
 
   function metadata_(input) {
     const operationScope = ValidationService.normalizeUpper(input.operacaoEscopo || '');
-    const rows = applyOperationScope_(
-      SheetRepository.readObjects(SHEET_SOLICITACOES),
-      operationScope
-    );
+    const rows = applyOperationScope_(SheetRepository.readObjects(SHEET_SOLICITACOES), operationScope);
     return buildMetadata_(rows);
   }
 
@@ -126,15 +107,23 @@ const AdministrativeSolicitationQueryService = (() => {
 
     (rows || []).forEach(function (record) {
       const indicators = indicators_(record);
+      const status = SolicitationStatusService.resolve(record);
 
-      if (!indicators.triagemConcluida) summary.aguardandoTriagem += 1;
+      if (
+        status === SolicitationStatusService.STATUS.SENT ||
+        status === SolicitationStatusService.STATUS.TRIAGE ||
+        status === SolicitationStatusService.STATUS.ADJUSTMENT
+      ) {
+        summary.aguardandoTriagem += 1;
+      }
+
       if (
         ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) === TYPE_LABOR &&
-        indicators.triagemConcluida &&
-        !indicators.realizadoRegistrado
+        (status === SolicitationStatusService.STATUS.SUPPLIER_SENT || status === SolicitationStatusService.STATUS.IN_SERVICE)
       ) {
         summary.aguardandoRealizado += 1;
       }
+
       if (indicators.divergencia) summary.divergencias += 1;
     });
 
@@ -142,22 +131,12 @@ const AdministrativeSolicitationQueryService = (() => {
   }
 
   function detail_(input) {
-    const solicitationId = ValidationService.requiredText(
-      input.idSolicitacao,
-      'ID da solicitação'
-    );
+    const solicitationId = ValidationService.requiredText(input.idSolicitacao, 'ID da solicitação');
     const operationScope = ValidationService.normalizeUpper(input.operacaoEscopo || '');
 
-    const found = SheetRepository.findRowByField(
-      SHEET_SOLICITACOES,
-      'ID_SOLICITACAO',
-      solicitationId
-    );
+    const found = SheetRepository.findRowByField(SHEET_SOLICITACOES, 'ID_SOLICITACAO', solicitationId);
 
-    if (
-      !found ||
-      (operationScope && ValidationService.normalizeUpper(found.record.OPERACAO) !== operationScope)
-    ) {
+    if (!found || (operationScope && ValidationService.normalizeUpper(found.record.OPERACAO) !== operationScope)) {
       ValidationService.fail('Solicitação não encontrada: ' + solicitationId + '.');
     }
 
@@ -178,22 +157,13 @@ const AdministrativeSolicitationQueryService = (() => {
 
   function hasFilters_(filters) {
     return Boolean(
-      filters.busca ||
-      filters.tipo ||
-      filters.status ||
-      filters.anoRegistro ||
-      filters.mesRegistro ||
-      filters.dataRegistro ||
-      filters.operacaoEscopo
+      filters.busca || filters.tipo || filters.status || filters.anoRegistro ||
+      filters.mesRegistro || filters.dataRegistro || filters.operacaoEscopo
     );
   }
 
   function isMonthFilter_(filters) {
-    return Boolean(
-      filters.anoRegistro &&
-      filters.mesRegistro &&
-      !filters.dataRegistro
-    );
+    return Boolean(filters.anoRegistro && filters.mesRegistro && !filters.dataRegistro);
   }
 
   function matchesPeriod_(record, filters) {
@@ -208,25 +178,12 @@ const AdministrativeSolicitationQueryService = (() => {
   }
 
   function matchesNonPeriodFilters_(record, filters) {
-    if (
-      filters.operacaoEscopo &&
-      ValidationService.normalizeUpper(record.OPERACAO) !== filters.operacaoEscopo
-    ) {
-      return false;
-    }
+    if (filters.operacaoEscopo && ValidationService.normalizeUpper(record.OPERACAO) !== filters.operacaoEscopo) return false;
 
     const indicators = indicators_(record);
 
-    if (
-      filters.tipo &&
-      ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== filters.tipo
-    ) {
-      return false;
-    }
-
-    if (filters.status && statusKey_(record, indicators) !== filters.status) {
-      return false;
-    }
+    if (filters.tipo && ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== filters.tipo) return false;
+    if (filters.status && statusKey_(record, indicators) !== filters.status) return false;
 
     if (filters.busca) {
       const haystack = [
@@ -235,14 +192,9 @@ const AdministrativeSolicitationQueryService = (() => {
         record.SUPERVISOR,
         record.FORNECEDOR,
         record.USUARIO_CRIACAO,
-      ].map(function (value) {
-        return ValidationService.normalizeUpper(value || '');
-      });
+      ].map(function (value) { return ValidationService.normalizeUpper(value || ''); });
 
-      const matched = haystack.some(function (value) {
-        return value.indexOf(filters.busca) !== -1;
-      });
-
+      const matched = haystack.some(function (value) { return value.indexOf(filters.busca) !== -1; });
       if (!matched) return false;
     }
 
@@ -256,14 +208,8 @@ const AdministrativeSolicitationQueryService = (() => {
     });
   }
 
-  function statusKey_(record, indicators) {
-    if (!indicators.triagemConcluida) return 'AGUARDANDO_TRIAGEM';
-    if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) {
-      return 'TRIAGEM_CONCLUIDA';
-    }
-    if (!indicators.realizadoRegistrado) return 'AGUARDANDO_REALIZADO';
-    if (indicators.divergencia) return 'COM_DIVERGENCIA';
-    return 'CONCLUIDO';
+  function statusKey_(record) {
+    return SolicitationStatusService.resolve(record);
   }
 
   function toListItem_(record) {
@@ -290,6 +236,7 @@ const AdministrativeSolicitationQueryService = (() => {
       qtdBebida: numberOrNull_(record.QTD_BEBIDA),
       valorPrevisto: numberOrNull_(record.VALOR_PREVISTO),
       valorReal: numberOrNull_(record.VALOR_REAL),
+      status: SolicitationStatusService.resolve(record),
       triagemConcluida: indicators.triagemConcluida,
       realizadoRegistrado: indicators.realizadoRegistrado,
       divergencia: indicators.divergencia,
@@ -323,9 +270,7 @@ const AdministrativeSolicitationQueryService = (() => {
       turno: text_(record.TURNO),
       qtdSolicitada: numberOrNull_(record.QTD_SOLICITADA),
       qtdComparecida: numberOrNull_(record.QTD_COMPARECIDA),
-      volumeReferencia: record.VOLUME_REFERENCIA === '' || record.VOLUME_REFERENCIA == null
-        ? null
-        : record.VOLUME_REFERENCIA,
+      volumeReferencia: record.VOLUME_REFERENCIA === '' || record.VOLUME_REFERENCIA == null ? null : record.VOLUME_REFERENCIA,
       unidadeVolume: text_(record.UNIDADE_VOLUME),
       precoUnitarioAplicado: unitPrice,
       produtoAlimentacao: text_(record.PRODUTO_ALIMENTACAO),
@@ -341,13 +286,12 @@ const AdministrativeSolicitationQueryService = (() => {
       produtoAlimentacaoAplicado: text_(record.PRODUTO_ALIMENTACAO_APLICADO),
       produtoBebidaAplicado: text_(record.PRODUTO_BEBIDA_APLICADO),
       motivoAjusteProduto: text_(record.MOTIVO_AJUSTE_PRODUTO),
+      status: SolicitationStatusService.resolve(record),
       triagemConcluida: indicators.triagemConcluida,
       realizadoRegistrado: indicators.realizadoRegistrado,
       divergencia: indicators.divergencia,
       jornadaPadraoHoras: type === TYPE_LABOR ? PartialShiftService.FULL_SHIFT_HOURS : null,
-      excecoesJornada: type === TYPE_LABOR
-        ? PartialShiftService.listBySolicitation(solicitationId, unitPrice)
-        : [],
+      excecoesJornada: type === TYPE_LABOR ? PartialShiftService.listBySolicitation(solicitationId, unitPrice) : [],
     };
   }
 
@@ -360,11 +304,7 @@ const AdministrativeSolicitationQueryService = (() => {
     );
 
     if (type !== TYPE_LABOR) {
-      return {
-        triagemConcluida: triageCompleted,
-        realizadoRegistrado: null,
-        divergencia: null,
-      };
+      return { triagemConcluida: triageCompleted, realizadoRegistrado: null, divergencia: null };
     }
 
     const attendanceRegistered = hasValue_(record.QTD_COMPARECIDA);
@@ -374,27 +314,21 @@ const AdministrativeSolicitationQueryService = (() => {
     return {
       triagemConcluida: triageCompleted,
       realizadoRegistrado: attendanceRegistered,
-      divergencia: attendanceRegistered && requested != null && attended != null
-        ? requested !== attended
-        : null,
+      divergencia: attendanceRegistered && requested != null && attended != null ? requested !== attended : null,
     };
   }
 
   function normalizePageSize_(value) {
     if (value === '' || value == null) return 20;
     const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      ValidationService.fail('Tamanho da página deve ser um número inteiro maior que zero.');
-    }
+    if (!Number.isInteger(parsed) || parsed <= 0) ValidationService.fail('Tamanho da página deve ser um número inteiro maior que zero.');
     return Math.min(parsed, 100);
   }
 
   function normalizePage_(value) {
     if (value === '' || value == null) return 1;
     const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      ValidationService.fail('Página deve ser um número inteiro maior que zero.');
-    }
+    if (!Number.isInteger(parsed) || parsed <= 0) ValidationService.fail('Página deve ser um número inteiro maior que zero.');
     return parsed;
   }
 
@@ -426,9 +360,7 @@ const AdministrativeSolicitationQueryService = (() => {
   }
 
   function sortTimestamp_(value) {
-    if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
-      return value.getTime();
-    }
+    if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) return value.getTime();
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
   }
