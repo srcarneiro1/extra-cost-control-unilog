@@ -2,9 +2,9 @@
 
 **Projeto:** Extra Cost Control — UNILOG  
 **Referência funcional:** `MEMORIA_PROJETO.md`  
-**Data de consolidação:** 01/09/2026
+**Data de consolidação:** 12/09/2026
 
-> Este documento detalha a execução das ações 1 e 2 da seção **Próximas ações** da memória do projeto. Em caso de divergência, `MEMORIA_PROJETO.md` continua sendo a fonte de verdade.
+> Este documento detalha a estrutura vigente da aba `SOLICITACOES` e dos cadastros relacionados. Em caso de divergência com implementação mais recente, prevalece o código ativo do projeto.
 
 ---
 
@@ -88,11 +88,11 @@ Padronização inicial:
 
 # 2. PRINCÍPIO DA ABA SOLICITACOES
 
-`SOLICITACOES` será a persistência operacional normalizada do MVP.
+`SOLICITACOES` é a persistência operacional normalizada do MVP.
 
 Uma linha representa **uma solicitação**.
 
-A mesma aba suporta os dois tipos do MVP:
+A mesma aba suporta:
 
 ```text
 MAO_DE_OBRA
@@ -100,8 +100,6 @@ ALIMENTACAO_BEBIDA
 ```
 
 Campos não aplicáveis ao tipo da solicitação permanecem vazios.
-
-Não criar neste momento uma segunda aba de itens ou uma estrutura relacional adicional. A separação entre mão de obra e alimentação/bebida ocorre pelas colunas específicas e pelas regras da API.
 
 A planilha não executa regras de negócio por fórmulas dinâmicas. A API calcula, valida e grava snapshots.
 
@@ -117,8 +115,8 @@ A planilha não executa regras de negócio por fórmulas dinâmicas. A API calcu
 | TIPO_SOLICITACAO | texto controlado | sim | `MAO_DE_OBRA` ou `ALIMENTACAO_BEBIDA`. |
 | DATA_CRIACAO | data/hora | sim | Gerada pela API no registro. |
 | USUARIO_CRIACAO | texto | sim | Identificação do usuário que criou a solicitação. |
-| ORIGEM | texto | sim | Identifica origem do registro; necessário para rastreabilidade e futura migração. |
-| ID_ORIGEM | texto | não | Identificador/linha da origem quando aplicável ao legado. |
+| ORIGEM | texto | sim | Identifica origem do registro. |
+| ID_ORIGEM | texto | não | Identificador da origem quando aplicável. |
 | LOTE_IMPORTACAO | texto | não | Preenchido somente em migrações controladas. |
 
 ## 3.2 Contexto comum
@@ -127,26 +125,18 @@ A planilha não executa regras de negócio por fórmulas dinâmicas. A API calcu
 |---|---|---:|---|
 | SUPERVISOR | texto controlado | sim | Deve existir ativo em `CAD_SUPERVISORES`. |
 | OPERACAO | texto controlado | sim | Deve existir ativa em `CAD_OPERACOES`. |
-| DATA_OPERACIONAL | data | sim | Data de execução para MO ou data de atendimento para alimentação/bebida. |
-| COMPETENCIA | texto | sim | Derivada pela API de `DATA_OPERACIONAL`, conforme ciclo 21 → 20. Não digitada livremente. |
-| FORNECEDOR | texto controlado | sim | Deve existir ativo e habilitado para o tipo correspondente em `CAD_FORNECEDORES`. |
-| JUSTIFICATIVA | texto | sim | Justificativa/detalhamento operacional da solicitação. |
+| DATA_OPERACIONAL | data | sim | Data de execução/atendimento. |
+| COMPETENCIA | texto | sim | Derivada pela API de `DATA_OPERACIONAL`, conforme ciclo 21 → 20. |
+| FORNECEDOR | texto controlado | posterior | Definido na triagem administrativa. |
+| JUSTIFICATIVA | texto | sim | Justificativa/detalhamento operacional. |
 | RESPONSAVEL_CUSTO | texto controlado | sim | `CLIENTE` ou `UNILOG`. |
-| CENTRO_CUSTO | texto | condicional | Obrigatório quando `RESPONSAVEL_CUSTO = UNILOG`; somente dígitos e armazenado como texto. Vazio quando CLIENTE. |
-
-Regra confirmada para CLIENTE:
-
-```text
-cliente responsável deriva da própria OPERACAO
-```
-
-Não é necessário duplicar o nome do cliente em outra coluna operacional.
+| CENTRO_CUSTO | texto | condicional | Obrigatório quando `RESPONSAVEL_CUSTO = UNILOG`; somente dígitos e armazenado como texto. |
 
 ---
 
 # 4. CAMPOS ESPECÍFICOS — MÃO DE OBRA
 
-Preenchidos somente quando:
+Preenchidos quando:
 
 ```text
 TIPO_SOLICITACAO = MAO_DE_OBRA
@@ -154,64 +144,63 @@ TIPO_SOLICITACAO = MAO_DE_OBRA
 
 | Coluna | Tipo | Obrigatório | Origem/regra |
 |---|---|---:|---|
-| ATIVIDADE | texto controlado | sim | `CAD_ATIVIDADES`. Representa trabalho executado. |
-| FUNCAO | texto controlado | sim | `CAD_FUNCOES`. `OPERADOR DE EMPILHADEIRA` é função, não atividade. |
-| TURNO | texto controlado | sim | `DIURNO` ou `NOTURNO`. Informado manualmente. |
+| ATIVIDADE | texto controlado | sim | `CAD_ATIVIDADES`. |
+| FUNCAO | texto controlado | sim | `CAD_FUNCOES`. |
+| TURNO | texto controlado | sim | `DIURNO` ou `NOTURNO`; qualquer função ativa pode usar qualquer um dos dois turnos. |
 | QTD_SOLICITADA | número | sim | Quantidade solicitada de recursos. |
-| QTD_COMPARECIDA | número | posterior | Registrada administrativamente após execução; pode ser zero ou superar a solicitada. |
-| VOLUME_REFERENCIA | número/texto normalizado | não | Campo opcional de referência operacional. |
-| UNIDADE_VOLUME | texto | não | Unidade correspondente ao volume, quando informada. |
-| PRECO_UNITARIO_APLICADO | moeda | sim | Snapshot do preço vigente obtido pela API. |
-| VALOR_PREVISTO | moeda | sim | `QTD_SOLICITADA × PRECO_UNITARIO_APLICADO`. Gravado pela API. |
-| VALOR_REAL | moeda | posterior | `QTD_COMPARECIDA × PRECO_UNITARIO_APLICADO`. Gravado/atualizado pela API após comparecimento. |
+| QTD_COMPARECIDA | número | posterior | Registrada após execução; pode ser zero ou superar a solicitada. |
+| VOLUME_REFERENCIA | número/texto | não | Referência operacional opcional. |
+| UNIDADE_VOLUME | texto | não | Unidade correspondente ao volume. |
+| PRECO_UNITARIO_APLICADO | moeda | posterior | Snapshot do preço vigente na triagem. |
+| VALOR_PREVISTO | moeda | posterior | `QTD_SOLICITADA × PRECO_UNITARIO_APLICADO`. |
+| VALOR_REAL | moeda | posterior | Calculado a partir do realizado. |
 
 Não inferir `TURNO` por horário.
-
-`QTD_COMPARECIDA` não deve ser bloqueada por divergência em relação à quantidade solicitada. A divergência deve ser evidenciada pelo sistema.
 
 ---
 
 # 5. CAMPOS ESPECÍFICOS — ALIMENTAÇÃO / BEBIDAS
 
-Preenchidos somente quando:
+Preenchidos quando:
 
 ```text
 TIPO_SOLICITACAO = ALIMENTACAO_BEBIDA
 ```
 
-Pelo menos um dos grupos abaixo deve estar preenchido.
+Pelo menos alimentação ou bebida deve estar preenchida.
 
-## 5.1 Alimentação
-
-| Coluna | Tipo | Obrigatório | Origem/regra |
-|---|---|---:|---|
-| PRODUTO_ALIMENTACAO | texto controlado | condicional | Produto ativo de categoria `ALIMENTACAO` em `CAD_PRODUTOS`. |
-| QTD_ALIMENTACAO | número | condicional | Obrigatória quando houver `PRODUTO_ALIMENTACAO`. |
-| PRECO_ALIMENTACAO_APLICADO | moeda | condicional | Snapshot do preço vigente do produto. |
-| VALOR_ALIMENTACAO | moeda | condicional | `QTD_ALIMENTACAO × PRECO_ALIMENTACAO_APLICADO`. |
-
-## 5.2 Bebida
+## 5.1 Solicitação original
 
 | Coluna | Tipo | Obrigatório | Origem/regra |
 |---|---|---:|---|
-| PRODUTO_BEBIDA | texto controlado | condicional | Produto ativo de categoria `BEBIDA` em `CAD_PRODUTOS`. |
-| QTD_BEBIDA | número | condicional | Obrigatória quando houver `PRODUTO_BEBIDA`. |
-| PRECO_BEBIDA_APLICADO | moeda | condicional | Snapshot do preço vigente do produto. |
-| VALOR_BEBIDA | moeda | condicional | `QTD_BEBIDA × PRECO_BEBIDA_APLICADO`. |
+| PRODUTO_ALIMENTACAO | texto controlado | condicional | Produto solicitado, categoria `ALIMENTACAO`. |
+| QTD_ALIMENTACAO | número | condicional | Obrigatória quando houver alimentação. |
+| PRODUTO_BEBIDA | texto controlado | condicional | Produto solicitado, categoria `BEBIDA`. |
+| QTD_BEBIDA | número | condicional | Obrigatória quando houver bebida. |
 
-## 5.3 Total da solicitação de alimentação/bebida
+## 5.2 Produto efetivamente aplicado na triagem
 
 | Coluna | Tipo | Obrigatório | Origem/regra |
 |---|---|---:|---|
-| VALOR_PREVISTO | moeda | sim | Soma dos valores de alimentação e bebida preenchidos. |
+| PRODUTO_ALIMENTACAO_APLICADO | texto controlado | posterior | Produto efetivamente aplicado pelo administrativo; pode ser igual ao solicitado. |
+| PRODUTO_BEBIDA_APLICADO | texto controlado | posterior | Produto efetivamente aplicado pelo administrativo; pode ser igual ao solicitado. |
+| MOTIVO_AJUSTE_PRODUTO | texto | condicional | Obrigatório quando produto aplicado divergir do produto originalmente solicitado. |
 
-Para alimentação/bebida não existe `QTD_COMPARECIDA` nem cálculo financeiro por quantidade realizada.
+## 5.3 Preços e valores congelados
+
+| Coluna | Tipo | Obrigatório | Origem/regra |
+|---|---|---:|---|
+| PRECO_ALIMENTACAO_APLICADO | moeda | posterior | Snapshot do preço vigente do produto aplicado. |
+| VALOR_ALIMENTACAO | moeda | posterior | `QTD_ALIMENTACAO × PRECO_ALIMENTACAO_APLICADO`. |
+| PRECO_BEBIDA_APLICADO | moeda | posterior | Snapshot do preço vigente do produto aplicado. |
+| VALOR_BEBIDA | moeda | posterior | `QTD_BEBIDA × PRECO_BEBIDA_APLICADO`. |
+| VALOR_PREVISTO | moeda | posterior | Soma dos valores de alimentação e bebida. |
+
+Para alimentação/bebida não existe `QTD_COMPARECIDA`.
 
 ---
 
-# 6. ORDEM FÍSICA PROPOSTA DOS CABEÇALHOS
-
-A ordem abaixo é a ordem de produção recomendada para a aba `SOLICITACOES`:
+# 6. ORDEM FÍSICA VIGENTE DOS CABEÇALHOS
 
 ```text
 ID_SOLICITACAO
@@ -247,9 +236,12 @@ PRECO_BEBIDA_APLICADO
 VALOR_BEBIDA
 VALOR_PREVISTO
 VALOR_REAL
+PRODUTO_ALIMENTACAO_APLICADO
+PRODUTO_BEBIDA_APLICADO
+MOTIVO_AJUSTE_PRODUTO
 ```
 
-Total: **33 colunas**.
+Total: **36 colunas**.
 
 ---
 
@@ -260,48 +252,21 @@ Total: **33 colunas**.
 3. Preços aplicados são snapshots imutáveis para o registro histórico.
 4. `COMPETENCIA` é derivada, nunca digitada pelo usuário.
 5. `CENTRO_CUSTO` é texto, mesmo sendo composto somente por dígitos.
-6. Campos não aplicáveis permanecem vazios; não usar textos como `N/A` como dado operacional.
-7. O legado não deve ser adaptado diretamente nesta aba; a migração ocorrerá posteriormente por staging, normalização e equivalências.
-8. Alterações administrativas relevantes devem futuramente gerar trilha em `AUDITORIA`/`LOG`, conforme memória do projeto.
+6. Campos não aplicáveis permanecem vazios.
+7. Produto solicitado e produto aplicado são preservados separadamente.
+8. Quando houver substituição de produto na triagem, `MOTIVO_AJUSTE_PRODUTO` é obrigatório.
 
 ---
 
-# 8. DECISÕES CONFIRMADAS X IMPLEMENTAÇÃO POSTERIOR
-
-## Confirmado neste documento
-
-- carga inicial de operações e supervisores;
-- `MEGALABS` como nome canônico;
-- uma linha por solicitação na aba `SOLICITACOES`;
-- suporte aos dois tipos do MVP na mesma aba;
-- grupos de colunas específicos por tipo;
-- competência 21 → 20;
-- responsabilidade financeira CLIENTE/UNILOG;
-- centro de custo condicional;
-- solicitado x comparecido separados para MO;
-- preço aplicado congelado;
-- sem quantidade comparecida para alimentação/bebida;
-- preservação de origem para migração futura.
-
-## Ainda não implementar como regra definitiva
-
-- tabelas `PRECOS_MO` e `PRECOS_PRODUTOS`, até validação das vigências/regras atuais;
-- status/workflow adicional além do mínimo necessário;
-- regras de autenticação/autorização detalhadas;
-- migração do legado;
-- dashboard;
-- Supabase.
-
----
-
-# 9. PRÓXIMO PASSO
-
-Com as ações 1 e 2 documentadas, a próxima ação vigente da memória é:
+# 8. CADASTROS E ESTRUTURAS RELACIONADAS
 
 ```text
-3. criar PRECOS_MO e PRECOS_PRODUTOS somente após validação das regras
+CAD_OPERACOES: OPERACAO | ATIVO
+CAD_SUPERVISORES: SUPERVISOR | ATIVO
+CAD_ATIVIDADES: ATIVIDADE | ATIVO
+CAD_FUNCOES: FUNCAO | ATIVO
+CAD_PRODUTOS: PRODUTO | CATEGORIA | ATIVO
+PRECOS_MO: FORNECEDOR | FUNCAO | TURNO | TIPO_DIA | VIGENCIA_INICIO | VIGENCIA_FIM | PRECO_UNITARIO | ATIVO
+PRECOS_PRODUTOS: FORNECEDOR | PRODUTO | VIGENCIA_INICIO | VIGENCIA_FIM | CATEGORIA | PRECO_UNITARIO | ATIVO
+METAS_MO: COMPETENCIA | META_MO
 ```
-
-Como as regras de preços ainda precisam ser validadas, o desenvolvimento da API deve aguardar o fechamento dessa validação antes de implementar resolução definitiva de preços.
-
-O contrato da API pode ser detalhado somente depois dessa etapa, conforme ordem definida em `MEMORIA_PROJETO.md`.
