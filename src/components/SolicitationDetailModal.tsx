@@ -94,8 +94,6 @@ function buildWhatsAppMessage(detail: AdministrativeSolicitationDetail) {
   }
 
   if (detail.supervisor) lines.push(`Supervisor(a) ${detail.supervisor}`)
-  if (detail.justificativa) lines.push(`Observação: ${detail.justificativa}`)
-  lines.push(`Protocolo: ${detail.idSolicitacao}`)
   return lines.join('\n')
 }
 
