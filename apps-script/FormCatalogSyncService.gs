@@ -7,6 +7,7 @@ const FormCatalogSyncService = (() => {
     supervisores: 'CAD_SUPERVISORES',
     fornecedores: 'CAD_FORNECEDORES',
     atividades: 'CAD_ATIVIDADES',
+    funcoes: 'CAD_FUNCOES',
     produtos: 'CAD_PRODUTOS',
     precosProdutos: 'PRECOS_PRODUTOS',
   });
@@ -15,9 +16,18 @@ const FormCatalogSyncService = (() => {
     supervisor: 'Supervisor responsável',
     operacao: 'Operação',
     atividade: 'Atividade',
+    funcao: 'Função',
+    turno: 'Turno',
     alimentacao: 'Alimentação',
     bebida: 'Bebida',
   });
+
+  const LEGACY_SHIFT_QUESTIONS = Object.freeze([
+    'Turno — Auxiliar Operacional',
+    'Turno — Operador de Empilhadeira',
+  ]);
+
+  const SHIFT_VALUES = Object.freeze(['DIURNO', 'NOTURNO']);
 
   const CATEGORIES = Object.freeze({
     FOOD: 'ALIMENTACAO',
@@ -33,6 +43,7 @@ const FormCatalogSyncService = (() => {
     CAD_SUPERVISORES: true,
     CAD_FORNECEDORES: true,
     CAD_ATIVIDADES: true,
+    CAD_FUNCOES: true,
     CAD_PRODUTOS: true,
     PRECOS_PRODUTOS: true,
   });
@@ -52,6 +63,7 @@ const FormCatalogSyncService = (() => {
 
       const supervisors = activeNames_(SHEETS.supervisores, 'SUPERVISOR');
       const operations = activeNames_(SHEETS.operacoes, 'OPERACAO');
+      const functions = activeNames_(SHEETS.funcoes, 'FUNCAO');
       const activities = activeNames_(SHEETS.atividades, 'ATIVIDADE')
         .filter(function (name) {
           return ValidationService.normalizeUpper(name) !== ACTIVITY_OTHER;
@@ -60,12 +72,15 @@ const FormCatalogSyncService = (() => {
 
       validateChoices_(QUESTIONS.supervisor, supervisors);
       validateChoices_(QUESTIONS.operacao, operations);
+      validateChoices_(QUESTIONS.funcao, functions);
       validateChoices_(QUESTIONS.atividade, activities);
       validateChoices_(QUESTIONS.alimentacao, eligibleProducts.food);
       validateChoices_(QUESTIONS.bebida, eligibleProducts.drink);
 
       setListChoices_(form, QUESTIONS.supervisor, supervisors);
       setListChoices_(form, QUESTIONS.operacao, operations);
+      setChoiceQuestionValues_(form, QUESTIONS.funcao, functions, true);
+      const shiftStructure = ensureGenericShiftQuestion_(form);
       setActivityChoices_(form, activities);
       setListChoices_(form, QUESTIONS.alimentacao, eligibleProducts.food);
       setListChoices_(form, QUESTIONS.bebida, eligibleProducts.drink);
@@ -73,9 +88,12 @@ const FormCatalogSyncService = (() => {
       return {
         sincronizado: true,
         dataReferencia: DateService.toIsoDate(effectiveDate),
+        estruturaTurno: shiftStructure,
         quantidades: {
           supervisores: supervisors.length,
           operacoes: operations.length,
+          funcoes: functions.length,
+          turnos: SHIFT_VALUES.length,
           atividades: activities.length,
           alimentacao: eligibleProducts.food.length,
           bebidas: eligibleProducts.drink.length,
@@ -242,11 +260,161 @@ const FormCatalogSyncService = (() => {
       .showOtherOption(true);
   }
 
-  function findSingleItem_(form, title, expectedType) {
+  function setChoiceQuestionValues_(form, title, values, required) {
+    const item = findSingleChoiceItem_(form, title);
+    setChoiceValuesOnItem_(item, values, required);
+    return item;
+  }
+
+  function setChoiceValuesOnItem_(item, values, required) {
+    if (item.getType() === FormApp.ItemType.LIST) {
+      item.asListItem().setChoiceValues(values).setRequired(required !== false);
+      return;
+    }
+
+    if (item.getType() === FormApp.ItemType.MULTIPLE_CHOICE) {
+      item.asMultipleChoiceItem().setChoiceValues(values).setRequired(required !== false);
+      return;
+    }
+
+    throw new Error(
+      'A pergunta "' + item.getTitle() + '" precisa ser lista ou múltipla escolha para sincronização.'
+    );
+  }
+
+  function ensureGenericShiftQuestion_(form) {
+    const genericMatches = findItemsByTitle_(form, QUESTIONS.turno);
+    if (genericMatches.length > 1) {
+      throw new Error(
+        'Esperada no máximo 1 pergunta com o título "' + QUESTIONS.turno + '", mas foram encontradas ' + genericMatches.length + '.'
+      );
+    }
+
+    let shiftItem = genericMatches.length === 1 ? genericMatches[0] : null;
+    let migrated = false;
+
+    if (!shiftItem) {
+      const legacyItems = [];
+      LEGACY_SHIFT_QUESTIONS.forEach(function (title) {
+        findItemsByTitle_(form, title).forEach(function (item) {
+          legacyItems.push(item);
+        });
+      });
+
+      if (legacyItems.length) {
+        shiftItem = legacyItems[0];
+        if (
+          shiftItem.getType() !== FormApp.ItemType.LIST &&
+          shiftItem.getType() !== FormApp.ItemType.MULTIPLE_CHOICE
+        ) {
+          throw new Error('O campo de turno legado está com tipo incompatível para migração automática.');
+        }
+        shiftItem.setTitle(QUESTIONS.turno);
+        migrated = true;
+      } else {
+        shiftItem = form
+          .addListItem()
+          .setTitle(QUESTIONS.turno)
+          .setRequired(true)
+          .setChoiceValues(SHIFT_VALUES.slice());
+        migrated = true;
+      }
+    }
+
+    setChoiceValuesOnItem_(shiftItem, SHIFT_VALUES.slice(), true);
+
+    const roleItem = findSingleChoiceItem_(form, QUESTIONS.funcao);
+    moveItemImmediatelyAfter_(form, shiftItem, roleItem);
+
+    const removedLegacy = removeLegacyShiftQuestions_(form);
+    const removedEmptySections = removeEmptyPageBreaks_(form);
+
+    return {
+      pergunta: QUESTIONS.turno,
+      opcoes: SHIFT_VALUES.slice(),
+      migrada: migrated,
+      perguntasLegadasRemovidas: removedLegacy,
+      secoesVaziasRemovidas: removedEmptySections,
+    };
+  }
+
+  function moveItemImmediatelyAfter_(form, item, referenceItem) {
+    const itemIndex = item.getIndex();
+    const referenceIndex = referenceItem.getIndex();
+    let targetIndex = referenceIndex + 1;
+
+    if (itemIndex === targetIndex) return;
+    if (itemIndex < referenceIndex) targetIndex = referenceIndex;
+
+    form.moveItem(itemIndex, targetIndex);
+  }
+
+  function removeLegacyShiftQuestions_(form) {
+    let removed = 0;
+
+    LEGACY_SHIFT_QUESTIONS.forEach(function (title) {
+      const items = findItemsByTitle_(form, title);
+      items.slice().reverse().forEach(function (item) {
+        form.deleteItem(item);
+        removed += 1;
+      });
+    });
+
+    return removed;
+  }
+
+  function removeEmptyPageBreaks_(form) {
+    let removed = 0;
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      const items = form.getItems();
+
+      for (let index = items.length - 1; index >= 0; index -= 1) {
+        if (items[index].getType() !== FormApp.ItemType.PAGE_BREAK) continue;
+
+        const nextItem = items[index + 1];
+        if (!nextItem || nextItem.getType() === FormApp.ItemType.PAGE_BREAK) {
+          form.deleteItem(items[index]);
+          removed += 1;
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    return removed;
+  }
+
+  function findSingleChoiceItem_(form, title) {
+    const matches = findItemsByTitle_(form, title);
+
+    if (matches.length !== 1) {
+      throw new Error(
+        'Esperada exatamente 1 pergunta com o título "' + title + '", mas foram encontradas ' + matches.length + '.'
+      );
+    }
+
+    const type = matches[0].getType();
+    if (type !== FormApp.ItemType.LIST && type !== FormApp.ItemType.MULTIPLE_CHOICE) {
+      throw new Error(
+        'A pergunta "' + title + '" precisa ser lista ou múltipla escolha para sincronização.'
+      );
+    }
+
+    return matches[0];
+  }
+
+  function findItemsByTitle_(form, title) {
     const targetTitle = normalizeTitle_(title);
-    const matches = form.getItems().filter(function (item) {
+    return form.getItems().filter(function (item) {
       return normalizeTitle_(item.getTitle()) === targetTitle;
     });
+  }
+
+  function findSingleItem_(form, title, expectedType) {
+    const matches = findItemsByTitle_(form, title);
 
     if (matches.length !== 1) {
       throw new Error(
