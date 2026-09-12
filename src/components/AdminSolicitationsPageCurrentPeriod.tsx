@@ -104,6 +104,25 @@ function statusInfo(item: AdministrativeSolicitationListItem) {
 
 type Notice = { tone: 'success' | 'error'; message: string }
 
+function snackQuantity(item: AdministrativeSolicitationListItem) {
+  const parts: string[] = []
+  if (item.qtdAlimentacao != null) parts.push(`Alim. ${formatQuantity(item.qtdAlimentacao)}`)
+  if (item.qtdBebida != null) parts.push(`Beb. ${formatQuantity(item.qtdBebida)}`)
+  return parts.length ? parts.join(' · ') : '—'
+}
+
+function requestedQuantityBody(item: AdministrativeSolicitationListItem) {
+  return item.tipoSolicitacao === 'MAO_DE_OBRA'
+    ? formatQuantity(item.qtdSolicitada)
+    : snackQuantity(item)
+}
+
+function consideredQuantityBody(item: AdministrativeSolicitationListItem) {
+  if (item.tipoSolicitacao === 'MAO_DE_OBRA') return formatQuantity(item.qtdComparecida)
+  const snack = snackQuantity(item)
+  return snack === '—' ? '—' : `${snack} · pela solicitação`
+}
+
 export function AdminSolicitationsPageCurrentPeriod() {
   const initialPeriod = useMemo(currentPeriod, [])
   const [items, setItems] = useState<AdministrativeSolicitationListItem[]>([])
@@ -513,8 +532,8 @@ export function AdminSolicitationsPageCurrentPeriod() {
             <Column field="operacao" header="Operação" />
             <Column header="Tipo" body={typeBody} />
             <Column header="Status" body={statusBody} />
-            <Column header="Qtd. prevista" body={(item: AdministrativeSolicitationListItem) => item.tipoSolicitacao === 'MAO_DE_OBRA' ? formatQuantity(item.qtdSolicitada) : '—'} />
-            <Column header="Qtd. real" body={(item: AdministrativeSolicitationListItem) => item.tipoSolicitacao === 'MAO_DE_OBRA' ? formatQuantity(item.qtdComparecida) : '—'} />
+            <Column header="Qtd. solicitada" body={requestedQuantityBody} />
+            <Column header="Qtd. considerada" body={consideredQuantityBody} />
             <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
             <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
             <Column header="Ações" body={actionsBody} style={{ minWidth: '19rem' }} />
