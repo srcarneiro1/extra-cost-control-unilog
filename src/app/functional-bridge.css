@@ -1,0 +1,40 @@
+.material-symbols-rounded{
+  font-family:'Material Symbols Rounded'!important;
+  font-weight:normal;
+  font-style:normal;
+  font-size:20px;
+  line-height:1;
+  letter-spacing:normal;
+  text-transform:none;
+  display:inline-block;
+  white-space:nowrap;
+  word-wrap:normal;
+  direction:ltr;
+  font-feature-settings:'liga';
+  -webkit-font-feature-settings:'liga';
+  -webkit-font-smoothing:antialiased;
+  font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 20;
+}
+
+.nx-functional-content{max-width:1600px;padding-top:28px}
+.nx-functional-content>[hidden]{display:none!important}
+.nx-functional-content .page-header{margin-bottom:22px}
+.nx-functional-content .page-header h1{font-size:26px;letter-spacing:-.03em}
+.nx-functional-content .page-header p{max-width:860px}
+.nx-functional-content .admin-page,
+.nx-functional-content .catalog-page{min-width:0}
+
+.nx-scope-chip{display:grid;gap:1px;min-width:0;max-width:300px;padding:6px 10px;border:1px solid #eceef1;border-radius:9px;background:#fafbfc}
+.nx-scope-chip small{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#9298a2}
+.nx-scope-chip strong{font-size:9px;color:#4c535d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+@media(max-width:900px){
+  .nx-functional-content{padding-top:22px}
+  .nx-topbar-status .p-tag{display:none}
+  .nx-scope-chip{max-width:190px}
+}
+
+@media(max-width:720px){
+  .nx-functional-content{padding-top:18px}
+  .nx-scope-chip{display:none}
+}
