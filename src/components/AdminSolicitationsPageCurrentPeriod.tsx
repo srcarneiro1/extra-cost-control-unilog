@@ -3,11 +3,14 @@ import { Button } from 'primereact/button'
 import { Column } from 'primereact/column'
 import { DataTable } from 'primereact/datatable'
 import { Dropdown } from 'primereact/dropdown'
+import { InputTextarea } from 'primereact/inputtextarea'
+import { Message } from 'primereact/message'
 import { Paginator } from 'primereact/paginator'
 import { Tag } from 'primereact/tag'
 import { PageHeader } from './PageHeader'
 import { SolicitationCorrectionModal } from './SolicitationCorrectionModal'
 import { SolicitationDetailModal } from './SolicitationDetailModal'
+import { Modal } from './ui/Modal'
 import {
   Chip,
   EmptyState,
@@ -122,6 +125,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AdministrativeSolicitationListItem | null>(null)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleteError, setDeleteError] = useState('')
   const [notice, setNotice] = useState<Notice | null>(null)
   const [workflowOpen, setWorkflowOpen] = useState(false)
   const [correctionOpen, setCorrectionOpen] = useState(false)
@@ -250,6 +256,19 @@ export function AdminSolicitationsPageCurrentPeriod() {
     setDetailLoading(false)
   }
 
+  function openDelete(item: AdministrativeSolicitationListItem) {
+    setDeleteTarget(item)
+    setDeleteReason('')
+    setDeleteError('')
+  }
+
+  function closeDelete() {
+    if (deleteLoading) return
+    setDeleteTarget(null)
+    setDeleteReason('')
+    setDeleteError('')
+  }
+
   async function refreshMetadata() {
     const loaded = await fetchAdministrativeSolicitationMetadata()
     setMetadata(loaded)
@@ -266,18 +285,18 @@ export function AdminSolicitationsPageCurrentPeriod() {
     notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
   }
 
-  async function handleDelete(item: AdministrativeSolicitationListItem) {
-    const reason = window.prompt(`Informe o motivo para excluir ${item.idSolicitacao}. A exclusão será registrada na auditoria.`, '')
-    if (reason == null) return
-    if (reason.trim().length < 5) {
-      notify('error', 'Informe um motivo de exclusão com pelo menos 5 caracteres.')
+  async function confirmDelete() {
+    const item = deleteTarget
+    if (!item) return
+    if (deleteReason.trim().length < 5) {
+      setDeleteError('Informe um motivo de exclusão com pelo menos 5 caracteres.')
       return
     }
-    const confirmed = window.confirm(`Excluir definitivamente a solicitação ${item.idSolicitacao}? O registro e eventuais jornadas parciais serão removidos da base operacional, preservando um snapshot na auditoria.`)
-    if (!confirmed) return
+
     setDeleteLoading(item.idSolicitacao)
+    setDeleteError('')
     try {
-      await deleteAdministrativeSolicitation({ idSolicitacao: item.idSolicitacao, motivoExclusao: reason.trim() })
+      await deleteAdministrativeSolicitation({ idSolicitacao: item.idSolicitacao, motivoExclusao: deleteReason.trim() })
       detailCacheRef.current.delete(item.idSolicitacao)
       detailRequestsRef.current.delete(item.idSolicitacao)
       if (items.length === 1 && currentPage > 1) {
@@ -286,9 +305,11 @@ export function AdminSolicitationsPageCurrentPeriod() {
       } else {
         await Promise.all([refreshItems(), refreshMetadata()])
       }
+      setDeleteTarget(null)
+      setDeleteReason('')
       notify('success', `Solicitação ${item.idSolicitacao} excluída e registrada na auditoria.`)
     } catch (error) {
-      notify('error', error instanceof Error ? error.message : 'Não foi possível excluir a solicitação.')
+      setDeleteError(error instanceof Error ? error.message : 'Não foi possível excluir a solicitação.')
     } finally {
       setDeleteLoading(null)
     }
@@ -442,7 +463,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
       <div className="nx-modern-actions">
         <Button icon="pi pi-pencil" label="Editar" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={rowBusy} />
         <Button icon="pi pi-external-link" label="Abrir" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={rowBusy} className="nx-primary-button" />
-        <Button icon={deleteLoading === item.idSolicitacao ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} label={deleteLoading === item.idSolicitacao ? 'Excluindo…' : 'Excluir'} size="small" severity="danger" text onClick={() => void handleDelete(item)} disabled={rowBusy} />
+        <Button icon={deleteLoading === item.idSolicitacao ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} label={deleteLoading === item.idSolicitacao ? 'Excluindo…' : 'Excluir'} size="small" severity="danger" text onClick={() => openDelete(item)} disabled={rowBusy} />
       </div>
     )
   }
@@ -519,6 +540,46 @@ export function AdminSolicitationsPageCurrentPeriod() {
 
       <SolicitationDetailModal open={workflowOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeWorkflow} onChanged={handleWorkflowChanged} onNotify={notify} />
       <SolicitationCorrectionModal open={correctionOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeCorrection} onSaved={handleCorrectionSaved} />
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        titleId="delete-solicitation-title"
+        eyebrow="EXCLUSÃO ADMINISTRATIVA"
+        title={deleteTarget ? `Excluir ${deleteTarget.idSolicitacao}` : 'Excluir solicitação'}
+        description="A solicitação e eventuais jornadas parciais serão removidas da base operacional. Um snapshot será preservado na auditoria."
+        onClose={closeDelete}
+        busy={Boolean(deleteLoading)}
+        width="medium"
+        bodyClassName="nx-delete-dialog"
+        footer={
+          <>
+            <Button label="Cancelar" text onClick={closeDelete} disabled={Boolean(deleteLoading)} />
+            <Button
+              label={deleteLoading ? 'Excluindo…' : 'Excluir solicitação'}
+              icon={deleteLoading ? 'pi pi-spin pi-spinner' : 'pi pi-trash'}
+              severity="danger"
+              onClick={() => void confirmDelete()}
+              disabled={Boolean(deleteLoading) || deleteReason.trim().length < 5}
+            />
+          </>
+        }
+      >
+        <div className="nx-delete-dialog-body">
+          <Message severity="warn" text="Esta ação é definitiva na base operacional e ficará registrada na auditoria." />
+          {deleteError && <Message severity="error" text={deleteError} />}
+          <label className="nx-workflow-field">
+            <span>Motivo da exclusão</span>
+            <InputTextarea
+              value={deleteReason}
+              onChange={(event) => setDeleteReason(event.target.value)}
+              rows={4}
+              autoResize
+              placeholder="Descreva o motivo com pelo menos 5 caracteres."
+            />
+            <small>{deleteReason.trim().length}/5 caracteres mínimos</small>
+          </label>
+        </div>
+      </Modal>
     </section>
   )
 }
