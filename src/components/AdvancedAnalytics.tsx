@@ -1,8 +1,9 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Card } from 'primereact/card'
 import { Chart } from 'primereact/chart'
+import { Tag } from 'primereact/tag'
 import type { DashboardAnalytics, DashboardResponse } from '../types/dashboard'
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
@@ -14,12 +15,10 @@ const PALETTE = {
   graphite: '#494a56',
   graphiteSoft: '#8b9099',
   red: '#db0812',
-  redSoft: 'rgba(219,8,18,.14)',
   grid: '#eceef1',
   text: '#5f636b',
   muted: '#858a93',
-  surface: '#ffffff',
-  track: '#f1f2f4',
+  planned: '#d7dbe0',
 }
 
 function currency(value: number | null | undefined) {
@@ -34,6 +33,11 @@ function currency(value: number | null | undefined) {
 function percent(value: number | null | undefined) {
   if (value == null) return '—'
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)}%`
+}
+
+function shortLabel(value: string, max = 12) {
+  const normalized = value.trim()
+  return normalized.length <= max ? normalized : `${normalized.slice(0, Math.max(1, max - 1))}…`
 }
 
 function emptyAnalytics(): DashboardAnalytics {
@@ -87,7 +91,7 @@ function AnalyticsCardHeader({ eyebrow, title, description, trailing }: {
   eyebrow: string
   title: string
   description: string
-  trailing?: React.ReactNode
+  trailing?: ReactNode
 }) {
   return (
     <div className="dashboard-card-header nx-chart-card-header">
@@ -103,12 +107,14 @@ function AnalyticsCardHeader({ eyebrow, title, description, trailing }: {
 
 function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
   const items = analytics.diasSemana
+  const maxValue = Math.max(...items.map((item) => item.realizado), 0)
+  const peakIndex = items.findIndex((item) => item.realizado === maxValue)
   const chartData = {
     labels: items.map((item, index) => WEEKDAYS[index] || item.chave),
     datasets: [{
       label: 'Custo realizado',
       data: items.map((item) => item.realizado),
-      backgroundColor: items.map((_, index) => index === items.findIndex((item) => item.realizado === Math.max(...items.map((candidate) => candidate.realizado))) ? PALETTE.red : PALETTE.graphite),
+      backgroundColor: items.map((_, index) => index === peakIndex ? PALETTE.red : PALETTE.graphite),
       borderRadius: 7,
       borderSkipped: false,
       maxBarThickness: 42,
@@ -118,6 +124,7 @@ function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
     responsive: true,
     maintainAspectRatio: false,
     animation: false as const,
+    layout: { padding: { top: 4, right: 4, bottom: 2, left: 2 } },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -125,18 +132,16 @@ function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
         titleColor: '#fff',
         bodyColor: '#fff',
         padding: 10,
-        callbacks: {
-          label: (context: any) => ` ${currency(context.raw)}`,
-        },
+        callbacks: { label: (context: any) => ` ${currency(context.raw)}` },
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: axisTicks, border: { display: false } },
+      x: { grid: { display: false }, ticks: { ...axisTicks, padding: 6 }, border: { display: false } },
       y: {
         beginAtZero: true,
         grid: { color: PALETTE.grid },
         border: { display: false },
-        ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) },
+        ticks: { ...axisTicks, padding: 6, callback: (value: any) => currency(Number(value)) },
       },
     },
   }
@@ -174,6 +179,7 @@ function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
         pointRadius: 4,
+        pointHoverRadius: 5,
         tension: .28,
         yAxisID: 'y1',
       },
@@ -184,6 +190,7 @@ function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
     maintainAspectRatio: false,
     animation: false as const,
     interaction: { mode: 'index' as const, intersect: false },
+    layout: { padding: { top: 4, right: 6, bottom: 10, left: 4 } },
     plugins: {
       legend: baseLegend,
       tooltip: {
@@ -192,14 +199,39 @@ function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
         bodyColor: '#fff',
         padding: 10,
         callbacks: {
+          title: (contexts: any[]) => items[contexts[0]?.dataIndex]?.chave || '',
           label: (context: any) => context.datasetIndex === 0 ? ` ${currency(context.raw)}` : ` ${percent(context.raw)}`,
         },
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { ...axisTicks, maxRotation: 0, autoSkip: false }, border: { display: false } },
-      y: { beginAtZero: true, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) } },
-      y1: { beginAtZero: true, max: 100, position: 'right' as const, grid: { drawOnChartArea: false }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => `${value}%` } },
+      x: {
+        offset: true,
+        grid: { display: false },
+        border: { display: false },
+        ticks: {
+          ...axisTicks,
+          autoSkip: false,
+          minRotation: 22,
+          maxRotation: 32,
+          padding: 8,
+          callback: (_value: any, index: number) => shortLabel(items[index]?.chave || '', 11),
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: PALETTE.grid },
+        border: { display: false },
+        ticks: { ...axisTicks, padding: 5, callback: (value: any) => currency(Number(value)) },
+      },
+      y1: {
+        beginAtZero: true,
+        max: 100,
+        position: 'right' as const,
+        grid: { drawOnChartArea: false },
+        border: { display: false },
+        ticks: { ...axisTicks, padding: 5, callback: (value: any) => `${value}%` },
+      },
     },
   }
 
@@ -229,13 +261,22 @@ function SupervisorRanking({ data }: { data: DashboardResponse }) {
     responsive: true,
     maintainAspectRatio: false,
     animation: false as const,
+    layout: { padding: { right: 6, left: 2 } },
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor: PALETTE.ink, titleColor: '#fff', bodyColor: '#fff', callbacks: { label: (context: any) => ` ${currency(context.raw)}` } },
+      tooltip: {
+        backgroundColor: PALETTE.ink,
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        callbacks: {
+          title: (contexts: any[]) => items[contexts[0]?.dataIndex]?.chave || '',
+          label: (context: any) => ` ${currency(context.raw)}`,
+        },
+      },
     },
     scales: {
       x: { beginAtZero: true, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) } },
-      y: { grid: { display: false }, border: { display: false }, ticks: axisTicks },
+      y: { grid: { display: false }, border: { display: false }, ticks: { ...axisTicks, callback: (_value: any, index: number) => shortLabel(items[index]?.chave || '', 18) } },
     },
   }
 
@@ -289,6 +330,7 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
     responsive: true,
     maintainAspectRatio: false,
     animation: false as const,
+    layout: { padding: { top: 4, right: 6, bottom: 4, left: 4 } },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -303,8 +345,21 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
       },
     },
     scales: {
-      x: { min: 0, max: 100, title: { display: true, text: 'Índice de linearidade', color: PALETTE.text, font: { size: 10, weight: 'bold' as const } }, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => `${value}%` } },
-      y: { beginAtZero: true, title: { display: true, text: 'Custo realizado', color: PALETTE.text, font: { size: 10, weight: 'bold' as const } }, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) } },
+      x: {
+        min: 0,
+        max: 100,
+        title: { display: true, text: 'Índice de linearidade', color: PALETTE.text, font: { size: 10, weight: 'bold' as const } },
+        grid: { color: PALETTE.grid },
+        border: { display: false },
+        ticks: { ...axisTicks, padding: 5, callback: (value: any) => `${value}%` },
+      },
+      y: {
+        beginAtZero: true,
+        title: { display: true, text: 'Custo realizado', color: PALETTE.text, font: { size: 10, weight: 'bold' as const } },
+        grid: { color: PALETTE.grid },
+        border: { display: false },
+        ticks: { ...axisTicks, padding: 5, callback: (value: any) => currency(Number(value)) },
+      },
     },
   }
 
@@ -314,6 +369,13 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
       {items.length ? <div className="nx-chart-stage nx-chart-stage-scatter"><Chart type="scatter" data={chartData} options={options} /></div> : <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>}
     </Card>
   )
+}
+
+function severityInfo(value: string) {
+  const normalized = value.toUpperCase()
+  if (normalized === 'ALTA') return { label: 'Alta prioridade', severity: 'danger' as const }
+  if (normalized === 'MEDIA' || normalized === 'MÉDIA') return { label: 'Atenção', severity: 'warning' as const }
+  return { label: 'Informativo', severity: 'secondary' as const }
 }
 
 export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
@@ -345,14 +407,26 @@ export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
 
       <Card className="dashboard-card analytics-opportunities-card nx-analytics-card">
         <AnalyticsCardHeader eyebrow="OPORTUNIDADES DE REDUÇÃO" title="Achados baseados em evidências" description="Fato observado, evidência e ação recomendada. Economia não é estimada sem regra validada." />
-        <div className="analytics-opportunities">
-          {analytics.oportunidades.map((item, index) => (
-            <article className={`analytics-opportunity analytics-opportunity-${item.severidade.toLowerCase()}`} key={`${index}-${item.titulo}`}>
-              <span>{index + 1}</span>
-              <div><strong>{item.titulo}</strong><p>{item.evidencia}</p><small>Ação: {item.acao}</small></div>
-            </article>
-          ))}
-        </div>
+        {analytics.oportunidades.length ? (
+          <div className="analytics-opportunities nx-opportunity-list">
+            {analytics.oportunidades.map((item, index) => {
+              const severity = severityInfo(item.severidade)
+              return (
+                <article className="analytics-opportunity nx-opportunity-card" key={`${index}-${item.titulo}`}>
+                  <span className="nx-opportunity-index">{index + 1}</span>
+                  <div className="nx-opportunity-copy">
+                    <div className="nx-opportunity-title-row">
+                      <strong>{item.titulo}</strong>
+                      <Tag value={severity.label} severity={severity.severity} rounded />
+                    </div>
+                    <p>{item.evidencia}</p>
+                    <small><strong>Ação recomendada:</strong> {item.acao}</small>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        ) : <div className="ui-empty-state"><div><strong>Nenhum achado relevante neste recorte</strong></div></div>}
       </Card>
     </div>
   )
