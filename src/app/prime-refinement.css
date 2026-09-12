@@ -1,0 +1,423 @@
+/* Final visual normalization for the Next.js + PrimeReact migration.
+   Loaded last on purpose: this layer resolves collisions with the legacy CSS
+   without changing business logic or data behavior. */
+
+:root{
+  --nx-control-h:42px;
+  --nx-card-radius:14px;
+  --nx-card-border:#e1e5e9;
+  --nx-card-shadow:0 6px 22px rgba(18,24,34,.045);
+}
+
+.nx-functional-content,
+.dashboard-page,
+.dashboard-view,
+.advanced-analytics-grid,
+.admin-page,
+.catalog-page,
+.ui-panel,
+.nx-prime-panel,
+.nx-prime-table,
+.table-wrap{min-width:0;max-width:100%}
+
+/* PrimeReact Card structure: legacy classes were styling the outer Card while
+   the actual content sits inside .p-card-content. These rules move layout to
+   the correct DOM level. */
+.nx-prime-metric.p-card{
+  display:block!important;
+  padding:0!important;
+}
+.nx-prime-metric.p-card>.p-card-body{
+  height:100%;
+  padding:0!important;
+}
+.nx-prime-metric.p-card>.p-card-body>.p-card-content{
+  min-height:102px;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr)!important;
+  align-items:center;
+  align-content:center;
+  gap:12px!important;
+  padding:14px 16px!important;
+}
+
+.nx-dashboard-metric-card.p-card.dashboard-metric{
+  display:block!important;
+  min-height:108px;
+  padding:0!important;
+  overflow:hidden;
+}
+.nx-dashboard-metric-card.p-card>.p-card-body{
+  height:100%;
+  padding:0!important;
+}
+.nx-dashboard-metric-card.p-card>.p-card-body>.p-card-content{
+  min-height:108px;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  align-content:center;
+  gap:5px!important;
+  padding:15px 17px!important;
+}
+.nx-dashboard-metric-card .p-card-content>span{
+  display:block;
+  font-size:9px;
+  font-weight:750;
+  line-height:1.35;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+  color:var(--text-muted);
+}
+.nx-dashboard-metric-card .p-card-content>strong{
+  display:block;
+  min-width:0;
+  font-size:21px;
+  line-height:1.12;
+  letter-spacing:-.025em;
+  color:var(--text-primary);
+  overflow-wrap:anywhere;
+}
+.nx-dashboard-metric-card .p-card-content>small{
+  display:block;
+  font-size:9px;
+  line-height:1.4;
+  color:var(--text-muted);
+  overflow-wrap:anywhere;
+}
+
+.nx-dashboard-economy-card.p-card.dashboard-economy-card{
+  display:block!important;
+  padding:0!important;
+  overflow:hidden;
+}
+.nx-dashboard-economy-card.p-card>.p-card-body{height:100%;padding:0!important}
+.nx-dashboard-economy-card.p-card>.p-card-body>.p-card-content{
+  height:100%;
+  display:grid!important;
+  align-content:center;
+  gap:5px!important;
+  padding:13px 14px!important;
+}
+
+/* Legacy dashboard/analytics cards get the same visual language while their
+   remaining markup is progressively replaced by PrimeReact components. */
+.dashboard-card,
+.analytics-viz-card,
+.analytics-opportunities-card,
+.dashboard-meta-alert,
+.dashboard-metric:not(.p-card),
+.dashboard-economy-card:not(.p-card){
+  border-color:var(--nx-card-border)!important;
+  border-radius:var(--nx-card-radius)!important;
+  background:#fff!important;
+  box-shadow:var(--nx-card-shadow)!important;
+}
+.dashboard-metric:not(.p-card){
+  min-height:108px;
+  align-content:center;
+  gap:5px;
+  padding:15px 17px!important;
+}
+.dashboard-metric:not(.p-card)>span{
+  font-size:9px;
+  line-height:1.35;
+}
+.dashboard-metric:not(.p-card)>strong{
+  min-width:0;
+  font-size:21px;
+  line-height:1.12;
+  letter-spacing:-.025em;
+  overflow-wrap:anywhere;
+}
+.dashboard-metric:not(.p-card)>small{
+  font-size:9px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+
+.dashboard-card-header{
+  min-width:0;
+  padding:16px 18px!important;
+}
+.dashboard-card-header>div{min-width:0}
+.dashboard-card-header h2{line-height:1.25;overflow-wrap:anywhere}
+.dashboard-card-header p{line-height:1.45;overflow-wrap:anywhere}
+
+/* Header / shell */
+.nx-topbar{min-width:0}
+.nx-topbar-title{flex:0 1 auto;min-width:0}
+.nx-topbar-title>div{min-width:0}
+.nx-topbar-title small,
+.nx-topbar-title strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-topbar-status{min-width:0;flex:0 1 auto;justify-content:flex-end}
+.nx-scope-chip{min-width:0;display:flex;align-items:baseline;gap:6px}
+.nx-scope-chip small{flex:0 0 auto;white-space:nowrap}
+.nx-scope-chip strong{min-width:0;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-gateway-state{flex:0 0 auto;white-space:nowrap}
+
+/* Page headers */
+.nx-prime-page-header.p-toolbar{min-width:0}
+.nx-prime-page-header .p-toolbar-group-start,
+.nx-prime-page-header .p-toolbar-group-end{min-width:0}
+.nx-page-title-copy h1{overflow-wrap:anywhere}
+.nx-modern-actions{min-width:0}
+
+/* Controls */
+.p-inputtext,
+.p-dropdown,
+.p-password-input,
+.catalog-editor-form input,
+.catalog-editor-form select,
+.dashboard-filters select{
+  min-height:var(--nx-control-h);
+}
+.p-dropdown{display:flex;align-items:stretch}
+.p-dropdown .p-dropdown-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.p-button{max-width:100%}
+.p-button .p-button-label{overflow:hidden;text-overflow:ellipsis}
+
+/* Search fields: remove the legacy wrapper border so there is only one field. */
+.ui-search-field.nx-prime-search{
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.ui-search-field.nx-prime-search:focus-within{border:0!important;box-shadow:none!important}
+.ui-search-field.nx-prime-search .p-inputtext{min-height:var(--nx-control-h)}
+
+/* Dashboard */
+.dashboard-metrics-grid,
+.dashboard-analytics-summary,
+.analytics-summary-five{align-items:stretch}
+.dashboard-metrics-grid>* ,
+.dashboard-analytics-summary>* ,
+.analytics-summary-five>*{min-width:0;height:100%}
+
+.nx-dashboard-filter-card.p-card>.p-card-body{padding:0!important}
+.nx-dashboard-filter-card.p-card>.p-card-body>.p-card-content{padding:18px!important}
+.nx-dashboard-filter-grid label{min-width:0}
+.nx-dashboard-filter-grid .p-dropdown{width:100%;min-width:0}
+.nx-dashboard-filter-actions{gap:8px;flex-wrap:wrap}
+
+.dashboard-meta-alert{min-width:0}
+.dashboard-meta-alert>div{min-width:0}
+.dashboard-meta-alert p{overflow-wrap:anywhere}
+.dashboard-meta-alert-value strong{overflow-wrap:anywhere}
+
+.dashboard-comparison-card,
+.dashboard-projection-card,
+.analytics-viz-card{overflow:hidden}
+.dashboard-chart-wrap,
+.analytics-linearity-stage,
+.analytics-heatmap{max-width:100%}
+.analytics-svg{max-width:100%}
+.analytics-ranking-item>*{min-width:0}
+.analytics-opportunity>div{min-width:0}
+.analytics-opportunity p,
+.analytics-opportunity small{overflow-wrap:anywhere}
+
+/* Tables: do not compress desktop column structures until they become unreadable.
+   The container owns horizontal scrolling on narrow viewports. */
+.table-wrap,
+.nx-prime-table .p-datatable-wrapper{
+  width:100%;
+  overflow-x:auto!important;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.nx-prime-table .p-datatable-thead>tr>th,
+.nx-prime-table .p-datatable-tbody>tr>td,
+.catalog-table th,
+.catalog-table td,
+.admin-record-table th,
+.admin-record-table td{line-height:1.35}
+.nx-prime-table .p-datatable-tbody>tr>td{overflow-wrap:anywhere}
+
+/* Cadastros */
+.catalog-section-tabs{
+  width:100%;
+  max-width:100%;
+  scroll-snap-type:x proximity;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.catalog-section-tabs button{scroll-snap-align:start}
+.catalog-list-toolbar{min-width:0}
+.catalog-list-toolbar .ui-search-field{max-width:100%}
+.catalog-editor-form,
+.catalog-form-grid{min-width:0}
+.catalog-editor-form label{min-width:0}
+.catalog-editor-form input,
+.catalog-editor-form select{width:100%;min-width:0}
+
+/* Solicitações */
+.nx-prime-filter-row>*{min-width:0}
+.nx-prime-filter-row .p-dropdown{width:100%}
+.admin-row-actions{align-items:center}
+
+/* Dialogs */
+.nx-prime-dialog.p-dialog{width:min(720px,calc(100vw - 32px));max-width:calc(100vw - 32px)}
+.nx-prime-dialog.ui-modal-large{width:min(1080px,calc(100vw - 32px))!important}
+.nx-prime-dialog .p-dialog-header,
+.nx-prime-dialog .p-dialog-content,
+.nx-prime-dialog .p-dialog-footer{min-width:0}
+.nx-dialog-footer>.p-button,
+.nx-dialog-footer>.button{flex:0 0 auto}
+
+@media(max-width:1180px){
+  .nx-topbar-status{gap:8px}
+  .nx-gateway-state{display:none}
+  .nx-scope-chip strong{max-width:220px}
+  .nx-dashboard-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+@media(max-width:900px){
+  .nx-content{padding:22px 18px 38px!important}
+  .dashboard-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .dashboard-analytics-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .analytics-summary-five{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .nx-prime-filter-row{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .catalog-form-grid,.nx-form-grid{grid-template-columns:1fr!important}
+  .dashboard-card-header{display:grid!important}
+}
+
+@media(max-width:760px){
+  /* Mobile topbar: scope/profile information belongs in the sidebar. Keeping it
+     here was the source of the overlap visible in the reported screenshot. */
+  .nx-topbar{
+    height:64px!important;
+    min-height:64px;
+    padding:0 max(14px,env(safe-area-inset-right)) 0 max(14px,env(safe-area-inset-left))!important;
+    gap:10px;
+  }
+  .nx-topbar-status{display:none!important}
+  .nx-topbar-title{width:100%;gap:10px}
+  .nx-topbar-title>div{display:grid;gap:2px}
+  .nx-topbar-title small{font-size:8px;letter-spacing:.11em}
+  .nx-topbar-title strong{font-size:13px}
+  .nx-mobile-menu{width:38px;height:38px}
+
+  .nx-content{padding:16px 12px 30px!important}
+  .nx-functional-content>div{min-width:0}
+
+  .nx-prime-page-header.p-toolbar{
+    padding-bottom:14px!important;
+    gap:10px;
+  }
+  .nx-prime-page-header .p-toolbar-group-start,
+  .nx-prime-page-header .p-toolbar-group-end{width:100%}
+  .nx-page-title-copy h1{font-size:23px}
+  .nx-page-title-copy p{font-size:11px}
+  .nx-modern-actions{width:100%;justify-content:stretch}
+  .nx-modern-actions>.p-button,
+  .nx-modern-actions>.button{flex:1 1 auto}
+
+  .dashboard-metrics-grid,
+  .dashboard-analytics-summary,
+  .analytics-summary-five,
+  .nx-prime-metrics{grid-template-columns:1fr!important;gap:10px!important}
+
+  .nx-dashboard-metric-card.p-card.dashboard-metric,
+  .dashboard-metric:not(.p-card){min-height:96px}
+  .nx-dashboard-metric-card.p-card>.p-card-body>.p-card-content{
+    min-height:96px;
+    padding:14px 15px!important;
+  }
+  .nx-dashboard-metric-card .p-card-content>strong,
+  .dashboard-metric:not(.p-card)>strong{font-size:19px}
+  .nx-dashboard-metric-card .p-card-content>span,
+  .dashboard-metric:not(.p-card)>span{font-size:8px}
+
+  .nx-prime-metric.p-card>.p-card-body>.p-card-content{
+    min-height:88px;
+    padding:12px 14px!important;
+  }
+
+  .nx-dashboard-filter-card.p-card>.p-card-body>.p-card-content{padding:14px!important}
+  .nx-dashboard-filter-grid,
+  .nx-prime-filter-row{grid-template-columns:1fr!important}
+  .nx-dashboard-filter-actions{justify-content:stretch}
+  .nx-dashboard-filter-actions .p-button{width:100%}
+
+  .dashboard-meta-alert{grid-template-columns:1fr!important;gap:9px;padding:13px 14px!important}
+  .dashboard-meta-alert-icon{width:32px;height:32px}
+  .dashboard-meta-alert-value{grid-column:1!important;justify-items:start!important;min-width:0}
+
+  .dashboard-two-columns,
+  .analytics-three-columns{grid-template-columns:1fr!important}
+  .analytics-viz-card{min-height:0!important}
+  .dashboard-card-header{padding:14px!important}
+  .dashboard-card-header h2{font-size:13px}
+
+  .analytics-linearity-stage{overflow-x:auto;padding:8px 10px 10px!important}
+  .analytics-linearity-stage>.analytics-linearity-plot-shell,
+  .analytics-linearity-edge-labels,
+  .analytics-linearity-axis-heading{min-width:560px!important}
+  .analytics-heatmap{padding:10px!important}
+
+  .catalog-section-tabs{margin-left:-2px;margin-right:-2px;padding-bottom:8px!important}
+  .catalog-section-tabs button{min-height:40px!important}
+  .catalog-list-toolbar{padding:12px!important}
+  .catalog-list-toolbar .ui-search-field{width:100%!important}
+
+  .nx-table-toolbar{padding:12px!important;gap:10px}
+  .nx-table-count{font-size:10px}
+  .nx-prime-table table{min-width:760px!important}
+  .admin-record-table{min-width:1120px!important}
+  .catalog-price-table{min-width:940px!important}
+  .responsive-data-table:not(.catalog-price-table):not(.admin-record-table){min-width:680px!important}
+
+  .nx-prime-paginator.p-paginator,
+  .nx-prime-table .p-paginator{justify-content:center;padding:.6rem .35rem!important}
+  .p-paginator .p-paginator-current{width:100%;text-align:center;margin:0 0 4px}
+
+  .nx-prime-dialog.p-dialog,
+  .nx-prime-dialog.ui-modal-large{
+    width:calc(100vw - 20px)!important;
+    max-width:calc(100vw - 20px)!important;
+    max-height:88vh!important;
+    margin:10px;
+  }
+  .nx-prime-dialog .p-dialog-header{padding:16px 16px 14px!important}
+  .nx-dialog-body{padding:15px 16px!important}
+  .nx-prime-dialog .p-dialog-footer{padding:12px!important}
+  .nx-dialog-footer{display:grid!important;grid-template-columns:1fr;gap:7px}
+  .nx-dialog-footer>.p-button,
+  .nx-dialog-footer>.button{width:100%;justify-content:center}
+}
+
+@media(max-width:480px){
+  .nx-content{padding-left:10px!important;padding-right:10px!important}
+  .nx-page-title-copy h1{font-size:22px}
+  .dashboard-page-heading h1{font-size:22px!important}
+
+  .dashboard-metrics-grid,
+  .dashboard-analytics-summary,
+  .analytics-summary-five{gap:8px!important}
+
+  .nx-dashboard-metric-card.p-card>.p-card-body>.p-card-content,
+  .dashboard-metric:not(.p-card){padding:13px 14px!important}
+  .nx-dashboard-metric-card .p-card-content>strong,
+  .dashboard-metric:not(.p-card)>strong{font-size:18px}
+
+  .nx-prime-metric.p-card>.p-card-body>.p-card-content{
+    grid-template-columns:34px minmax(0,1fr)!important;
+    gap:10px!important;
+    min-height:82px;
+    padding:11px 12px!important;
+  }
+  .ui-summary-metric-icon{width:32px!important;height:32px!important}
+  .ui-summary-metric-copy>strong{font-size:19px!important}
+
+  .analytics-linearity-stage>.analytics-linearity-plot-shell,
+  .analytics-linearity-edge-labels,
+  .analytics-linearity-axis-heading{min-width:520px!important}
+
+  .nx-prime-table table{min-width:720px!important}
+  .admin-row-actions{gap:4px}
+  .admin-row-actions .p-button,
+  .admin-row-actions .button{padding-left:.55rem!important;padding-right:.55rem!important}
+}
