@@ -1,4 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { Button } from 'primereact/button'
+import { Checkbox } from 'primereact/checkbox'
+import { Column } from 'primereact/column'
+import { DataTable } from 'primereact/datatable'
+import { Dropdown } from 'primereact/dropdown'
+import { InputSwitch } from 'primereact/inputswitch'
+import { InputText } from 'primereact/inputtext'
+import { Message } from 'primereact/message'
+import { Paginator } from 'primereact/paginator'
+import { TabMenu } from 'primereact/tabmenu'
 import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
 import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton, SummaryMetrics } from './ui/Primitives'
@@ -57,6 +67,46 @@ type LaborPriceDraft = {
 type ProductPriceDraft = { fornecedor: string; produto: string; vigenciaInicio: string; precoUnitario: string }
 
 const PRICE_PAGE_SIZE = 25
+
+const SECTION_ITEMS: Array<{ key: CatalogSection; label: string; icon: string }> = [
+  { key: 'OPERACOES', label: 'Operações', icon: 'pi pi-building' },
+  { key: 'SUPERVISORES', label: 'Supervisores', icon: 'pi pi-id-card' },
+  { key: 'FUNCOES', label: 'Funções', icon: 'pi pi-users' },
+  { key: 'ATIVIDADES', label: 'Atividades', icon: 'pi pi-list-check' },
+  { key: 'FERIADOS', label: 'Feriados', icon: 'pi pi-calendar' },
+  { key: 'METAS', label: 'Metas', icon: 'pi pi-flag' },
+  { key: 'FORNECEDORES', label: 'Fornecedores', icon: 'pi pi-truck' },
+  { key: 'PRODUTOS', label: 'Produtos', icon: 'pi pi-box' },
+  { key: 'PRECOS_MO', label: 'Preços de mão de obra', icon: 'pi pi-wallet' },
+  { key: 'PRECOS_PRODUTOS', label: 'Preços de produtos', icon: 'pi pi-tag' },
+]
+
+const ACTIVE_OPTIONS = [
+  { label: 'Ativo', value: true },
+  { label: 'Inativo', value: false },
+]
+
+const CATEGORY_OPTIONS = [
+  { label: 'Alimentação', value: 'ALIMENTACAO' },
+  { label: 'Bebida', value: 'BEBIDA' },
+]
+
+const WHATSAPP_OPTIONS = [
+  { label: 'Não configurado', value: 'NENHUM' },
+  { label: 'Número', value: 'NUMERO' },
+  { label: 'Grupo', value: 'GRUPO' },
+]
+
+const TURN_OPTIONS = [
+  { label: 'Diurno', value: 'DIURNO' },
+  { label: 'Noturno', value: 'NOTURNO' },
+]
+
+const DAY_TYPE_OPTIONS = [
+  { label: 'Dia útil', value: 'UTIL' },
+  { label: 'Sábado', value: 'SABADO' },
+  { label: 'Domingo / feriado', value: 'DOMINGO_FERIADO' },
+]
 
 const emptyNamedDraft = (): NamedDraft => ({ nome: '', ativo: true })
 const emptyHolidayDraft = (): HolidayDraft => ({ data: '', denominacao: '', tipo: 'FERIADO', municipio: 'SERRA', uf: 'ES', ativo: true, fonte: '' })
@@ -132,6 +182,18 @@ function namedSectionLabel(section: CatalogSection) {
   if (section === 'SUPERVISORES') return 'Supervisor'
   if (section === 'FUNCOES') return 'Função'
   return 'Atividade'
+}
+
+function namedOptions(items: Array<{ nome: string }>, emptyLabel = 'Selecione') {
+  return [{ label: emptyLabel, value: '' }, ...items.map((item) => ({ label: item.nome, value: item.nome }))]
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return <Badge tone={active ? 'success' : 'neutral'}>{active ? 'Ativo' : 'Inativo'}</Badge>
+}
+
+function CatalogAction({ label, icon = 'pi pi-pencil', onClick }: { label: string; icon?: string; onClick: () => void }) {
+  return <Button label={label} icon={icon} size="small" outlined onClick={onClick} className="nx-catalog-action" />
 }
 
 export function CadastrosPagePaginated() {
@@ -243,11 +305,8 @@ export function CadastrosPagePaginated() {
   }, [debouncedSearch, section])
 
   useEffect(() => {
-    if (isPriceSection(section)) {
-      void loadPriceScope(section, pricePage, debouncedSearch)
-    } else {
-      void loadStaticScope(section)
-    }
+    if (isPriceSection(section)) void loadPriceScope(section, pricePage, debouncedSearch)
+    else void loadStaticScope(section)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, pricePage, debouncedSearch])
 
@@ -477,30 +536,42 @@ export function CadastrosPagePaginated() {
                   : section === 'PRECOS_MO' ? 'Novo preço de mão de obra'
                     : 'Novo preço de produto'
 
+  const activeSectionIndex = Math.max(0, SECTION_ITEMS.findIndex((item) => item.key === section))
+
   return (
-    <div className="catalog-page">
+    <div className="catalog-page nx-modern-page nx-catalog-page">
       <PageHeader
         eyebrow="ADMINISTRAÇÃO"
         title="Cadastros"
         description="Mantenha catálogos operacionais, feriados, metas, fornecedores, produtos e tabelas de preço em uma única área administrativa."
-        actions={<button className="button button-primary" type="button" onClick={openNew}><span className="material-symbols-rounded" aria-hidden="true">add</span>{pageActionLabel}</button>}
+        actions={<Button label={pageActionLabel} icon="pi pi-plus" onClick={openNew} className="nx-primary-button" />}
       />
 
-      {notice && <div className="admin-alert admin-alert-success catalog-notice">{notice}</div>}
-      {loadError && <div className="admin-alert catalog-notice" role="alert">{loadError}</div>}
+      {notice && <Message severity="success" text={notice} className="nx-catalog-message" />}
+      {loadError && <Message severity="error" text={loadError} className="nx-catalog-message" />}
 
       <SummaryMetrics items={metrics} ariaLabel="Resumo geral dos cadastros ativos" />
 
-      <div className="catalog-section-tabs" role="tablist" aria-label="Tipos de cadastro">
-        {([
-          ['OPERACOES', 'Operações'], ['SUPERVISORES', 'Supervisores'], ['FUNCOES', 'Funções'], ['ATIVIDADES', 'Atividades'], ['FERIADOS', 'Feriados'], ['METAS', 'Metas'], ['FORNECEDORES', 'Fornecedores'], ['PRODUTOS', 'Produtos'], ['PRECOS_MO', 'Preços de mão de obra'], ['PRECOS_PRODUTOS', 'Preços de produtos'],
-        ] as Array<[CatalogSection, string]>).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={section === key} className={section === key ? 'is-active' : ''} onClick={() => changeSection(key)}>{label}</button>)}
+      <div className="nx-catalog-navigation" aria-label="Tipos de cadastro">
+        <TabMenu
+          model={SECTION_ITEMS.map((item) => ({ label: item.label, icon: item.icon }))}
+          activeIndex={activeSectionIndex}
+          onTabChange={(event) => changeSection(SECTION_ITEMS[event.index].key)}
+          className="nx-catalog-tabmenu"
+        />
+        <Dropdown
+          value={section}
+          options={SECTION_ITEMS.map((item) => ({ label: item.label, value: item.key }))}
+          onChange={(event) => changeSection(event.value as CatalogSection)}
+          className="nx-catalog-mobile-nav"
+          aria-label="Tipo de cadastro"
+        />
       </div>
 
-      {section === 'OPERACOES' && <NamedPanel loading={loading} singular="Operação" plural="Operações" description="Cadastre, inative ou reative operações disponíveis nos novos lançamentos." icon="warehouse" items={operations} search={search} setSearch={setSearch} onEdit={editNamed} />}
-      {section === 'SUPERVISORES' && <NamedPanel loading={loading} singular="Supervisor" plural="Supervisores" description="Cadastre, inative ou reative supervisores disponíveis nos novos lançamentos." icon="badge" items={supervisors} search={search} setSearch={setSearch} onEdit={editNamed} />}
-      {section === 'FUNCOES' && <NamedPanel loading={loading} singular="Função" plural="Funções" description="Funções usadas em mão de obra e nas tabelas de preço. Inativar preserva o histórico existente." icon="engineering" items={functions} search={search} setSearch={setSearch} onEdit={editNamed} />}
-      {section === 'ATIVIDADES' && <NamedPanel loading={loading} singular="Atividade" plural="Atividades" description="Atividades operacionais disponíveis nos lançamentos. Inativar não apaga solicitações antigas." icon="task_alt" items={activities} search={search} setSearch={setSearch} onEdit={editNamed} />}
+      {section === 'OPERACOES' && <NamedPanel loading={loading} singular="Operação" plural="Operações" description="Cadastre, inative ou reative operações disponíveis nos novos lançamentos." items={operations} search={search} setSearch={setSearch} onEdit={editNamed} />}
+      {section === 'SUPERVISORES' && <NamedPanel loading={loading} singular="Supervisor" plural="Supervisores" description="Cadastre, inative ou reative supervisores disponíveis nos novos lançamentos." items={supervisors} search={search} setSearch={setSearch} onEdit={editNamed} />}
+      {section === 'FUNCOES' && <NamedPanel loading={loading} singular="Função" plural="Funções" description="Funções usadas em mão de obra e nas tabelas de preço. Inativar preserva o histórico existente." items={functions} search={search} setSearch={setSearch} onEdit={editNamed} />}
+      {section === 'ATIVIDADES' && <NamedPanel loading={loading} singular="Atividade" plural="Atividades" description="Atividades operacionais disponíveis nos lançamentos. Inativar não apaga solicitações antigas." items={activities} search={search} setSearch={setSearch} onEdit={editNamed} />}
       {section === 'FERIADOS' && <HolidayPanel loading={loading} items={holidays} search={search} setSearch={setSearch} onEdit={editHoliday} />}
       {section === 'METAS' && <GoalPanel loading={loading} items={goals} search={search} setSearch={setSearch} onEdit={editGoal} />}
       {section === 'FORNECEDORES' && <ProviderPanel loading={loading} items={providers} search={search} setSearch={setSearch} onEdit={editProvider} />}
@@ -517,11 +588,22 @@ export function CadastrosPagePaginated() {
         onClose={closeEditor}
         busy={saving}
         width="medium"
-        bodyClassName="catalog-editor-modal-body"
-        footer={<><button className="button" type="button" onClick={closeEditor} disabled={saving}>Cancelar</button><button className="button button-primary" type="button" onClick={() => void handleSave()} disabled={saving}>{saving ? 'Salvando…' : saveButtonLabel(section, editingExisting, reactivatingPrice)}</button></>}
+        bodyClassName="catalog-editor-modal-body nx-catalog-editor"
+        footer={
+          <>
+            <Button label="Cancelar" text onClick={closeEditor} disabled={saving} />
+            <Button
+              label={saving ? 'Salvando…' : saveButtonLabel(section, editingExisting, reactivatingPrice)}
+              icon={saving ? 'pi pi-spin pi-spinner' : 'pi pi-check'}
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="nx-primary-button"
+            />
+          </>
+        }
       >
-        <div className="catalog-editor-form">
-          {editorError && <div className="admin-alert catalog-editor-error" role="alert">{editorError}</div>}
+        <div className="catalog-editor-form nx-catalog-form-stack">
+          {editorError && <Message severity="error" text={editorError} className="nx-catalog-message" />}
           {isNamedSection(section) && <NamedForm label={namedSectionLabel(section)} draft={namedDraft} setDraft={setNamedDraft} editingExisting={editingExisting} />}
           {section === 'FERIADOS' && <HolidayForm draft={holidayDraft} setDraft={setHolidayDraft} editingExisting={editingExisting} />}
           {section === 'METAS' && <GoalForm draft={goalDraft} setDraft={setGoalDraft} editingExisting={editingExisting} />}
@@ -536,42 +618,160 @@ export function CadastrosPagePaginated() {
 }
 
 function CatalogSearch({ value, onChange, placeholder, label }: { value: string; onChange: (value: string) => void; placeholder: string; label: string }) {
-  return <div className="catalog-list-toolbar"><SearchField value={value} onChange={onChange} placeholder={placeholder} ariaLabel={label} /></div>
+  return <div className="nx-catalog-toolbar"><SearchField value={value} onChange={onChange} placeholder={placeholder} ariaLabel={label} /></div>
+}
+
+function CatalogTableShell({ loading, empty, children }: { loading: boolean; empty: React.ReactNode; children: React.ReactNode }) {
+  if (loading) return <Skeleton lines={7} />
+  return <>{children || empty}</>
 }
 
 function PricePagination({ pagination, onPage }: { pagination: CatalogAdminPaginationDto | null; onPage: (page: number) => void }) {
   if (!pagination?.paginado) return null
-  const start = pagination.total === 0 ? 0 : (pagination.pagina - 1) * pagination.tamanhoPagina + 1
-  const end = Math.min(pagination.pagina * pagination.tamanhoPagina, pagination.total)
-  return <footer className="admin-pagination"><span className="admin-pagination-range">{start}–{end} de {pagination.total}</span><div className="admin-pagination-nav" aria-label="Navegação de páginas do histórico"><button type="button" className="icon-button" onClick={() => onPage(Math.max(1, pagination.pagina - 1))} disabled={pagination.pagina <= 1} aria-label="Página anterior"><span className="material-symbols-rounded" aria-hidden="true">chevron_left</span></button><span>Página {pagination.pagina} de {pagination.totalPaginas}</span><button type="button" className="icon-button" onClick={() => onPage(Math.min(pagination.totalPaginas, pagination.pagina + 1))} disabled={pagination.pagina >= pagination.totalPaginas} aria-label="Próxima página"><span className="material-symbols-rounded" aria-hidden="true">chevron_right</span></button></div></footer>
+  return (
+    <Paginator
+      first={(pagination.pagina - 1) * pagination.tamanhoPagina}
+      rows={pagination.tamanhoPagina}
+      totalRecords={pagination.total}
+      onPageChange={(event) => onPage(event.page + 1)}
+      template="CurrentPageReport PrevPageLink PageLinks NextPageLink"
+      currentPageReportTemplate="{first}–{last} de {totalRecords}"
+      className="nx-catalog-paginator"
+    />
+  )
 }
 
-function NamedPanel({ loading, singular, plural, description, icon, items, search, setSearch, onEdit }: { loading: boolean; singular: string; plural: string; description: string; icon: string; items: CatalogoAdminNomeDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: CatalogoAdminNomeDto) => void }) {
-  return <Panel className="catalog-provider-list"><PanelHeader eyebrow={plural.toUpperCase()} title={`Cadastro de ${plural.toLowerCase()}`} description={description} /><CatalogSearch value={search} onChange={setSearch} placeholder={`Buscar ${plural.toLowerCase()}…`} label={`Buscar ${plural.toLowerCase()}`} />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>{singular}</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.nome}><td data-label={singular} data-primary="true"><strong>{item.nome}</strong></td><td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td></tr>)}</tbody></table></div> : <EmptyState title={`Nenhum cadastro encontrado`} description={`Ajuste a busca ou cadastre um novo item.`} icon={icon} />}</Panel>
+function NamedPanel({ loading, singular, plural, description, items, search, setSearch, onEdit }: { loading: boolean; singular: string; plural: string; description: string; items: CatalogoAdminNomeDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: CatalogoAdminNomeDto) => void }) {
+  return (
+    <Panel className="catalog-provider-list nx-catalog-panel">
+      <PanelHeader eyebrow={plural.toUpperCase()} title={`Cadastro de ${plural.toLowerCase()}`} description={description} />
+      <CatalogSearch value={search} onChange={setSearch} placeholder={`Buscar ${plural.toLowerCase()}…`} label={`Buscar ${plural.toLowerCase()}`} />
+      {loading ? <Skeleton lines={7} /> : items.length ? (
+        <DataTable value={items} dataKey="nome" responsiveLayout="scroll" rowHover stripedRows className="nx-prime-table nx-catalog-table">
+          <Column field="nome" header={singular} sortable body={(item: CatalogoAdminNomeDto) => <strong>{item.nome}</strong>} />
+          <Column header="Status" body={(item: CatalogoAdminNomeDto) => <StatusBadge active={item.ativo} />} style={{ width: '9rem' }} />
+          <Column header="Ação" body={(item: CatalogoAdminNomeDto) => <CatalogAction label={item.ativo ? 'Editar' : 'Reativar'} icon={item.ativo ? 'pi pi-pencil' : 'pi pi-refresh'} onClick={() => onEdit(item)} />} style={{ width: '10rem' }} />
+        </DataTable>
+      ) : <EmptyState title="Nenhum cadastro encontrado" description="Ajuste a busca ou cadastre um novo item." />}
+    </Panel>
+  )
 }
 
 function HolidayPanel({ loading, items, search, setSearch, onEdit }: { loading: boolean; items: FeriadoAdminDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: FeriadoAdminDto) => void }) {
-  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="CALENDÁRIO" title="Feriados" description="Calendário usado na classificação de dias para precificação. Registros inativos permanecem preservados." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar data, feriado ou fonte…" label="Buscar feriados" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>Data</th><th>Denominação</th><th>Município/UF</th><th>Fonte</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.data}><td data-label="Data"><strong>{dateLabel(item.data)}</strong></td><td data-label="Denominação" data-primary="true">{item.denominacao}</td><td data-label="Município/UF">{item.municipio}/{item.uf}</td><td data-label="Fonte">{item.fonte || '—'}</td><td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td></tr>)}</tbody></table></div> : <EmptyState title="Nenhum feriado cadastrado" description="Cadastre as datas que devem ser tratadas como feriado." icon="event" />}</Panel>
+  return (
+    <Panel className="catalog-provider-list nx-catalog-panel">
+      <PanelHeader eyebrow="CALENDÁRIO" title="Feriados" description="Calendário usado na classificação de dias para precificação. Registros inativos permanecem preservados." />
+      <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar data, feriado ou fonte…" label="Buscar feriados" />
+      {loading ? <Skeleton lines={7} /> : items.length ? (
+        <DataTable value={items} dataKey="data" responsiveLayout="scroll" rowHover stripedRows className="nx-prime-table nx-catalog-table">
+          <Column field="data" header="Data" sortable body={(item: FeriadoAdminDto) => <strong>{dateLabel(item.data)}</strong>} />
+          <Column field="denominacao" header="Denominação" sortable />
+          <Column header="Município/UF" body={(item: FeriadoAdminDto) => `${item.municipio}/${item.uf}`} />
+          <Column field="fonte" header="Fonte" body={(item: FeriadoAdminDto) => item.fonte || '—'} />
+          <Column header="Status" body={(item: FeriadoAdminDto) => <StatusBadge active={item.ativo} />} />
+          <Column header="Ação" body={(item: FeriadoAdminDto) => <CatalogAction label={item.ativo ? 'Editar' : 'Reativar'} icon={item.ativo ? 'pi pi-pencil' : 'pi pi-refresh'} onClick={() => onEdit(item)} />} />
+        </DataTable>
+      ) : <EmptyState title="Nenhum feriado cadastrado" description="Cadastre as datas que devem ser tratadas como feriado." />}
+    </Panel>
+  )
 }
 
 function GoalPanel({ loading, items, search, setSearch, onEdit }: { loading: boolean; items: MetaMaoObraAdminDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: MetaMaoObraAdminDto) => void }) {
-  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="PLANEJAMENTO" title="Metas de mão de obra" description="Meta global por competência usada pela Visão Geral. Editar uma competência atualiza o valor consumido pelo Dashboard." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar competência ou valor…" label="Buscar metas" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>Competência</th><th>Meta MO</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.competencia}><td data-label="Competência" data-primary="true"><strong>{competenceLabel(item.competencia)}</strong></td><td data-label="Meta MO"><strong>{money(item.valor)}</strong></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>Editar</button></td></tr>)}</tbody></table></div> : <EmptyState title="Nenhuma meta cadastrada" description="Cadastre a meta de mão de obra por competência." icon="flag" />}</Panel>
+  return (
+    <Panel className="catalog-provider-list nx-catalog-panel">
+      <PanelHeader eyebrow="PLANEJAMENTO" title="Metas de mão de obra" description="Meta global por competência usada pela Visão Geral. Editar uma competência atualiza o valor consumido pelo Dashboard." />
+      <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar competência ou valor…" label="Buscar metas" />
+      {loading ? <Skeleton lines={7} /> : items.length ? (
+        <DataTable value={items} dataKey="competencia" responsiveLayout="scroll" rowHover stripedRows className="nx-prime-table nx-catalog-table">
+          <Column field="competencia" header="Competência" sortable body={(item: MetaMaoObraAdminDto) => <strong>{competenceLabel(item.competencia)}</strong>} />
+          <Column field="valor" header="Meta MO" sortable body={(item: MetaMaoObraAdminDto) => <strong>{money(item.valor)}</strong>} />
+          <Column header="Ação" body={(item: MetaMaoObraAdminDto) => <CatalogAction label="Editar" onClick={() => onEdit(item)} />} style={{ width: '10rem' }} />
+        </DataTable>
+      ) : <EmptyState title="Nenhuma meta cadastrada" description="Cadastre a meta de mão de obra por competência." />}
+    </Panel>
+  )
 }
 
 function ProviderPanel({ loading, items, search, setSearch, onEdit }: { loading: boolean; items: FornecedorAdminDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: FornecedorAdminDto) => void }) {
-  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="FORNECEDORES" title="Fornecedores e contato" description="Inative registros em vez de excluir. Fornecedores inativos deixam de aparecer também nas tabelas de preço até serem reativados." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor ou destino…" label="Buscar fornecedores" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>Fornecedor</th><th>Atendimento</th><th>WhatsApp</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.nome}><td data-label="Fornecedor" data-primary="true"><strong>{item.nome}</strong></td><td data-label="Atendimento"><div className="catalog-badge-stack">{item.maoDeObra && <Badge>Mão de obra</Badge>}{item.alimentacao && <Badge>Alimentação</Badge>}</div></td><td data-label="WhatsApp">{destinationLabel(item)}</td><td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td></tr>)}</tbody></table></div> : <EmptyState title="Nenhum fornecedor encontrado" description="Ajuste a busca ou cadastre um novo fornecedor." icon="local_shipping" />}</Panel>
+  return (
+    <Panel className="catalog-provider-list nx-catalog-panel">
+      <PanelHeader eyebrow="FORNECEDORES" title="Fornecedores e contato" description="Inative registros em vez de excluir. Fornecedores inativos deixam de aparecer também nas tabelas de preço até serem reativados." />
+      <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor ou destino…" label="Buscar fornecedores" />
+      {loading ? <Skeleton lines={7} /> : items.length ? (
+        <DataTable value={items} dataKey="nome" responsiveLayout="scroll" rowHover stripedRows className="nx-prime-table nx-catalog-table">
+          <Column field="nome" header="Fornecedor" sortable body={(item: FornecedorAdminDto) => <strong>{item.nome}</strong>} />
+          <Column header="Atendimento" body={(item: FornecedorAdminDto) => <div className="nx-catalog-badges">{item.maoDeObra && <Badge>Mão de obra</Badge>}{item.alimentacao && <Badge>Alimentação</Badge>}</div>} />
+          <Column header="WhatsApp" body={(item: FornecedorAdminDto) => destinationLabel(item)} />
+          <Column header="Status" body={(item: FornecedorAdminDto) => <StatusBadge active={item.ativo} />} />
+          <Column header="Ação" body={(item: FornecedorAdminDto) => <CatalogAction label={item.ativo ? 'Editar' : 'Reativar'} icon={item.ativo ? 'pi pi-pencil' : 'pi pi-refresh'} onClick={() => onEdit(item)} />} />
+        </DataTable>
+      ) : <EmptyState title="Nenhum fornecedor encontrado" description="Ajuste a busca ou cadastre um novo fornecedor." />}
+    </Panel>
+  )
 }
 
 function ProductPanel({ loading, items, search, setSearch, onEdit }: { loading: boolean; items: ProdutoAdminDto[]; search: string; setSearch: (value: string) => void; onEdit: (item: ProdutoAdminDto) => void }) {
-  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="CATÁLOGO" title="Produtos" description="Produtos vinculados a fornecedores de alimentação ativos. Reativar produto não altera histórico de preços." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar produto ou categoria…" label="Buscar produtos" />{loading ? <Skeleton lines={7} /> : items.length ? <div className="table-wrap embedded"><table className="responsive-data-table catalog-table"><thead><tr><th>Produto</th><th>Categoria</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item) => <tr key={item.nome}><td data-label="Produto" data-primary="true"><strong>{item.nome}</strong></td><td data-label="Categoria">{categoryLabel(item.categoria)}</td><td data-label="Status"><Badge tone={item.ativo ? 'success' : 'neutral'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge></td><td data-label="Ação"><button className="button catalog-edit-button" type="button" onClick={() => onEdit(item)}>{item.ativo ? 'Editar' : 'Reativar'}</button></td></tr>)}</tbody></table></div> : <EmptyState title="Nenhum produto encontrado" description="Ajuste a busca ou cadastre um novo produto." icon="inventory_2" />}</Panel>
+  return (
+    <Panel className="catalog-provider-list nx-catalog-panel">
+      <PanelHeader eyebrow="CATÁLOGO" title="Produtos" description="Produtos vinculados a fornecedores de alimentação ativos. Reativar produto não altera histórico de preços." />
+      <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar produto ou categoria…" label="Buscar produtos" />
+      {loading ? <Skeleton lines={7} /> : items.length ? (
+        <DataTable value={items} dataKey="nome" responsiveLayout="scroll" rowHover stripedRows className="nx-prime-table nx-catalog-table">
+          <Column field="nome" header="Produto" sortable body={(item: ProdutoAdminDto) => <strong>{item.nome}</strong>} />
+          <Column field="categoria" header="Categoria" sortable body={(item: ProdutoAdminDto) => categoryLabel(item.categoria)} />
+          <Column header="Status" body={(item: ProdutoAdminDto) => <StatusBadge active={item.ativo} />} />
+          <Column header="Ação" body={(item: ProdutoAdminDto) => <CatalogAction label={item.ativo ? 'Editar' : 'Reativar'} icon={item.ativo ? 'pi pi-pencil' : 'pi pi-refresh'} onClick={() => onEdit(item)} />} />
+        </DataTable>
+      ) : <EmptyState title="Nenhum produto encontrado" description="Ajuste a busca ou cadastre um novo produto." />}
+    </Panel>
+  )
 }
 
 function LaborPricePanel({ loading, items, search, setSearch, onVersion, pagination, onPage }: { loading: boolean; items: PrecoMaoObraAdminDto[]; search: string; setSearch: (value: string) => void; onVersion: (item: PrecoMaoObraAdminDto, reactivate?: boolean) => void; pagination: CatalogAdminPaginationDto | null; onPage: (page: number) => void }) {
-  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de mão de obra" description="Somente preços de fornecedores ativos e habilitados para mão de obra são exibidos. O histórico reaparece automaticamente se o fornecedor for reativado." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, função, turno…" label="Buscar preços de mão de obra" />{loading ? <Skeleton lines={7} /> : items.length ? <><div className="table-wrap embedded"><table className="responsive-data-table catalog-table catalog-price-table"><thead><tr><th>Fornecedor</th><th>Função</th><th>Turno</th><th>Tipo de dia</th><th>Vigência</th><th>Preço</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item, index) => { const status = priceStatus(item); return <tr key={`${item.fornecedor}-${item.funcao}-${item.turno}-${item.tipoDia}-${item.vigenciaInicio}-${index}`}><td data-label="Fornecedor" data-primary="true"><strong>{item.fornecedor}</strong></td><td data-label="Função">{item.funcao}</td><td data-label="Turno">{item.turno}</td><td data-label="Tipo de dia">{dayTypeLabel(item.tipoDia)}</td><td data-label="Vigência">{dateLabel(item.vigenciaInicio)} → {dateLabel(item.vigenciaFim)}</td><td data-label="Preço"><strong>{money(item.precoUnitario)}</strong></td><td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td><td data-label="Ação">{item.ativo && !item.vigenciaFim && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item)}>Nova vigência</button>}{!item.ativo && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item, true)}>Reativar</button>}</td></tr> })}</tbody></table></div><PricePagination pagination={pagination} onPage={onPage} /></> : <EmptyState title="Nenhum preço de mão de obra encontrado" description="Não há preços visíveis para fornecedores ativos no filtro atual." icon="payments" />}</Panel>
+  return (
+    <Panel className="catalog-provider-list nx-catalog-panel">
+      <PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de mão de obra" description="Somente preços de fornecedores ativos e habilitados para mão de obra são exibidos. O histórico reaparece automaticamente se o fornecedor for reativado." />
+      <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, função, turno…" label="Buscar preços de mão de obra" />
+      {loading ? <Skeleton lines={7} /> : items.length ? (
+        <>
+          <DataTable value={items} responsiveLayout="scroll" rowHover stripedRows className="nx-prime-table nx-catalog-table nx-catalog-price-table">
+            <Column field="fornecedor" header="Fornecedor" sortable body={(item: PrecoMaoObraAdminDto) => <strong>{item.fornecedor}</strong>} />
+            <Column field="funcao" header="Função" sortable />
+            <Column field="turno" header="Turno" sortable />
+            <Column field="tipoDia" header="Tipo de dia" body={(item: PrecoMaoObraAdminDto) => dayTypeLabel(item.tipoDia)} />
+            <Column header="Vigência" body={(item: PrecoMaoObraAdminDto) => `${dateLabel(item.vigenciaInicio)} → ${dateLabel(item.vigenciaFim)}`} />
+            <Column field="precoUnitario" header="Preço" sortable body={(item: PrecoMaoObraAdminDto) => <strong>{money(item.precoUnitario)}</strong>} />
+            <Column header="Status" body={(item: PrecoMaoObraAdminDto) => { const status = priceStatus(item); return <Badge tone={status.tone}>{status.label}</Badge> }} />
+            <Column header="Ação" body={(item: PrecoMaoObraAdminDto) => item.ativo && !item.vigenciaFim ? <CatalogAction label="Nova vigência" icon="pi pi-plus" onClick={() => onVersion(item)} /> : !item.ativo ? <CatalogAction label="Reativar" icon="pi pi-refresh" onClick={() => onVersion(item, true)} /> : null} />
+          </DataTable>
+          <PricePagination pagination={pagination} onPage={onPage} />
+        </>
+      ) : <EmptyState title="Nenhum preço de mão de obra encontrado" description="Não há preços visíveis para fornecedores ativos no filtro atual." />}
+    </Panel>
+  )
 }
 
 function ProductPricePanel({ loading, items, search, setSearch, onVersion, pagination, onPage }: { loading: boolean; items: PrecoProdutoAdminDto[]; search: string; setSearch: (value: string) => void; onVersion: (item: PrecoProdutoAdminDto, reactivate?: boolean) => void; pagination: CatalogAdminPaginationDto | null; onPage: (page: number) => void }) {
-  return <Panel className="catalog-provider-list"><PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de produtos" description="Somente preços de fornecedores ativos e habilitados para alimentação são exibidos. O histórico reaparece automaticamente se o fornecedor for reativado." /><CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, produto, categoria…" label="Buscar preços de produtos" />{loading ? <Skeleton lines={7} /> : items.length ? <><div className="table-wrap embedded"><table className="responsive-data-table catalog-table catalog-price-table"><thead><tr><th>Fornecedor</th><th>Produto</th><th>Categoria</th><th>Vigência</th><th>Preço</th><th>Status</th><th>Ação</th></tr></thead><tbody>{items.map((item, index) => { const status = priceStatus(item); return <tr key={`${item.fornecedor}-${item.produto}-${item.vigenciaInicio}-${index}`}><td data-label="Fornecedor" data-primary="true"><strong>{item.fornecedor}</strong></td><td data-label="Produto">{item.produto}</td><td data-label="Categoria">{categoryLabel(item.categoria)}</td><td data-label="Vigência">{dateLabel(item.vigenciaInicio)} → {dateLabel(item.vigenciaFim)}</td><td data-label="Preço"><strong>{money(item.precoUnitario)}</strong></td><td data-label="Status"><Badge tone={status.tone}>{status.label}</Badge></td><td data-label="Ação">{item.ativo && !item.vigenciaFim && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item)}>Nova vigência</button>}{!item.ativo && <button className="button catalog-edit-button" type="button" onClick={() => onVersion(item, true)}>Reativar</button>}</td></tr> })}</tbody></table></div><PricePagination pagination={pagination} onPage={onPage} /></> : <EmptyState title="Nenhum preço de produto encontrado" description="Não há preços visíveis para fornecedores ativos no filtro atual." icon="sell" />}</Panel>
+  return (
+    <Panel className="catalog-provider-list nx-catalog-panel">
+      <PanelHeader eyebrow="TABELA VERSIONADA" title="Preços de produtos" description="Somente preços de fornecedores ativos e habilitados para alimentação são exibidos. O histórico reaparece automaticamente se o fornecedor for reativado." />
+      <CatalogSearch value={search} onChange={setSearch} placeholder="Buscar fornecedor, produto, categoria…" label="Buscar preços de produtos" />
+      {loading ? <Skeleton lines={7} /> : items.length ? (
+        <>
+          <DataTable value={items} responsiveLayout="scroll" rowHover stripedRows className="nx-prime-table nx-catalog-table nx-catalog-price-table">
+            <Column field="fornecedor" header="Fornecedor" sortable body={(item: PrecoProdutoAdminDto) => <strong>{item.fornecedor}</strong>} />
+            <Column field="produto" header="Produto" sortable />
+            <Column field="categoria" header="Categoria" body={(item: PrecoProdutoAdminDto) => categoryLabel(item.categoria)} />
+            <Column header="Vigência" body={(item: PrecoProdutoAdminDto) => `${dateLabel(item.vigenciaInicio)} → ${dateLabel(item.vigenciaFim)}`} />
+            <Column field="precoUnitario" header="Preço" sortable body={(item: PrecoProdutoAdminDto) => <strong>{money(item.precoUnitario)}</strong>} />
+            <Column header="Status" body={(item: PrecoProdutoAdminDto) => { const status = priceStatus(item); return <Badge tone={status.tone}>{status.label}</Badge> }} />
+            <Column header="Ação" body={(item: PrecoProdutoAdminDto) => item.ativo && !item.vigenciaFim ? <CatalogAction label="Nova vigência" icon="pi pi-plus" onClick={() => onVersion(item)} /> : !item.ativo ? <CatalogAction label="Reativar" icon="pi pi-refresh" onClick={() => onVersion(item, true)} /> : null} />
+          </DataTable>
+          <PricePagination pagination={pagination} onPage={onPage} />
+        </>
+      ) : <EmptyState title="Nenhum preço de produto encontrado" description="Não há preços visíveis para fornecedores ativos no filtro atual." />}
+    </Panel>
+  )
 }
 
 function modalEyebrow(section: CatalogSection, editing: boolean, reactivating: boolean) {
@@ -608,30 +808,134 @@ function saveButtonLabel(section: CatalogSection, editing: boolean, reactivating
   return reactivating ? 'Criar reativação' : 'Criar vigência'
 }
 
+function CatalogField({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <label className="nx-catalog-field">
+      <span>{label}</span>
+      {children}
+      {hint && <small>{hint}</small>}
+    </label>
+  )
+}
+
+function ActiveField({ active, onChange }: { active: boolean; onChange: (active: boolean) => void }) {
+  return (
+    <label className="nx-catalog-field nx-catalog-switch-field">
+      <span>Status</span>
+      <div className="nx-catalog-switch-row">
+        <InputSwitch checked={active} onChange={(event) => onChange(Boolean(event.value))} />
+        <strong>{active ? 'Ativo' : 'Inativo'}</strong>
+      </div>
+    </label>
+  )
+}
+
 function NamedForm({ label, draft, setDraft, editingExisting }: { label: string; draft: NamedDraft; setDraft: Dispatch<SetStateAction<NamedDraft>>; editingExisting: boolean }) {
-  return <div className="catalog-form-grid"><label>{label}<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} /></label><label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label></div>
+  return (
+    <div className="nx-catalog-form-grid">
+      <CatalogField label={label}>
+        <InputText value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} />
+      </CatalogField>
+      <ActiveField active={draft.ativo} onChange={(ativo) => setDraft((current) => ({ ...current, ativo }))} />
+    </div>
+  )
 }
 
 function HolidayForm({ draft, setDraft, editingExisting }: { draft: HolidayDraft; setDraft: Dispatch<SetStateAction<HolidayDraft>>; editingExisting: boolean }) {
-  return <><div className="catalog-form-grid"><label>Data<input type="date" value={draft.data} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, data: event.target.value }))} /></label><label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label></div><label>Denominação<input value={draft.denominacao} onChange={(event) => setDraft((current) => ({ ...current, denominacao: event.target.value }))} placeholder="Ex.: Independência do Brasil" /></label><div className="catalog-form-grid"><label>Município<input value={draft.municipio} onChange={(event) => setDraft((current) => ({ ...current, municipio: event.target.value }))} /></label><label>UF<input value={draft.uf} maxLength={2} onChange={(event) => setDraft((current) => ({ ...current, uf: event.target.value.toUpperCase() }))} /></label></div><label>Fonte<input value={draft.fonte} onChange={(event) => setDraft((current) => ({ ...current, fonte: event.target.value }))} placeholder="Decreto, lei ou fonte oficial" /></label></>
+  return (
+    <div className="nx-catalog-form-stack">
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Data"><InputText type="date" value={draft.data} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, data: event.target.value }))} /></CatalogField>
+        <ActiveField active={draft.ativo} onChange={(ativo) => setDraft((current) => ({ ...current, ativo }))} />
+      </div>
+      <CatalogField label="Denominação"><InputText value={draft.denominacao} onChange={(event) => setDraft((current) => ({ ...current, denominacao: event.target.value }))} placeholder="Ex.: Independência do Brasil" /></CatalogField>
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Município"><InputText value={draft.municipio} onChange={(event) => setDraft((current) => ({ ...current, municipio: event.target.value }))} /></CatalogField>
+        <CatalogField label="UF"><InputText value={draft.uf} maxLength={2} onChange={(event) => setDraft((current) => ({ ...current, uf: event.target.value.toUpperCase() }))} /></CatalogField>
+      </div>
+      <CatalogField label="Fonte"><InputText value={draft.fonte} onChange={(event) => setDraft((current) => ({ ...current, fonte: event.target.value }))} placeholder="Decreto, lei ou fonte oficial" /></CatalogField>
+    </div>
+  )
 }
 
 function GoalForm({ draft, setDraft, editingExisting }: { draft: GoalDraft; setDraft: Dispatch<SetStateAction<GoalDraft>>; editingExisting: boolean }) {
-  return <div className="catalog-form-grid"><label>Competência<input type="month" value={draft.competencia} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, competencia: event.target.value }))} /></label><label>Meta de mão de obra<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.valor} onChange={(event) => setDraft((current) => ({ ...current, valor: event.target.value }))} placeholder="0,00" /></label></div>
+  return (
+    <div className="nx-catalog-form-grid">
+      <CatalogField label="Competência"><InputText type="month" value={draft.competencia} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, competencia: event.target.value }))} /></CatalogField>
+      <CatalogField label="Meta de mão de obra"><InputText type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.valor} onChange={(event) => setDraft((current) => ({ ...current, valor: event.target.value }))} placeholder="0,00" /></CatalogField>
+    </div>
+  )
 }
 
 function ProviderForm({ draft, setDraft, editingExisting }: { draft: ProviderDraft; setDraft: Dispatch<SetStateAction<ProviderDraft>>; editingExisting: boolean }) {
-  return <><div className="catalog-form-grid"><label>Fornecedor<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} /></label><label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label></div><div className="catalog-form-grid"><label className="catalog-checkbox-label"><input type="checkbox" checked={draft.maoDeObra} onChange={(event) => setDraft((current) => ({ ...current, maoDeObra: event.target.checked }))} />Atende mão de obra</label><label className="catalog-checkbox-label"><input type="checkbox" checked={draft.alimentacao} onChange={(event) => setDraft((current) => ({ ...current, alimentacao: event.target.checked }))} />Atende alimentação</label></div><div className="catalog-form-grid"><label>Destino WhatsApp<select value={draft.whatsappDestino} onChange={(event) => setDraft((current) => ({ ...current, whatsappDestino: event.target.value as WhatsappDestino }))}><option value="NENHUM">Não configurado</option><option value="NUMERO">Número</option><option value="GRUPO">Grupo</option></select></label>{draft.whatsappDestino === 'NUMERO' && <label>Número<input value={draft.whatsappNumero} onChange={(event) => setDraft((current) => ({ ...current, whatsappNumero: event.target.value }))} placeholder="5527999999999" /></label>}{draft.whatsappDestino === 'GRUPO' && <label>Link do grupo<input value={draft.whatsappGrupoLink} onChange={(event) => setDraft((current) => ({ ...current, whatsappGrupoLink: event.target.value }))} placeholder="https://chat.whatsapp.com/..." /></label>}</div></>
+  return (
+    <div className="nx-catalog-form-stack">
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Fornecedor"><InputText value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} /></CatalogField>
+        <ActiveField active={draft.ativo} onChange={(ativo) => setDraft((current) => ({ ...current, ativo }))} />
+      </div>
+      <div className="nx-catalog-checkbox-grid">
+        <label className="nx-catalog-check">
+          <Checkbox inputId="provider-labor" checked={draft.maoDeObra} onChange={(event) => setDraft((current) => ({ ...current, maoDeObra: Boolean(event.checked) }))} />
+          <span>Atende mão de obra</span>
+        </label>
+        <label className="nx-catalog-check">
+          <Checkbox inputId="provider-food" checked={draft.alimentacao} onChange={(event) => setDraft((current) => ({ ...current, alimentacao: Boolean(event.checked) }))} />
+          <span>Atende alimentação</span>
+        </label>
+      </div>
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Destino WhatsApp">
+          <Dropdown value={draft.whatsappDestino} options={WHATSAPP_OPTIONS} onChange={(event) => setDraft((current) => ({ ...current, whatsappDestino: event.value as WhatsappDestino }))} />
+        </CatalogField>
+        {draft.whatsappDestino === 'NUMERO' && <CatalogField label="Número"><InputText value={draft.whatsappNumero} onChange={(event) => setDraft((current) => ({ ...current, whatsappNumero: event.target.value }))} placeholder="5527999999999" /></CatalogField>}
+        {draft.whatsappDestino === 'GRUPO' && <CatalogField label="Link do grupo"><InputText value={draft.whatsappGrupoLink} onChange={(event) => setDraft((current) => ({ ...current, whatsappGrupoLink: event.target.value }))} placeholder="https://chat.whatsapp.com/..." /></CatalogField>}
+      </div>
+    </div>
+  )
 }
 
 function ProductForm({ draft, setDraft, editingExisting }: { draft: ProductDraft; setDraft: Dispatch<SetStateAction<ProductDraft>>; editingExisting: boolean }) {
-  return <div className="catalog-form-grid"><label>Produto<input value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} /></label><label>Categoria<select value={draft.categoria} onChange={(event) => setDraft((current) => ({ ...current, categoria: event.target.value as CategoriaProduto }))}><option value="ALIMENTACAO">Alimentação</option><option value="BEBIDA">Bebida</option></select></label><label>Status<select value={draft.ativo ? 'ATIVO' : 'INATIVO'} onChange={(event) => setDraft((current) => ({ ...current, ativo: event.target.value === 'ATIVO' }))}><option value="ATIVO">Ativo</option><option value="INATIVO">Inativo</option></select></label></div>
+  return (
+    <div className="nx-catalog-form-grid">
+      <CatalogField label="Produto"><InputText value={draft.nome} disabled={editingExisting} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} /></CatalogField>
+      <CatalogField label="Categoria"><Dropdown value={draft.categoria} options={CATEGORY_OPTIONS} onChange={(event) => setDraft((current) => ({ ...current, categoria: event.value as CategoriaProduto }))} /></CatalogField>
+      <ActiveField active={draft.ativo} onChange={(ativo) => setDraft((current) => ({ ...current, ativo }))} />
+    </div>
+  )
 }
 
 function LaborPriceForm({ draft, setDraft, functions, providers }: { draft: LaborPriceDraft; setDraft: Dispatch<SetStateAction<LaborPriceDraft>>; functions: CatalogoAdminNomeDto[]; providers: FornecedorAdminDto[] }) {
-  return <><div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}</select></label><label>Função<select value={draft.funcao} onChange={(event) => setDraft((current) => ({ ...current, funcao: event.target.value, turno: event.target.value === 'AUXILIAR OPERACIONAL' ? 'DIURNO' : current.turno }))}><option value="">Selecione</option>{functions.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}</select></label></div><div className="catalog-form-grid"><label>Turno<select value={draft.turno} disabled={draft.funcao === 'AUXILIAR OPERACIONAL'} onChange={(event) => setDraft((current) => ({ ...current, turno: event.target.value as 'DIURNO' | 'NOTURNO' }))}><option value="DIURNO">Diurno</option><option value="NOTURNO">Noturno</option></select></label><label>Tipo de dia<select value={draft.tipoDia} onChange={(event) => setDraft((current) => ({ ...current, tipoDia: event.target.value as TipoDia }))}><option value="UTIL">Dia útil</option><option value="SABADO">Sábado</option><option value="DOMINGO_FERIADO">Domingo / feriado</option></select></label></div><div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div></>
+  return (
+    <div className="nx-catalog-form-stack">
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Fornecedor"><Dropdown value={draft.fornecedor} options={namedOptions(providers)} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.value || '' }))} filter /></CatalogField>
+        <CatalogField label="Função"><Dropdown value={draft.funcao} options={namedOptions(functions)} onChange={(event) => setDraft((current) => ({ ...current, funcao: event.value || '', turno: event.value === 'AUXILIAR OPERACIONAL' ? 'DIURNO' : current.turno }))} filter /></CatalogField>
+      </div>
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Turno"><Dropdown value={draft.turno} options={TURN_OPTIONS} disabled={draft.funcao === 'AUXILIAR OPERACIONAL'} onChange={(event) => setDraft((current) => ({ ...current, turno: event.value as 'DIURNO' | 'NOTURNO' }))} /></CatalogField>
+        <CatalogField label="Tipo de dia"><Dropdown value={draft.tipoDia} options={DAY_TYPE_OPTIONS} onChange={(event) => setDraft((current) => ({ ...current, tipoDia: event.value as TipoDia }))} /></CatalogField>
+      </div>
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Início da vigência"><InputText type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></CatalogField>
+        <CatalogField label="Preço unitário"><InputText type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></CatalogField>
+      </div>
+    </div>
+  )
 }
 
 function ProductPriceForm({ draft, setDraft, products, providers }: { draft: ProductPriceDraft; setDraft: Dispatch<SetStateAction<ProductPriceDraft>>; products: ProdutoAdminDto[]; providers: FornecedorAdminDto[] }) {
-  return <><div className="catalog-form-grid"><label>Fornecedor<select value={draft.fornecedor} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.target.value }))}><option value="">Selecione</option>{providers.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}</select></label><label>Produto<select value={draft.produto} onChange={(event) => setDraft((current) => ({ ...current, produto: event.target.value }))}><option value="">Selecione</option>{products.filter((item) => item.ativo).map((item) => <option key={item.nome} value={item.nome}>{item.nome} · {categoryLabel(item.categoria)}</option>)}</select></label></div><div className="catalog-form-grid"><label>Início da vigência<input type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></label><label>Preço unitário<input type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></label></div></>
+  const productOptions = [{ label: 'Selecione', value: '' }, ...products.filter((item) => item.ativo).map((item) => ({ label: `${item.nome} · ${categoryLabel(item.categoria)}`, value: item.nome }))]
+  return (
+    <div className="nx-catalog-form-stack">
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Fornecedor"><Dropdown value={draft.fornecedor} options={namedOptions(providers)} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.value || '' }))} filter /></CatalogField>
+        <CatalogField label="Produto"><Dropdown value={draft.produto} options={productOptions} onChange={(event) => setDraft((current) => ({ ...current, produto: event.value || '' }))} filter /></CatalogField>
+      </div>
+      <div className="nx-catalog-form-grid">
+        <CatalogField label="Início da vigência"><InputText type="date" value={draft.vigenciaInicio} onChange={(event) => setDraft((current) => ({ ...current, vigenciaInicio: event.target.value }))} /></CatalogField>
+        <CatalogField label="Preço unitário"><InputText type="number" min="0.01" step="0.01" inputMode="decimal" value={draft.precoUnitario} onChange={(event) => setDraft((current) => ({ ...current, precoUnitario: event.target.value }))} placeholder="0,00" /></CatalogField>
+      </div>
+    </div>
+  )
 }
