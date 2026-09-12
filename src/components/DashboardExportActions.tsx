@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Button } from 'primereact/button'
+import { Message } from 'primereact/message'
 import { fetchDashboardExport, type DashboardExportType } from '../services/dashboardService'
 import type { DashboardQuery } from '../types/dashboard'
 
@@ -8,9 +10,7 @@ function csvCell(value: string | number) {
 }
 
 function downloadCsv(fileName: string, columns: string[], rows: Array<Array<string | number>>) {
-  const content = [columns, ...rows]
-    .map((row) => row.map(csvCell).join(';'))
-    .join('\r\n')
+  const content = [columns, ...rows].map((row) => row.map(csvCell).join(';')).join('\r\n')
   const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -40,17 +40,24 @@ export function DashboardExportActions({ query }: { query: DashboardQuery }) {
   }
 
   return (
-    <div
-      className="dashboard-export-actions"
-      style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}
-    >
-      <button type="button" className="button" disabled={Boolean(exporting)} onClick={() => handleExport('MAO_DE_OBRA')}>
-        {exporting === 'MAO_DE_OBRA' ? 'Gerando MO…' : 'Exportar Mão de Obra'}
-      </button>
-      <button type="button" className="button" disabled={Boolean(exporting)} onClick={() => handleExport('ALIMENTACAO_BEBIDA')}>
-        {exporting === 'ALIMENTACAO_BEBIDA' ? 'Gerando Lanches…' : 'Exportar Lanches'}
-      </button>
-      {error && <span className="dashboard-export-error" role="alert">{error}</span>}
+    <div className="dashboard-export-actions nx-modern-actions">
+      <Button
+        type="button"
+        label={exporting === 'MAO_DE_OBRA' ? 'Gerando MO…' : 'Exportar Mão de Obra'}
+        icon={exporting === 'MAO_DE_OBRA' ? 'pi pi-spin pi-spinner' : 'pi pi-download'}
+        outlined
+        disabled={Boolean(exporting)}
+        onClick={() => void handleExport('MAO_DE_OBRA')}
+      />
+      <Button
+        type="button"
+        label={exporting === 'ALIMENTACAO_BEBIDA' ? 'Gerando Lanches…' : 'Exportar Lanches'}
+        icon={exporting === 'ALIMENTACAO_BEBIDA' ? 'pi pi-spin pi-spinner' : 'pi pi-download'}
+        outlined
+        disabled={Boolean(exporting)}
+        onClick={() => void handleExport('ALIMENTACAO_BEBIDA')}
+      />
+      {error && <Message severity="error" text={error} className="dashboard-export-error" />}
     </div>
   )
 }
