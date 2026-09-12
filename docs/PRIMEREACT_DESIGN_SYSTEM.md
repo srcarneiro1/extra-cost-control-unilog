@@ -18,6 +18,7 @@ A interface deve parecer um único produto. Não deve haver diferenças percept�
 - PrimeIcons;
 - PrimeReact `Chart` com Chart.js para bar, line e scatter;
 - CSS de integração carregado por último em `src/app/prime-design-system.css`;
+- refinamentos pós-migração carregados por último em `src/app/prime-polish.css`;
 - Cloudflare Pages com export estático;
 - Pages Functions preservadas em `/api/*`.
 
@@ -101,6 +102,22 @@ Padrão:
 
 Cards de KPI podem usar uma borda lateral semântica. A cor nunca deve preencher o card inteiro.
 
+### 5.1 Estado visual de KPI
+
+KPIs com significado semântico não devem parecer idênticos a cards neutros.
+
+Padrão aprovado:
+
+- card continua majoritariamente branco;
+- borda lateral indica `success`, `warning` ou `danger`;
+- gradiente muito suave pode reforçar o estado;
+- um ponto/halo discreto no canto superior direito reforça leitura rápida;
+- hover pode elevar o card levemente no desktop;
+- não usar animação obrigatória no mobile;
+- respeitar `prefers-reduced-motion`;
+- `info` usa grafite, não azul;
+- o visual nunca deve substituir o texto/valor como fonte de informação.
+
 ## 6. Gráficos
 
 ### Componentes
@@ -131,8 +148,34 @@ Heatmap pode continuar customizado porque é uma matriz, desde que use os tokens
 - `autoSkip` pode ser usado em séries temporais;
 - eixo Y monetário deve usar formatação compacta quando o espaço for reduzido;
 - não permitir `min-width` do gráfico maior que o card no mobile;
-- chart stage controla altura; o canvas deve ocupar 100% da largura disponível;
+- chart stage controla altura; o canvas deve ocupar 100% da largura e da altura útil disponível;
 - tooltips devem preservar o valor e nome completos.
+
+### 6.1 Densidade dos charts no Web App
+
+Não usar altura fixa grande apenas para dar “respiro”. O espaço deve ser proporcional ao conteúdo.
+
+Regras:
+
+- `.p-chart` deve preencher `width:100%` e `height:100%` do stage;
+- o `canvas` deve preencher integralmente o wrapper `.p-chart`;
+- charts horizontais com poucas categorias devem ser compactos;
+- projeção temporal não deve ocupar altura semelhante a um painel analítico completo;
+- scatter pode ter um pouco mais de altura, mas não deve criar grandes vazios abaixo do plot;
+- headers de cards com chart usam espaçamento mais compacto que painéis textuais;
+- cards irmãos em grid devem usar `align-items:start`, evitando esticamento artificial pela altura do maior card.
+
+Referência atual de densidade desktop:
+
+```text
+chart padrão ≈ 248px
+ranking horizontal ≈ 230px
+projeção ≈ 252px
+scatter ≈ 276px
+Pareto ≈ 292px
+```
+
+Esses valores são referência visual e podem variar por densidade real dos dados.
 
 ## 7. Tabelas e listas
 
@@ -162,6 +205,18 @@ Desktop:
 - evitar dropdowns gigantes em notebooks;
 - grupos de filtro devem ter labels individuais;
 - busca não pode compartilhar a mesma célula estrutural de um grid interno inteiro.
+
+### 8.1 Campo de busca
+
+O `SearchField` compartilhado é a referência.
+
+Regras obrigatórias:
+
+- wrapper `position:relative`;
+- ícone `pi-search` centralizado verticalmente com `top:50%` + `translateY(-50%)`;
+- neutralizar `margin-top` herdado do tema PrimeReact;
+- input usa padding esquerdo suficiente para o ícone;
+- não criar posicionamentos de ícone específicos por tela.
 
 Mobile:
 
@@ -209,7 +264,9 @@ Mobile:
 - ranking operação/fornecedor migrado para PrimeReact Chart;
 - projeção/meta migrada para PrimeReact Chart;
 - comparativo competência × anterior permanece customizado porque é um componente composto, mas usa o design system;
-- movimento diário permanece customizado como grade informacional, também sob design system.
+- movimento diário permanece customizado como grade informacional, também sob design system;
+- charts usam densidade compacta e canvas ocupa 100% do stage;
+- KPIs recuperam feedback semântico discreto para saudável/atenção/desvio.
 
 ### Dashboard — Analytics
 
@@ -217,23 +274,27 @@ Mobile:
 - Pareto abrevia labels longos e preserva nome completo em tooltip;
 - heatmap permanece customizado por ser matriz;
 - oportunidades usam PrimeReact Card + Tag semântica;
-- rankings Responsável pelo custo e Atividades usam o mesmo componente PrimeReact Chart da visão executiva.
+- rankings Responsável pelo custo e Atividades usam o mesmo componente PrimeReact Chart da visão executiva;
+- charts não devem apresentar grandes áreas vazias abaixo do canvas.
 
 ### Solicitações
 
 - DataTable, Dropdown, Paginator, Tag, Button e Dialog PrimeReact;
 - workflow interno usa inputs/dropdowns/textareas PrimeReact;
-- mobile usa record cards verticais.
+- mobile usa record cards verticais;
+- busca usa o `SearchField` compartilhado com ícone centralizado.
 
 ### Cadastros
 
 - TabMenu/Dropdown, DataTable, Paginator, InputText, InputSwitch, Checkbox e Dialog PrimeReact;
-- mobile usa seletor/record cards conforme contexto.
+- mobile usa seletor/record cards conforme contexto;
+- busca usa o `SearchField` compartilhado com ícone centralizado.
 
 ### Usuários
 
 - DataTable, Dropdown, Password, InputSwitch, Tag e Dialog PrimeReact;
-- mobile usa record cards verticais.
+- mobile usa record cards verticais;
+- busca usa o `SearchField` compartilhado com ícone centralizado.
 
 ## 11. CSS legado
 
@@ -241,10 +302,11 @@ Arquivos históricos em `src/styles/` ainda podem fornecer estrutura para compon
 
 Regra:
 
-1. `prime-design-system.css` é carregado por último;
-2. novas telas não devem adicionar mais regras de cor em CSS legado;
-3. ao substituir o último consumidor de uma classe legada, remover o CSS correspondente em PR separado e testável;
-4. não apagar em massa arquivos históricos dentro do mesmo PR visual se houver risco de regressão funcional.
+1. `prime-design-system.css` define o sistema base;
+2. `prime-polish.css` contém refinamentos pós-homologação e é carregado depois do design system;
+3. novas telas não devem adicionar mais regras de cor em CSS legado;
+4. ao substituir o último consumidor de uma classe legada, remover o CSS correspondente em PR separado e testável;
+5. não apagar em massa arquivos históricos dentro do mesmo PR visual se houver risco de regressão funcional.
 
 ## 12. Critérios para considerar uma tela padronizada
 
@@ -257,7 +319,10 @@ Uma tela só está concluída quando:
 - filtros não se comprimem ou esticam indevidamente;
 - tabelas viram cards no mobile;
 - gráficos não cortam nem sobrepõem eixos/labels;
+- charts ocupam corretamente o stage, sem grande área branca por wrapper interno menor;
 - textos longos preservam conteúdo via tooltip/ellipsis apropriado;
+- campos de busca têm ícone alinhado e padding uniforme;
+- KPIs semânticos diferenciam saudável/atenção/desvio sem poluição visual;
 - não há overflow horizontal da página;
 - funciona em desktop, notebook, tablet e smartphone;
 - mantém as regras de negócio existentes sem duplicá-las no frontend.
