@@ -57,8 +57,6 @@ const CatalogAdminService = (() => {
     const cached = readAdminCache_();
     if (cached) return cached;
 
-    // Uma única execução administrativa entrega tudo o que a tela Cadastros precisa.
-    // Assim o frontend não dispara uma segunda chamada ao endpoint operacional.
     const operationRows = SheetRepository.readObjects(OPERATION_SHEET);
     const supervisorRows = SheetRepository.readObjects(SUPERVISOR_SHEET);
     const providerRows = SheetRepository.readObjects(PROVIDER_SHEET);
@@ -80,9 +78,6 @@ const CatalogAdminService = (() => {
       }
     });
 
-    // Produto inativo só fica visível para manutenção quando existe vínculo de preço
-    // com fornecedor de alimentação atualmente ativo. Se o fornecedor for inativado,
-    // o produto/preço daquele vínculo deixa de aparecer na visão administrativa.
     const productsLinkedToActiveProvider = {};
     productPriceRows.forEach(function (row) {
       const provider = ValidationService.normalizeUpper(row.FORNECEDOR);
@@ -220,6 +215,7 @@ const CatalogAdminService = (() => {
     }
 
     clearAdminCache_();
+    syncFormCatalogsSafely_();
     const saved = findProvider_(provider);
     return saved ? providerAdminDto_(saved.record) : providerAdminDto_(updates);
   }
@@ -260,6 +256,7 @@ const CatalogAdminService = (() => {
     }
 
     clearAdminCache_();
+    syncFormCatalogsSafely_();
     const saved = findProduct_(product);
     return saved ? productAdminDto_(saved.record) : productAdminDto_(updates);
   }
@@ -294,10 +291,6 @@ const CatalogAdminService = (() => {
       role,
       'Função'
     );
-
-    if (role === 'AUXILIAR OPERACIONAL' && shift !== 'DIURNO') {
-      ValidationService.fail('Auxiliar operacional deve utilizar turno DIURNO.');
-    }
 
     closeCurrentVersion_(LABOR_PRICE_SHEET, {
       FORNECEDOR: provider,
@@ -379,6 +372,7 @@ const CatalogAdminService = (() => {
     });
 
     clearAdminCache_();
+    syncFormCatalogsSafely_();
     return productPriceAdminDto_(record);
   }
 
@@ -544,6 +538,19 @@ const CatalogAdminService = (() => {
       ValidationService.fail('Número do WhatsApp deve conter de 8 a 15 dígitos em formato internacional.');
     }
     return normalized;
+  }
+
+  function syncFormCatalogsSafely_() {
+    try {
+      return FormCatalogSyncService.sync();
+    } catch (error) {
+      return {
+        sincronizado: false,
+        motivo: error && error.message
+          ? String(error.message)
+          : 'Não foi possível sincronizar o formulário neste momento.',
+      };
+    }
   }
 
   function readAdminCache_() {
