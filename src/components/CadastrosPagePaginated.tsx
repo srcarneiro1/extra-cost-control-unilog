@@ -910,10 +910,10 @@ function LaborPriceForm({ draft, setDraft, functions, providers }: { draft: Labo
     <div className="nx-catalog-form-stack">
       <div className="nx-catalog-form-grid">
         <CatalogField label="Fornecedor"><Dropdown value={draft.fornecedor} options={namedOptions(providers)} onChange={(event) => setDraft((current) => ({ ...current, fornecedor: event.value || '' }))} filter /></CatalogField>
-        <CatalogField label="Função"><Dropdown value={draft.funcao} options={namedOptions(functions)} onChange={(event) => setDraft((current) => ({ ...current, funcao: event.value || '', turno: event.value === 'AUXILIAR OPERACIONAL' ? 'DIURNO' : current.turno }))} filter /></CatalogField>
+        <CatalogField label="Função"><Dropdown value={draft.funcao} options={namedOptions(functions)} onChange={(event) => setDraft((current) => ({ ...current, funcao: event.value || '' }))} filter /></CatalogField>
       </div>
       <div className="nx-catalog-form-grid">
-        <CatalogField label="Turno"><Dropdown value={draft.turno} options={TURN_OPTIONS} disabled={draft.funcao === 'AUXILIAR OPERACIONAL'} onChange={(event) => setDraft((current) => ({ ...current, turno: event.value as 'DIURNO' | 'NOTURNO' }))} /></CatalogField>
+        <CatalogField label="Turno"><Dropdown value={draft.turno} options={TURN_OPTIONS} onChange={(event) => setDraft((current) => ({ ...current, turno: event.value as 'DIURNO' | 'NOTURNO' }))} /></CatalogField>
         <CatalogField label="Tipo de dia"><Dropdown value={draft.tipoDia} options={DAY_TYPE_OPTIONS} onChange={(event) => setDraft((current) => ({ ...current, tipoDia: event.value as TipoDia }))} /></CatalogField>
       </div>
       <div className="nx-catalog-form-grid">
