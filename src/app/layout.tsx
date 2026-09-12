@@ -4,9 +4,7 @@ import 'primereact/resources/primereact.min.css'
 import 'primeicons/primeicons.css'
 import '../styles/tokens.css'
 import '../styles/global.css'
-import '../styles/shell.css'
 import '../styles/ui-foundations.css'
-import '../styles/modal.css'
 import '../styles/admin.css'
 import '../styles/cadastros.css'
 import '../styles/dashboard.css'
@@ -19,6 +17,8 @@ import './prime-modernization.css'
 import './prime-refinement.css'
 import './prime-analytics.css'
 import './prime-workflow.css'
+import './prime-cadastros.css'
+import './prime-legacy-detox.css'
 
 export const metadata: Metadata = {
   title: 'Extra Cost Control | Unilog Express',
