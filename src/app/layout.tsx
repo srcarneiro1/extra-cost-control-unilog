@@ -15,7 +15,7 @@ import '../styles/solicitation-workflow.css'
 import '../styles/partial-shift.css'
 import '../styles/accessibility.css'
 import './next-shell.css'
-import './functional-bridge.css'
+import './prime-modernization.css'
 
 export const metadata: Metadata = {
   title: 'Extra Cost Control | Unilog Express',
