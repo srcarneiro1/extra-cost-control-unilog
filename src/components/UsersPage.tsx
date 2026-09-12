@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from 'primereact/button'
+import { Column } from 'primereact/column'
+import { DataTable } from 'primereact/datatable'
+import { Dropdown } from 'primereact/dropdown'
+import { InputSwitch } from 'primereact/inputswitch'
+import { InputText } from 'primereact/inputtext'
+import { Password } from 'primereact/password'
+import { Tag } from 'primereact/tag'
 import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
-import {
-  Badge,
-  EmptyState,
-  Panel,
-  PanelHeader,
-  SearchField,
-  Skeleton,
-  SummaryMetrics,
-  type SummaryMetricItem,
-} from './ui/Primitives'
+import { EmptyState, Panel, PanelHeader, Skeleton, SummaryMetrics, type SummaryMetricItem } from './ui/Primitives'
 import { fetchCatalogoAdminScope } from '../services/catalogService'
 import {
   fetchUsers,
@@ -38,6 +37,12 @@ const emptyDraft = (): Draft => ({
   password: '',
 })
 
+const profileOptions = [
+  { label: 'Owner', value: 'OWNER' },
+  { label: 'Administrativo', value: 'ADMINISTRATIVO' },
+  { label: 'Operacional', value: 'OPERACIONAL' },
+]
+
 function formatDate(value: string) {
   if (!value) return '—'
   const date = new Date(value)
@@ -62,7 +67,6 @@ export function UsersPage() {
   const [notice, setNotice] = useState('')
   const [loadError, setLoadError] = useState('')
   const [editorError, setEditorError] = useState('')
-
   const [resetTarget, setResetTarget] = useState<ManagedUser | null>(null)
   const [resetPassword, setResetPassword] = useState('')
   const [resetConfirmation, setResetConfirmation] = useState('')
@@ -77,17 +81,9 @@ export function UsersPage() {
         fetchCatalogoAdminScope('OPERACOES'),
       ])
       setUsers(loadedUsers)
-      setOperations(
-        (catalog.operacoes || [])
-          .filter((item) => item.ativo)
-          .map((item) => item.nome),
-      )
+      setOperations((catalog.operacoes || []).filter((item) => item.ativo).map((item) => item.nome))
     } catch (requestError) {
-      setLoadError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível carregar usuários.',
-      )
+      setLoadError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar usuários.')
     } finally {
       setLoading(false)
     }
@@ -107,52 +103,19 @@ export function UsersPage() {
     const query = search.trim().toUpperCase()
     if (!query) return users
     return users.filter((user) =>
-      `${user.nome} ${user.email} ${user.perfil} ${user.operacao}`
-        .toUpperCase()
-        .includes(query),
+      `${user.nome} ${user.email} ${user.perfil} ${user.operacao}`.toUpperCase().includes(query),
     )
   }, [search, users])
 
   const summary = useMemo<SummaryMetricItem[]>(() => {
     const active = users.filter((user) => user.ativo).length
-    const administrative = users.filter(
-      (user) => user.perfil === 'OWNER' || user.perfil === 'ADMINISTRATIVO',
-    ).length
+    const administrative = users.filter((user) => user.perfil === 'OWNER' || user.perfil === 'ADMINISTRATIVO').length
     const operational = users.filter((user) => user.perfil === 'OPERACIONAL').length
-
     return [
-      {
-        key: 'total',
-        label: 'Usuários',
-        value: users.length,
-        detail: 'cadastros na plataforma',
-        icon: 'manage_accounts',
-        tone: 'neutral',
-      },
-      {
-        key: 'active',
-        label: 'Ativos',
-        value: active,
-        detail: 'com acesso liberado',
-        icon: 'verified_user',
-        tone: 'success',
-      },
-      {
-        key: 'admin',
-        label: 'Gestão',
-        value: administrative,
-        detail: 'owner + administrativo',
-        icon: 'admin_panel_settings',
-        tone: 'info',
-      },
-      {
-        key: 'operational',
-        label: 'Operacionais',
-        value: operational,
-        detail: 'escopo por operação',
-        icon: 'badge',
-        tone: 'neutral',
-      },
+      { key: 'total', label: 'Usuários', value: users.length, detail: 'cadastros na plataforma', icon: 'manage_accounts' },
+      { key: 'active', label: 'Ativos', value: active, detail: 'com acesso liberado', icon: 'verified_user', tone: 'success' },
+      { key: 'admin', label: 'Gestão', value: administrative, detail: 'owner + administrativo', icon: 'admin_panel_settings', tone: 'info' },
+      { key: 'operational', label: 'Operacionais', value: operational, detail: 'escopo por operação', icon: 'badge' },
     ]
   }, [users])
 
@@ -174,14 +137,7 @@ export function UsersPage() {
 
   function editUser(user: ManagedUser) {
     setEditingEmail(user.email)
-    setDraft({
-      email: user.email,
-      nome: user.nome,
-      perfil: user.perfil,
-      operacao: user.operacao,
-      ativo: user.ativo,
-      password: '',
-    })
+    setDraft({ email: user.email, nome: user.nome, perfil: user.perfil, operacao: user.operacao, ativo: user.ativo, password: '' })
     setEditorError('')
     setEditorOpen(true)
   }
@@ -213,25 +169,17 @@ export function UsersPage() {
         ativo: draft.ativo,
         ...(draft.password ? { password: draft.password } : {}),
       })
-
       setUsers((current) => {
         const exists = current.some((item) => item.email === saved.email)
-        const next = exists
-          ? current.map((item) => (item.email === saved.email ? saved : item))
-          : [...current, saved]
+        const next = exists ? current.map((item) => (item.email === saved.email ? saved : item)) : [...current, saved]
         return next.slice().sort((left, right) => left.nome.localeCompare(right.nome, 'pt-BR'))
       })
-
       setEditorOpen(false)
       setEditingEmail('')
       setDraft(emptyDraft())
       setNotice('Usuário salvo com sucesso.')
     } catch (requestError) {
-      setEditorError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível salvar o usuário.',
-      )
+      setEditorError(requestError instanceof Error ? requestError.message : 'Não foi possível salvar o usuário.')
     } finally {
       setSaving(false)
     }
@@ -256,32 +204,23 @@ export function UsersPage() {
 
   async function handleResetPassword() {
     if (!resetTarget) return
-
     if (resetPassword.length < 8) {
       setResetError('A nova senha deve possuir pelo menos 8 caracteres.')
       return
     }
-
     if (resetPassword !== resetConfirmation) {
       setResetError('A confirmação da senha não confere.')
       return
     }
-
     setSaving(true)
     setResetError('')
     try {
       const saved = await resetUserPassword(resetTarget.email, resetPassword)
-      setUsers((current) =>
-        current.map((item) => (item.email === saved.email ? saved : item)),
-      )
+      setUsers((current) => current.map((item) => (item.email === saved.email ? saved : item)))
       closeResetPassword()
       setNotice('Senha redefinida com sucesso. Nenhuma senha em texto puro foi armazenada.')
     } catch (requestError) {
-      setResetError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível redefinir a senha.',
-      )
+      setResetError(requestError instanceof Error ? requestError.message : 'Não foi possível redefinir a senha.')
     } finally {
       setSaving(false)
     }
@@ -294,8 +233,26 @@ export function UsersPage() {
     (isNew && draft.password.length < 8) ||
     (draft.perfil === 'OPERACIONAL' && !draft.operacao)
 
+  const operationOptions = draft.perfil === 'OPERACIONAL'
+    ? operations.map((value) => ({ label: value, value }))
+    : [{ label: 'Todas as operações', value: 'TODOS' }, ...operations.map((value) => ({ label: value, value }))]
+
+  const userBody = (user: ManagedUser) => (
+    <div className="nx-user-cell">
+      <strong>{user.nome}</strong>
+      <small>{user.email}</small>
+    </div>
+  )
+
+  const profileBody = (user: ManagedUser) => <Tag value={profileLabel(user.perfil)} severity="secondary" rounded />
+  const statusBody = (user: ManagedUser) => <Tag value={user.ativo ? 'Ativo' : 'Inativo'} severity={user.ativo ? 'success' : 'secondary'} rounded />
+  const passwordBody = (user: ManagedUser) => <Tag value={user.senhaConfigurada ? 'Configurada' : 'Pendente'} severity={user.senhaConfigurada ? 'success' : 'warning'} rounded />
+  const actionBody = (user: ManagedUser) => (
+    <Button label="Editar" icon="pi pi-pencil" size="small" outlined onClick={() => editUser(user)} />
+  )
+
   return (
-    <section className="admin-page catalog-page">
+    <section className="admin-page catalog-page nx-modern-page">
       <PageHeader
         eyebrow="ADMINISTRAÇÃO"
         title="Usuários"
@@ -303,118 +260,56 @@ export function UsersPage() {
       />
 
       {(notice || loadError) && (
-        <div
-          className={`admin-alert ${notice ? 'admin-alert-success' : ''}`.trim()}
-          role={loadError ? 'alert' : 'status'}
-        >
-          <span className="material-symbols-rounded" aria-hidden="true">
-            {notice ? 'check_circle' : 'error'}
-          </span>
+        <div className={`nx-prime-notice ${notice ? 'is-success' : 'is-error'}`} role={loadError ? 'alert' : 'status'}>
+          <i className={notice ? 'pi pi-check-circle' : 'pi pi-exclamation-circle'} />
           <span>{notice || loadError}</span>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => {
-              setNotice('')
-              setLoadError('')
-            }}
-            aria-label="Fechar notificação"
-          >
-            <span className="material-symbols-rounded" aria-hidden="true">close</span>
-          </button>
+          <Button text rounded icon="pi pi-times" aria-label="Fechar notificação" onClick={() => { setNotice(''); setLoadError('') }} />
         </div>
       )}
 
       <SummaryMetrics items={summary} ariaLabel="Resumo dos usuários da plataforma" />
 
-      <Panel className="catalog-provider-list">
+      <Panel className="catalog-provider-list nx-prime-data-panel">
         <PanelHeader
           eyebrow="ACESSOS"
           title="Usuários cadastrados"
           description="Administre perfis e escopos sem expor hash, salt ou senha."
-          trailing={
-            <button
-              type="button"
-              className="button button-primary"
-              onClick={newUser}
-            >
-              <span className="material-symbols-rounded" aria-hidden="true">person_add</span>
-              Novo usuário
-            </button>
-          }
+          trailing={<Button label="Novo usuário" icon="pi pi-user-plus" onClick={newUser} className="nx-primary-button" />}
         />
 
-        <div className="catalog-list-toolbar">
-          <SearchField
-            ariaLabel="Pesquisar usuários"
-            placeholder="Buscar nome, e-mail, perfil ou operação…"
-            value={search}
-            onChange={setSearch}
-          />
+        <div className="nx-table-toolbar">
+          <span className="p-input-icon-left nx-table-search">
+            <i className="pi pi-search" />
+            <InputText value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, perfil ou operação…" />
+          </span>
+          <span className="nx-table-count">{filtered.length} de {users.length} usuário(s)</span>
         </div>
 
         {loading ? (
           <Skeleton lines={7} />
         ) : filtered.length === 0 ? (
-          <EmptyState
-            title="Nenhum usuário encontrado"
-            description="Cadastre um usuário ou ajuste a pesquisa."
-            icon="manage_accounts"
-          />
+          <EmptyState title="Nenhum usuário encontrado" description="Cadastre um usuário ou ajuste a pesquisa." />
         ) : (
-          <div className="table-wrap embedded">
-            <table className="responsive-data-table catalog-table">
-              <thead>
-                <tr>
-                  <th>Usuário</th>
-                  <th>Perfil</th>
-                  <th>Operação</th>
-                  <th>Status</th>
-                  <th>Senha</th>
-                  <th>Último ajuste</th>
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((user) => (
-                  <tr key={user.email}>
-                    <td data-label="Usuário" data-primary="true">
-                      <div className="table-primary">
-                        <strong>{user.nome}</strong>
-                        <small>{user.email}</small>
-                      </div>
-                    </td>
-                    <td data-label="Perfil">
-                      <Badge>{profileLabel(user.perfil)}</Badge>
-                    </td>
-                    <td data-label="Operação">
-                      <strong>{user.operacao || '—'}</strong>
-                    </td>
-                    <td data-label="Status">
-                      <Badge tone={user.ativo ? 'success' : 'neutral'}>
-                        {user.ativo ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </td>
-                    <td data-label="Senha">
-                      <Badge tone={user.senhaConfigurada ? 'success' : 'warning'}>
-                        {user.senhaConfigurada ? 'Configurada' : 'Pendente'}
-                      </Badge>
-                    </td>
-                    <td data-label="Último ajuste">{formatDate(user.ultimaAlteracao)}</td>
-                    <td data-label="Ação">
-                      <button
-                        type="button"
-                        className="button catalog-edit-button"
-                        onClick={() => editUser(user)}
-                      >
-                        Editar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            value={filtered}
+            dataKey="email"
+            stripedRows
+            rowHover
+            paginator={filtered.length > 10}
+            rows={10}
+            rowsPerPageOptions={[10, 20, 50]}
+            responsiveLayout="scroll"
+            className="nx-prime-table"
+            emptyMessage="Nenhum usuário encontrado"
+          >
+            <Column header="Usuário" body={userBody} sortable sortField="nome" />
+            <Column header="Perfil" body={profileBody} sortable sortField="perfil" />
+            <Column field="operacao" header="Operação" sortable />
+            <Column header="Status" body={statusBody} />
+            <Column header="Senha" body={passwordBody} />
+            <Column field="ultimaAlteracao" header="Último ajuste" body={(user: ManagedUser) => formatDate(user.ultimaAlteracao)} sortable />
+            <Column header="Ação" body={actionBody} style={{ width: '8rem' }} />
+          </DataTable>
         )}
       </Panel>
 
@@ -423,155 +318,81 @@ export function UsersPage() {
         titleId="user-editor-title"
         eyebrow={isNew ? 'NOVO ACESSO' : 'EDIÇÃO DE ACESSO'}
         title={isNew ? 'Cadastrar usuário' : draft.nome || draft.email}
-        description={
-          isNew
-            ? 'Defina perfil, escopo e senha inicial. A senha será protegida antes de ser gravada.'
-            : `Último ajuste: ${formatDate(editingUser?.ultimaAlteracao || '')}`
-        }
-        headerAside={
-          !isNew && editingUser
-            ? <Badge tone={editingUser.ativo ? 'success' : 'neutral'}>{editingUser.ativo ? 'Ativo' : 'Inativo'}</Badge>
-            : undefined
-        }
+        description={isNew ? 'Defina perfil, escopo e senha inicial. A senha será protegida antes de ser gravada.' : `Último ajuste: ${formatDate(editingUser?.ultimaAlteracao || '')}`}
+        headerAside={!isNew && editingUser ? <Tag value={editingUser.ativo ? 'Ativo' : 'Inativo'} severity={editingUser.ativo ? 'success' : 'secondary'} rounded /> : undefined}
         onClose={closeEditor}
         busy={saving}
         width="medium"
         bodyClassName="catalog-editor-modal-body"
         footer={
           <>
-            {!isNew && (
-              <button
-                className="button"
-                type="button"
-                onClick={openResetPassword}
-                disabled={saving}
-              >
-                Redefinir senha
-              </button>
-            )}
-            <button className="button" type="button" onClick={closeEditor} disabled={saving}>
-              Cancelar
-            </button>
-            <button
-              className="button button-primary"
-              type="button"
+            {!isNew && <Button label="Redefinir senha" icon="pi pi-key" outlined onClick={openResetPassword} disabled={saving} />}
+            <Button label="Cancelar" text onClick={closeEditor} disabled={saving} />
+            <Button
+              label={saving ? 'Salvando…' : isNew ? 'Cadastrar usuário' : 'Salvar alterações'}
+              icon={saving ? 'pi pi-spin pi-spinner' : 'pi pi-check'}
               onClick={() => void handleSave()}
               disabled={saveDisabled}
-            >
-              {saving ? 'Salvando…' : isNew ? 'Cadastrar usuário' : 'Salvar alterações'}
-            </button>
+              className="nx-primary-button"
+            />
           </>
         }
       >
-        <div className="catalog-editor-form">
-          {editorError && (
-            <div className="admin-alert catalog-editor-error" role="alert">
-              <span className="material-symbols-rounded" aria-hidden="true">error</span>
-              <span>{editorError}</span>
-            </div>
-          )}
+        <div className="nx-form-stack">
+          {editorError && <div className="nx-inline-error"><i className="pi pi-exclamation-circle" /><span>{editorError}</span></div>}
 
-          <div className="catalog-form-grid">
-            <label>
+          <div className="nx-form-grid">
+            <label className="nx-field">
               <span>Nome</span>
-              <input
-                value={draft.nome}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, nome: event.target.value }))
-                }
-                autoComplete="name"
-              />
+              <InputText value={draft.nome} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} autoComplete="name" />
             </label>
 
-            <label>
+            <label className="nx-field">
               <span>E-mail</span>
-              <input
-                type="email"
-                value={draft.email}
-                disabled={!isNew}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, email: event.target.value }))
-                }
-                autoComplete="email"
-              />
+              <InputText type="email" value={draft.email} disabled={!isNew} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} autoComplete="email" />
               {!isNew && <small>O e-mail identifica a conta e não é alterado na edição.</small>}
             </label>
 
-            <label>
+            <label className="nx-field">
               <span>Perfil</span>
-              <select
-                value={draft.perfil}
-                onChange={(event) => updateProfile(event.target.value as UserProfile)}
-              >
-                <option value="OWNER">Owner</option>
-                <option value="ADMINISTRATIVO">Administrativo</option>
-                <option value="OPERACIONAL">Operacional</option>
-              </select>
+              <Dropdown value={draft.perfil} options={profileOptions} onChange={(event) => updateProfile(event.value as UserProfile)} className="w-full" />
             </label>
 
-            <label>
+            <label className="nx-field">
               <span>Operação</span>
-              <select
+              <Dropdown
                 value={draft.perfil === 'OWNER' ? 'TODOS' : draft.operacao}
+                options={operationOptions}
                 disabled={draft.perfil === 'OWNER'}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, operacao: event.target.value }))
-                }
-              >
-                {draft.perfil === 'OPERACIONAL' ? (
-                  <option value="">Selecione a operação</option>
-                ) : (
-                  <option value="TODOS">Todas as operações</option>
-                )}
-                {operations.map((operation) => (
-                  <option key={operation} value={operation}>{operation}</option>
-                ))}
-              </select>
-              <small>
-                {draft.perfil === 'OWNER'
-                  ? 'Owner possui escopo global.'
-                  : draft.perfil === 'OPERACIONAL'
-                    ? 'Operacional deve ficar vinculado a uma operação específica.'
-                    : 'Administrativo pode atuar em todas ou em uma operação específica.'}
-              </small>
+                placeholder="Selecione a operação"
+                onChange={(event) => setDraft((current) => ({ ...current, operacao: event.value }))}
+                filter={operations.length > 8}
+                className="w-full"
+              />
+              <small>{draft.perfil === 'OWNER' ? 'Owner possui escopo global.' : draft.perfil === 'OPERACIONAL' ? 'Operacional deve ficar vinculado a uma operação específica.' : 'Administrativo pode atuar em todas ou em uma operação específica.'}</small>
             </label>
 
             {isNew && (
-              <label>
+              <label className="nx-field">
                 <span>Senha inicial</span>
-                <input
-                  type="password"
-                  value={draft.password}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, password: event.target.value }))
-                  }
-                  minLength={8}
-                  autoComplete="new-password"
-                />
+                <Password value={draft.password} onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))} feedback={false} toggleMask inputClassName="w-full" className="w-full" autoComplete="new-password" />
                 <small>Mínimo de 8 caracteres. O texto puro não é armazenado.</small>
               </label>
             )}
 
-            <label>
+            <label className="nx-field nx-switch-field">
               <span>Status</span>
-              <select
-                value={draft.ativo ? 'SIM' : 'NAO'}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, ativo: event.target.value === 'SIM' }))
-                }
-              >
-                <option value="SIM">Ativo</option>
-                <option value="NAO">Inativo</option>
-              </select>
+              <div className="nx-switch-row">
+                <InputSwitch checked={draft.ativo} onChange={(event) => setDraft((current) => ({ ...current, ativo: Boolean(event.value) }))} />
+                <strong>{draft.ativo ? 'Ativo' : 'Inativo'}</strong>
+              </div>
             </label>
           </div>
 
           {!isNew && (
-            <div className="catalog-version-note">
-              <span className="material-symbols-rounded" aria-hidden="true">info</span>
-              <p>
-                Alterações de perfil, operação ou status passam a valer integralmente em uma nova autenticação ou após a expiração da sessão atual.
-              </p>
+            <div className="nx-info-callout">
+              <i className="pi pi-info-circle" />
+              <p>Alterações de perfil, operação ou status passam a valer integralmente em uma nova autenticação ou após a expiração da sessão atual.</p>
             </div>
           )}
         </div>
@@ -586,52 +407,23 @@ export function UsersPage() {
         onClose={closeResetPassword}
         busy={saving}
         width="medium"
-        bodyClassName="catalog-editor-modal-body"
         footer={
           <>
-            <button className="button" type="button" onClick={closeResetPassword} disabled={saving}>
-              Cancelar
-            </button>
-            <button
-              className="button button-primary"
-              type="button"
-              onClick={() => void handleResetPassword()}
-              disabled={saving || resetPassword.length < 8 || !resetConfirmation}
-            >
-              {saving ? 'Salvando…' : 'Redefinir senha'}
-            </button>
+            <Button label="Cancelar" text onClick={closeResetPassword} disabled={saving} />
+            <Button label={saving ? 'Salvando…' : 'Redefinir senha'} icon={saving ? 'pi pi-spin pi-spinner' : 'pi pi-key'} onClick={() => void handleResetPassword()} disabled={saving || resetPassword.length < 8 || !resetConfirmation} className="nx-primary-button" />
           </>
         }
       >
-        <div className="catalog-editor-form">
-          {resetError && (
-            <div className="admin-alert catalog-editor-error" role="alert">
-              <span className="material-symbols-rounded" aria-hidden="true">error</span>
-              <span>{resetError}</span>
-            </div>
-          )}
-
-          <label>
+        <div className="nx-form-stack">
+          {resetError && <div className="nx-inline-error"><i className="pi pi-exclamation-circle" /><span>{resetError}</span></div>}
+          <label className="nx-field">
             <span>Nova senha</span>
-            <input
-              type="password"
-              value={resetPassword}
-              onChange={(event) => setResetPassword(event.target.value)}
-              minLength={8}
-              autoComplete="new-password"
-            />
+            <Password value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} feedback={false} toggleMask inputClassName="w-full" className="w-full" autoComplete="new-password" />
             <small>Mínimo de 8 caracteres.</small>
           </label>
-
-          <label>
+          <label className="nx-field">
             <span>Confirmar nova senha</span>
-            <input
-              type="password"
-              value={resetConfirmation}
-              onChange={(event) => setResetConfirmation(event.target.value)}
-              minLength={8}
-              autoComplete="new-password"
-            />
+            <Password value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value)} feedback={false} toggleMask inputClassName="w-full" className="w-full" autoComplete="new-password" />
           </label>
         </div>
       </Modal>
