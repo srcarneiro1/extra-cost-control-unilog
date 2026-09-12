@@ -74,7 +74,7 @@ const CatalogAdminStructuredEntityService = (() => {
     let sheet = spreadsheet.getSheetByName(GOAL_SHEET);
     if (!sheet) {
       sheet = spreadsheet.insertSheet(GOAL_SHEET);
-      sheet.getRange(1, 1, 1, 2).setValues([['COMPETENCIA', 'META']]).setFontWeight('bold');
+      sheet.getRange(1, 1, 1, 2).setValues([['COMPETENCIA', 'META_MO']]).setFontWeight('bold');
       sheet.getRange('A:A').setNumberFormat('@');
       sheet.setFrozenRows(1);
     }

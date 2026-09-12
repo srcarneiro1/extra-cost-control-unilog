@@ -27,6 +27,7 @@ const FormResponseNormalizerService = (() => {
     referenceVolume: 'Volume de referência',
     volumeUnit: 'Unidade do volume',
     role: 'Função',
+    shift: 'Turno',
     auxiliaryShift: 'Turno — Auxiliar Operacional',
     forkliftShift: 'Turno — Operador de Empilhadeira',
     food: 'Alimentação',
@@ -159,22 +160,24 @@ const FormResponseNormalizerService = (() => {
       ValidationService.requiredText(answer_(answers, QUESTIONS.role), 'Função')
     );
 
+    const genericShift = ValidationService.normalizeUpper(answer_(answers, QUESTIONS.shift));
     const auxiliaryShift = ValidationService.normalizeUpper(answer_(answers, QUESTIONS.auxiliaryShift));
     const forkliftShift = ValidationService.normalizeUpper(answer_(answers, QUESTIONS.forkliftShift));
 
-    if (auxiliaryShift && forkliftShift) {
-      ValidationService.fail('Resposta inválida: dois campos de turno foram preenchidos para a mesma solicitação.');
+    const legacyShifts = [auxiliaryShift, forkliftShift].filter(Boolean);
+    if (legacyShifts.length > 1) {
+      ValidationService.fail('Resposta inválida: dois campos de turno legados foram preenchidos para a mesma solicitação.');
+    }
+
+    if (genericShift && legacyShifts.length && genericShift !== legacyShifts[0]) {
+      ValidationService.fail('Resposta inválida: turno genérico e turno legado estão divergentes.');
     }
 
     const shift = ValidationService.enumValue(
-      forkliftShift || auxiliaryShift,
+      genericShift || legacyShifts[0] || '',
       'Turno',
       ['DIURNO', 'NOTURNO']
     );
-
-    if (ValidationService.normalizeUpper(role) === 'AUXILIAR OPERACIONAL' && shift !== 'DIURNO') {
-      ValidationService.fail('Auxiliar operacional deve utilizar turno DIURNO no formulário vigente.');
-    }
 
     record.ATIVIDADE = canonicalOrOriginal_('CAD_ATIVIDADES', 'ATIVIDADE', activity);
     record.FUNCAO = role;
