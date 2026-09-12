@@ -22,6 +22,8 @@ const TriageService = (() => {
     }
 
     try {
+      SolicitationStatusService.ensureSchema();
+
       const found = SheetRepository.findRowByField(
         SHEET_SOLICITACOES,
         'ID_SOLICITACAO',
@@ -56,6 +58,7 @@ const TriageService = (() => {
         : foodUpdates_(record, providerRow.FORNECEDOR, operationalDate, input);
 
       updates.FORNECEDOR = providerRow.FORNECEDOR;
+      updates.STATUS = SolicitationStatusService.afterTriage(record);
 
       SheetRepository.updateFields(
         SHEET_SOLICITACOES,
@@ -67,6 +70,7 @@ const TriageService = (() => {
         idSolicitacao: solicitationId,
         tipoSolicitacao: type,
         fornecedor: providerRow.FORNECEDOR,
+        status: updates.STATUS,
       }, responseSummary_(type, updates));
     } finally {
       lock.releaseLock();
