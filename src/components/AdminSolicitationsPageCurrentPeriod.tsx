@@ -104,23 +104,21 @@ function statusInfo(item: AdministrativeSolicitationListItem) {
 
 type Notice = { tone: 'success' | 'error'; message: string }
 
-function snackQuantity(item: AdministrativeSolicitationListItem) {
-  const parts: string[] = []
-  if (item.qtdAlimentacao != null) parts.push(`Alim. ${formatQuantity(item.qtdAlimentacao)}`)
-  if (item.qtdBebida != null) parts.push(`Beb. ${formatQuantity(item.qtdBebida)}`)
-  return parts.length ? parts.join(' · ') : '—'
+function snackTotalQuantity(item: AdministrativeSolicitationListItem) {
+  if (item.qtdAlimentacao == null && item.qtdBebida == null) return null
+  return (item.qtdAlimentacao ?? 0) + (item.qtdBebida ?? 0)
 }
 
 function requestedQuantityBody(item: AdministrativeSolicitationListItem) {
   return item.tipoSolicitacao === 'MAO_DE_OBRA'
     ? formatQuantity(item.qtdSolicitada)
-    : snackQuantity(item)
+    : formatQuantity(snackTotalQuantity(item))
 }
 
 function consideredQuantityBody(item: AdministrativeSolicitationListItem) {
-  if (item.tipoSolicitacao === 'MAO_DE_OBRA') return formatQuantity(item.qtdComparecida)
-  const snack = snackQuantity(item)
-  return snack === '—' ? '—' : `${snack} · pela solicitação`
+  return item.tipoSolicitacao === 'MAO_DE_OBRA'
+    ? formatQuantity(item.qtdComparecida)
+    : formatQuantity(snackTotalQuantity(item))
 }
 
 export function AdminSolicitationsPageCurrentPeriod() {
