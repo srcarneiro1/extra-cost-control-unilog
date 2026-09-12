@@ -1,0 +1,237 @@
+/* Unified visual language for the migrated PrimeReact interface.
+   Loaded last: this file intentionally normalizes legacy colors and spacing. */
+
+:root{
+  --unilog-red:#db0812;
+  --unilog-red-dark:#b8070f;
+  --unilog-ink:#171b24;
+  --unilog-ink-2:#242a36;
+  --unilog-graphite:#494a56;
+  --unilog-graphite-2:#676d77;
+  --unilog-muted:#8a9099;
+  --unilog-border:#e2e5e9;
+  --unilog-border-soft:#edf0f2;
+  --unilog-canvas:#f5f6f8;
+  --unilog-surface:#fff;
+  --unilog-surface-soft:#f8f9fb;
+  --unilog-success:#3f7c59;
+  --unilog-warning:#a87900;
+  --unilog-danger:#c91a23;
+  --unilog-radius:14px;
+  --unilog-shadow:0 6px 22px rgba(18,24,34,.045);
+}
+
+/* --------------------------------------------------------------------------
+   SHELL
+   -------------------------------------------------------------------------- */
+.nx-sidebar{
+  background:linear-gradient(180deg,#171b24 0%,#202632 100%)!important;
+}
+.nx-sidebar-brand{margin-bottom:18px!important}
+.nx-navigation{
+  align-content:start!important;
+  grid-auto-rows:max-content!important;
+  gap:5px!important;
+}
+.nx-admin-group{align-self:start!important}
+.nx-nav-caption{padding:18px 12px 7px!important}
+.nx-nav-item{
+  min-height:44px!important;
+  border-radius:10px!important;
+}
+.nx-nav-item.is-active{
+  background:#303642!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
+}
+.nx-nav-item.is-active:before{
+  top:9px!important;
+  bottom:9px!important;
+  width:3px!important;
+  background:var(--unilog-red)!important;
+}
+.nx-user-card{
+  background:transparent!important;
+  border-top:1px solid rgba(255,255,255,.1)!important;
+}
+.nx-avatar.p-avatar{background:#515968!important}
+.nx-user-card>.nx-icon-button{
+  width:40px!important;
+  height:40px!important;
+  border-radius:10px!important;
+}
+
+@media(max-width:1180px){
+  .nx-sidebar{
+    width:min(78vw,292px)!important;
+    padding:18px 12px max(14px,env(safe-area-inset-bottom))!important;
+  }
+  .nx-navigation{
+    display:grid!important;
+    flex:1 1 auto!important;
+    align-content:start!important;
+    grid-auto-rows:max-content!important;
+    gap:5px!important;
+    padding-bottom:18px!important;
+  }
+  .nx-admin-group:first-of-type{margin-top:8px!important}
+  .nx-user-card{
+    margin-top:auto!important;
+    padding-top:14px!important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   CARDS
+   -------------------------------------------------------------------------- */
+.p-card,
+.nx-prime-panel.p-card,
+.nx-dashboard-filter-card.p-card,
+.nx-dashboard-section-card.p-card,
+.nx-analytics-card.p-card,
+.nx-dashboard-metric-card.p-card,
+.nx-dashboard-alert-card.p-card{
+  border:1px solid var(--unilog-border)!important;
+  border-radius:var(--unilog-radius)!important;
+  background:var(--unilog-surface)!important;
+  box-shadow:var(--unilog-shadow)!important;
+}
+.dashboard-card-header,
+.nx-chart-card-header{
+  padding:16px 18px!important;
+  border-bottom:1px solid var(--unilog-border-soft)!important;
+  background:linear-gradient(180deg,#fff 0%,#fcfcfd 100%)!important;
+}
+.dashboard-card-header .ui-eyebrow,
+.nx-chart-card-header .ui-eyebrow{
+  color:var(--unilog-muted)!important;
+}
+.dashboard-card-header h2,
+.nx-chart-card-header h2{
+  color:var(--unilog-ink-2)!important;
+}
+.dashboard-card-header p,
+.nx-chart-card-header p{
+  color:var(--unilog-graphite-2)!important;
+}
+
+/* KPI colors: brand accent for information, semantic colors only for states. */
+.dashboard-metric-info{border-left-color:var(--unilog-graphite)!important}
+.dashboard-metric-success{border-left-color:var(--unilog-success)!important}
+.dashboard-metric-warning{border-left-color:var(--unilog-warning)!important}
+.dashboard-metric-danger{border-left-color:var(--unilog-danger)!important}
+.nx-dashboard-metric-card .p-card-content>strong{color:var(--unilog-ink-2)!important}
+.nx-dashboard-metric-card .p-card-content>span,
+.nx-dashboard-metric-card .p-card-content>small{color:var(--unilog-muted)!important}
+
+/* --------------------------------------------------------------------------
+   PRIME CHARTS
+   -------------------------------------------------------------------------- */
+.nx-chart-card.p-card>.p-card-body,
+.nx-chart-card.p-card>.p-card-body>.p-card-content{
+  padding:0!important;
+}
+.nx-chart-stage{
+  position:relative;
+  width:100%;
+  height:300px;
+  padding:16px 18px 18px;
+  background:#fff;
+}
+.nx-chart-stage-pareto{height:330px}
+.nx-chart-stage-scatter{height:360px}
+.nx-chart-stage canvas{max-width:100%!important}
+.analytics-highlight{
+  align-self:flex-start;
+  padding:6px 9px;
+  border:1px solid rgba(219,8,18,.16);
+  border-radius:999px;
+  background:rgba(219,8,18,.055);
+  color:var(--unilog-red)!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  white-space:nowrap;
+}
+
+/* Heatmap: keep custom structure, but normalize it to brand neutrals. */
+.analytics-heatmap-head strong{color:var(--unilog-muted)!important}
+.analytics-heatmap-row>strong{
+  background:#fff!important;
+  color:var(--unilog-ink-2)!important;
+  border-right-color:var(--unilog-border)!important;
+}
+.analytics-heatmap-row>span{
+  border-color:#e4e6e9!important;
+  background:color-mix(in srgb,var(--unilog-red) calc(var(--heat) * 42%),#f4f5f6)!important;
+  color:var(--unilog-ink-2)!important;
+}
+.analytics-heatmap-row>span[style*="--heat:1"],
+.analytics-heatmap-row>span[style*="--heat:0.9"],
+.analytics-heatmap-row>span[style*="--heat:0.8"]{color:#fff!important}
+
+/* Opportunity cards also use restrained state accents. */
+.analytics-opportunity{
+  border-color:var(--unilog-border)!important;
+  background:#fafbfc!important;
+}
+.analytics-opportunity>span{
+  background:#f1f2f4!important;
+  color:var(--unilog-graphite)!important;
+}
+.analytics-opportunity-alta{border-left-color:var(--unilog-danger)!important}
+.analytics-opportunity-media{border-left-color:var(--unilog-warning)!important}
+.analytics-opportunity-info{border-left-color:var(--unilog-graphite)!important}
+
+/* --------------------------------------------------------------------------
+   EXECUTIVE DASHBOARD CHARTS STILL CUSTOM
+   -------------------------------------------------------------------------- */
+.dashboard-comparison-chart-header .is-current,
+.dashboard-comparison-chart-line i.is-current,
+.legend-real,
+.chart-legend-realized{background:var(--unilog-graphite)!important}
+.dashboard-comparison-chart-header .is-previous,
+.dashboard-comparison-chart-line i.is-previous,
+.legend-planned{background:#cfd3d9!important}
+.chart-legend-expected{background:#9aa0a8!important}
+.chart-legend-projection{background:var(--unilog-red)!important}
+.dashboard-chart-realized{stroke:var(--unilog-graphite)!important}
+.dashboard-chart-expected{stroke:#9aa0a8!important}
+.dashboard-chart-projection{stroke:var(--unilog-red)!important}
+.dashboard-chart-grid{stroke:#eceef1!important}
+.dashboard-bar-real{background:var(--unilog-graphite)!important}
+.dashboard-bar-planned{background:#d6d9dd!important}
+
+/* Meta card: success/warning/error are semantics, not arbitrary palette. */
+.dashboard-meta-alert-dentro_da_meta{border-left-color:var(--unilog-success)!important}
+.dashboard-meta-alert-dentro_da_meta .dashboard-meta-alert-icon{background:#edf6f0!important;color:var(--unilog-success)!important}
+.dashboard-meta-alert-no_limite_da_meta{border-left-color:var(--unilog-warning)!important}
+.dashboard-meta-alert-no_limite_da_meta .dashboard-meta-alert-icon{background:#fff6d8!important;color:var(--unilog-warning)!important}
+.dashboard-meta-alert-fora_da_meta{border-left-color:var(--unilog-danger)!important}
+.dashboard-meta-alert-fora_da_meta .dashboard-meta-alert-icon{background:#fff0f1!important;color:var(--unilog-danger)!important}
+
+/* Controls use the same brand accent. */
+.p-dropdown:not(.p-disabled).p-focus,
+.p-inputtext:enabled:focus{
+  border-color:var(--unilog-red)!important;
+  box-shadow:0 0 0 3px rgba(219,8,18,.08)!important;
+}
+.nx-dashboard-tabs .p-button.p-highlight{
+  background:var(--unilog-ink)!important;
+  color:#fff!important;
+}
+
+@media(max-width:900px){
+  .nx-chart-stage{height:280px;padding:14px 12px 16px}
+  .nx-chart-stage-pareto{height:330px}
+  .nx-chart-stage-scatter{height:320px}
+}
+
+@media(max-width:600px){
+  .nx-chart-card-header{padding:14px!important}
+  .nx-chart-card-header h2{font-size:14px!important}
+  .nx-chart-card-header p{font-size:10px!important;line-height:1.45!important}
+  .nx-chart-stage{height:250px;padding:12px 8px 14px}
+  .nx-chart-stage-pareto{height:300px}
+  .nx-chart-stage-scatter{height:285px}
+  .analytics-highlight{display:none}
+  .analytics-heatmap{padding:10px!important}
+}
