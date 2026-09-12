@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from 'primereact/button'
 import { Card } from 'primereact/card'
+import { Chart } from 'primereact/chart'
 import { Dropdown } from 'primereact/dropdown'
 import { Message } from 'primereact/message'
 import { SelectButton } from 'primereact/selectbutton'
@@ -26,6 +27,18 @@ const MONTHS = [
   ['09', 'Setembro'], ['10', 'Outubro'], ['11', 'Novembro'], ['12', 'Dezembro'],
 ] as const
 
+const CHART_PALETTE = {
+  ink: '#242a36',
+  graphite: '#494a56',
+  planned: '#d7dbe0',
+  muted: '#858a93',
+  grid: '#eceef1',
+  red: '#db0812',
+  text: '#5f636b',
+}
+
+const chartFont = { size: 9, family: 'Inter, Roboto, Arial, sans-serif' }
+
 function currentCompetence() {
   const now = new Date()
   const closing = new Date(now.getFullYear(), now.getMonth() + (now.getDate() >= 21 ? 1 : 0), 1)
@@ -41,6 +54,16 @@ function currency(value: number | null | undefined) {
     style: 'currency',
     currency: 'BRL',
     maximumFractionDigits: 2,
+  }).format(value)
+}
+
+function compactCurrency(value: number | null | undefined) {
+  if (value == null) return '—'
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    notation: 'compact',
+    maximumFractionDigits: 1,
   }).format(value)
 }
 
@@ -71,6 +94,11 @@ function shortDate(value: string) {
   if (!value) return '—'
   const [year, month, day] = value.split('-')
   return `${day}/${month}/${year}`
+}
+
+function shortLabel(value: string, max = 18) {
+  const normalized = value.trim()
+  return normalized.length <= max ? normalized : `${normalized.slice(0, Math.max(1, max - 1))}…`
 }
 
 function monthName(month: string) {
@@ -251,93 +279,186 @@ function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceC
 
 function HorizontalRanking({ title, subtitle, items, limit = 8 }: { title: string; subtitle: string; items: DashboardBreakdownItem[]; limit?: number }) {
   const visible = items.slice(0, limit)
-  const max = Math.max(...visible.map((item) => Math.max(item.realizado, item.previsto)), 1)
+  const chartData = {
+    labels: visible.map((item) => item.chave),
+    datasets: [
+      {
+        label: 'Previsto',
+        data: visible.map((item) => item.previsto),
+        backgroundColor: CHART_PALETTE.planned,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: 16,
+      },
+      {
+        label: 'Realizado',
+        data: visible.map((item) => item.realizado),
+        backgroundColor: CHART_PALETTE.graphite,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: 16,
+      },
+    ],
+  }
+  const options = {
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false as const,
+    layout: { padding: { top: 4, right: 6, bottom: 2, left: 2 } },
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          color: CHART_PALETTE.text,
+          usePointStyle: true,
+          pointStyle: 'circle' as const,
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 14,
+          font: chartFont,
+        },
+      },
+      tooltip: {
+        backgroundColor: CHART_PALETTE.ink,
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 10,
+        callbacks: {
+          title: (contexts: any[]) => visible[contexts[0]?.dataIndex]?.chave || '',
+          label: (context: any) => ` ${context.dataset.label}: ${currency(context.raw)}`,
+          afterBody: (contexts: any[]) => {
+            const item = visible[contexts[0]?.dataIndex]
+            return item ? `${item.solicitacoes} solicitação(ões)` : ''
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { color: CHART_PALETTE.grid },
+        border: { display: false },
+        ticks: { color: CHART_PALETTE.muted, font: chartFont, callback: (value: any) => compactCurrency(Number(value)) },
+      },
+      y: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: {
+          color: CHART_PALETTE.text,
+          font: { ...chartFont, weight: 'bold' as const },
+          callback: (_value: any, index: number) => shortLabel(visible[index]?.chave || '', 18),
+        },
+      },
+    },
+  }
 
   return (
-    <Card className="dashboard-card nx-dashboard-section-card">
+    <Card className="dashboard-card nx-dashboard-section-card nx-chart-card">
       <div className="dashboard-card-header">
         <div><span className="ui-eyebrow">ANÁLISE</span><h2>{title}</h2><p>{subtitle}</p></div>
       </div>
-      <div className="dashboard-ranking">
-        {visible.length === 0 ? (
-          <div className="ui-empty-state"><div><strong>Sem dados no período</strong><p>Altere os filtros para ampliar a análise.</p></div></div>
-        ) : visible.map((item) => (
-          <div className="dashboard-ranking-row" key={item.chave}>
-            <div className="dashboard-ranking-label"><strong>{item.chave}</strong><span>{item.solicitacoes} solicitação(ões)</span></div>
-            <div className="dashboard-ranking-bars" aria-label={`${item.chave}: previsto ${currency(item.previsto)}, realizado ${currency(item.realizado)}`}>
-              <div className="dashboard-bar-track"><span className="dashboard-bar dashboard-bar-planned" style={{ width: `${Math.max((item.previsto / max) * 100, item.previsto ? 2 : 0)}%` }} /></div>
-              <div className="dashboard-bar-track"><span className="dashboard-bar dashboard-bar-real" style={{ width: `${Math.max((item.realizado / max) * 100, item.realizado ? 2 : 0)}%` }} /></div>
-            </div>
-            <div className="dashboard-ranking-values"><span>{currency(item.previsto)}</span><strong>{currency(item.realizado)}</strong></div>
-          </div>
-        ))}
-      </div>
-      <div className="dashboard-legend"><span><i className="legend-planned" />Previsto</span><span><i className="legend-real" />Realizado</span></div>
+      {visible.length ? (
+        <div className="nx-chart-stage nx-dashboard-ranking-stage"><Chart type="bar" data={chartData} options={options} /></div>
+      ) : (
+        <div className="ui-empty-state"><div><strong>Sem dados no período</strong><p>Altere os filtros para ampliar a análise.</p></div></div>
+      )}
     </Card>
   )
 }
 
-function buildPath(points: DashboardProjectionPoint[], field: 'realizadoAcumulado' | 'metaEsperada' | 'projecao', maxValue: number, width: number, height: number, padding: number) {
-  let path = ''
-  let drawing = false
-  const usableWidth = width - padding * 2
-  const usableHeight = height - padding * 2
-  const denominator = Math.max(points.length - 1, 1)
-
-  points.forEach((point, index) => {
-    const value = point[field]
-    if (value == null) {
-      drawing = false
-      return
-    }
-    const x = padding + (index / denominator) * usableWidth
-    const y = padding + usableHeight - (value / maxValue) * usableHeight
-    path += `${drawing ? ' L' : ' M'} ${x.toFixed(1)} ${y.toFixed(1)}`
-    drawing = true
-  })
-
-  return path
-}
-
 function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
-  const width = 920
-  const height = 300
-  const padding = 38
-  const maxValue = Math.max(...points.flatMap((point) => [point.realizadoAcumulado || 0, point.metaEsperada || 0, point.projecao || 0]), 1)
-  const realizedPath = buildPath(points, 'realizadoAcumulado', maxValue, width, height, padding)
-  const expectedPath = buildPath(points, 'metaEsperada', maxValue, width, height, padding)
-  const projectionPath = buildPath(points, 'projecao', maxValue, width, height, padding)
-  const labels = points.length ? [points[0], points[Math.floor((points.length - 1) / 2)], points[points.length - 1]] : []
-  const denominator = Math.max(points.length - 1, 1)
-  const usableWidth = width - padding * 2
-  const usableHeight = height - padding * 2
+  const chartData = {
+    labels: points.map((point) => shortDate(point.data).slice(0, 5)),
+    datasets: [
+      {
+        label: 'Realizado',
+        data: points.map((point) => point.realizadoAcumulado),
+        borderColor: CHART_PALETTE.graphite,
+        backgroundColor: CHART_PALETTE.graphite,
+        pointBackgroundColor: CHART_PALETTE.graphite,
+        pointRadius: 2.5,
+        pointHoverRadius: 4,
+        borderWidth: 2.5,
+        tension: .25,
+        spanGaps: true,
+      },
+      {
+        label: 'Meta esperada',
+        data: points.map((point) => point.metaEsperada),
+        borderColor: '#9aa0a8',
+        backgroundColor: '#9aa0a8',
+        pointRadius: 0,
+        borderWidth: 2,
+        borderDash: [7, 5],
+        tension: .2,
+        spanGaps: true,
+      },
+      {
+        label: 'Projeção',
+        data: points.map((point) => point.projecao),
+        borderColor: CHART_PALETTE.red,
+        backgroundColor: CHART_PALETTE.red,
+        pointBackgroundColor: CHART_PALETTE.red,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+        borderDash: [4, 4],
+        tension: .25,
+        spanGaps: true,
+      },
+    ],
+  }
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false as const,
+    interaction: { mode: 'index' as const, intersect: false },
+    layout: { padding: { top: 4, right: 6, bottom: 2, left: 2 } },
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          color: CHART_PALETTE.text,
+          usePointStyle: true,
+          pointStyle: 'circle' as const,
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 14,
+          font: chartFont,
+        },
+      },
+      tooltip: {
+        backgroundColor: CHART_PALETTE.ink,
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 10,
+        callbacks: {
+          title: (contexts: any[]) => points[contexts[0]?.dataIndex]?.data ? shortDate(points[contexts[0].dataIndex].data) : '',
+          label: (context: any) => ` ${context.dataset.label}: ${currency(context.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: CHART_PALETTE.muted, font: chartFont, autoSkip: true, maxTicksLimit: 8, maxRotation: 0 },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: CHART_PALETTE.grid },
+        border: { display: false },
+        ticks: { color: CHART_PALETTE.muted, font: chartFont, callback: (value: any) => compactCurrency(Number(value)) },
+      },
+    },
+  }
 
   return (
-    <Card className="dashboard-card dashboard-projection-card nx-dashboard-section-card">
-      <div className="dashboard-card-header"><div><span className="ui-eyebrow">META E TENDÊNCIA</span><h2>Realizado × Meta esperada × Projeção</h2><p>Acumulado de mão de obra ao longo da competência 21–20. Passe o cursor sobre os pontos para ver os valores.</p></div></div>
+    <Card className="dashboard-card dashboard-projection-card nx-dashboard-section-card nx-chart-card">
+      <div className="dashboard-card-header"><div><span className="ui-eyebrow">META E TENDÊNCIA</span><h2>Realizado × Meta esperada × Projeção</h2><p>Acumulado de mão de obra ao longo da competência 21–20.</p></div></div>
       {points.length ? (
-        <div className="dashboard-chart-wrap">
-          <svg className="dashboard-projection-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Gráfico acumulado de realizado, meta esperada e projeção de mão de obra">
-            {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-              const y = padding + (height - padding * 2) * (1 - ratio)
-              return <line key={ratio} x1={padding} x2={width - padding} y1={y} y2={y} className="dashboard-chart-grid" />
-            })}
-            <path d={expectedPath} className="dashboard-chart-line dashboard-chart-expected" />
-            <path d={projectionPath} className="dashboard-chart-line dashboard-chart-projection" />
-            <path d={realizedPath} className="dashboard-chart-line dashboard-chart-realized" />
-            {points.map((point, index) => {
-              const referenceValue = point.realizadoAcumulado ?? point.projecao ?? point.metaEsperada
-              if (referenceValue == null) return null
-              const x = padding + (index / denominator) * usableWidth
-              const y = padding + usableHeight - (referenceValue / maxValue) * usableHeight
-              const deltaExpected = point.realizadoAcumulado != null && point.metaEsperada != null ? point.realizadoAcumulado - point.metaEsperada : null
-              const tooltip = [shortDate(point.data), `Realizado: ${currency(point.realizadoAcumulado)}`, `Meta esperada: ${currency(point.metaEsperada)}`, `Projeção: ${currency(point.projecao)}`, `Diferença vs. meta esperada: ${currency(deltaExpected)}`].join('\n')
-              return <circle key={point.data} cx={x} cy={y} r="10" fill="transparent" stroke="transparent"><title>{tooltip}</title></circle>
-            })}
-          </svg>
-          <div className="dashboard-chart-axis">{labels.map((point) => <span key={point.data}>{shortDate(point.data).slice(0, 5)}</span>)}</div>
-          <div className="dashboard-chart-legend"><span><i className="chart-legend-realized" />Realizado</span><span><i className="chart-legend-expected" />Meta esperada</span><span><i className="chart-legend-projection" />Projeção</span></div>
-        </div>
+        <div className="nx-chart-stage nx-dashboard-projection-stage"><Chart type="line" data={chartData} options={options} /></div>
       ) : <div className="ui-empty-state"><div><strong>Sem série para exibir</strong></div></div>}
     </Card>
   )
@@ -382,7 +503,7 @@ export function DashboardPage() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       active = false
-      window.clearInterval(interval)
+      window.clearTimeout(interval)
       window.removeEventListener('focus', refreshSilently)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
