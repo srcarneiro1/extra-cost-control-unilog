@@ -4,91 +4,117 @@
 
 /* --------------------------------------------------------------------------
    SEARCH / FILTER INPUT ICON ALIGNMENT
+   There were two active search implementations: the shared SearchField and
+   the Users DataTable toolbar. Both now follow exactly the same geometry.
    -------------------------------------------------------------------------- */
-.ui-search-field.nx-prime-search{
+.ui-search-field.nx-prime-search,
+.nx-table-search{
   position:relative!important;
   display:block!important;
-  width:100%;
+  min-width:0;
 }
-.ui-search-field.nx-prime-search>i.pi{
+.ui-search-field.nx-prime-search{width:100%}
+
+.ui-search-field.nx-prime-search>i.pi,
+.nx-table-search>i.pi{
   position:absolute!important;
   left:.9rem!important;
   top:50%!important;
-  margin:0!important;
+  margin-top:0!important;
+  margin-right:0!important;
+  margin-bottom:0!important;
+  margin-left:0!important;
   transform:translateY(-50%)!important;
   line-height:1!important;
-  height:1em;
-  width:1em;
+  height:1em!important;
+  width:1em!important;
+  display:block!important;
   z-index:2;
   color:var(--unilog-muted)!important;
   pointer-events:none;
 }
-.ui-search-field.nx-prime-search>.p-inputtext{
+
+.ui-search-field.nx-prime-search>.p-inputtext,
+.nx-table-search>.p-inputtext{
   width:100%!important;
+  min-height:42px!important;
   padding-left:2.55rem!important;
+  line-height:1.2!important;
 }
 
 /* --------------------------------------------------------------------------
-   KPI CARDS — SEMANTIC SIGNAL WITHOUT COLOR NOISE
+   KPI CARDS — ONLY TRUE STATUS GETS COLOR
+   Neutral/info KPIs stay visually neutral. Success/warning/danger receive a
+   restrained semantic accent. No hover animation: these cards are indicators,
+   not interactive controls.
    -------------------------------------------------------------------------- */
 .nx-dashboard-metric-card.p-card{
   position:relative;
   isolation:isolate;
-  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+  transition:none!important;
+  transform:none!important;
 }
 .nx-dashboard-metric-card.p-card:hover{
-  transform:translateY(-2px);
-  box-shadow:0 10px 28px rgba(18,24,34,.075)!important;
+  transform:none!important;
+  box-shadow:var(--unilog-shadow)!important;
 }
-.nx-dashboard-metric-card.p-card::after{
-  content:"";
+
+/* Remove decorative markers from neutral and informational KPIs. */
+.nx-dashboard-metric-card.p-card::after{content:none!important}
+.nx-dashboard-metric-card.dashboard-metric-info{
+  border-left-width:1px!important;
+  border-left-color:var(--unilog-border)!important;
+  background:#fff!important;
+}
+.nx-dashboard-metric-card.dashboard-metric-info .p-card-content>strong{
+  color:var(--unilog-ink-2)!important;
+}
+
+/* Semantic cards share the same restrained marker geometry. */
+.nx-dashboard-metric-card.dashboard-metric-success,
+.nx-dashboard-metric-card.dashboard-metric-warning,
+.nx-dashboard-metric-card.dashboard-metric-danger{
+  border-left-width:4px!important;
+}
+.nx-dashboard-metric-card.dashboard-metric-success::after,
+.nx-dashboard-metric-card.dashboard-metric-warning::after,
+.nx-dashboard-metric-card.dashboard-metric-danger::after{
+  content:""!important;
   position:absolute;
   top:14px;
   right:14px;
-  width:8px;
-  height:8px;
+  width:7px;
+  height:7px;
   border-radius:50%;
-  background:#cfd3d9;
-  box-shadow:0 0 0 5px rgba(207,211,217,.18);
-  opacity:.72;
   pointer-events:none;
 }
-.nx-dashboard-metric-card.dashboard-metric-info{
-  background:linear-gradient(90deg,rgba(73,74,86,.035) 0%,#fff 24%)!important;
-}
-.nx-dashboard-metric-card.dashboard-metric-info::after{
-  background:var(--unilog-graphite);
-  box-shadow:0 0 0 5px rgba(73,74,86,.09);
-}
+
 .nx-dashboard-metric-card.dashboard-metric-success{
-  border-left-width:4px!important;
-  background:linear-gradient(90deg,rgba(63,124,89,.065) 0%,#fff 26%)!important;
+  background:linear-gradient(90deg,rgba(63,124,89,.055) 0%,#fff 24%)!important;
 }
 .nx-dashboard-metric-card.dashboard-metric-success::after{
   background:var(--unilog-success);
-  box-shadow:0 0 0 5px rgba(63,124,89,.11);
+  box-shadow:0 0 0 4px rgba(63,124,89,.09);
 }
 .nx-dashboard-metric-card.dashboard-metric-warning{
-  border-left-width:4px!important;
-  background:linear-gradient(90deg,rgba(168,121,0,.065) 0%,#fff 26%)!important;
+  background:linear-gradient(90deg,rgba(168,121,0,.055) 0%,#fff 24%)!important;
 }
 .nx-dashboard-metric-card.dashboard-metric-warning::after{
   background:var(--unilog-warning);
-  box-shadow:0 0 0 5px rgba(168,121,0,.11);
+  box-shadow:0 0 0 4px rgba(168,121,0,.09);
 }
 .nx-dashboard-metric-card.dashboard-metric-danger{
-  border-left-width:4px!important;
-  background:linear-gradient(90deg,rgba(201,26,35,.06) 0%,#fff 26%)!important;
+  background:linear-gradient(90deg,rgba(201,26,35,.05) 0%,#fff 24%)!important;
 }
 .nx-dashboard-metric-card.dashboard-metric-danger::after{
   background:var(--unilog-danger);
-  box-shadow:0 0 0 5px rgba(201,26,35,.10);
+  box-shadow:0 0 0 4px rgba(201,26,35,.085);
 }
 .nx-dashboard-metric-card.dashboard-metric-success .p-card-content>strong{color:#315f45!important}
 .nx-dashboard-metric-card.dashboard-metric-warning .p-card-content>strong{color:#846200!important}
 .nx-dashboard-metric-card.dashboard-metric-danger .p-card-content>strong{color:#a91820!important}
 
-/* Economy cards keep the same restrained semantic treatment. */
+/* Economy cards keep semantic treatment because saving/increase are states. */
 .nx-dashboard-economy-card.is-saving{
   background:linear-gradient(90deg,rgba(63,124,89,.055),#fff 28%)!important;
 }
@@ -161,8 +187,9 @@
 }
 
 @media(max-width:600px){
-  .nx-dashboard-metric-card.p-card:hover{transform:none}
-  .nx-dashboard-metric-card.p-card::after{top:12px;right:12px}
+  .nx-dashboard-metric-card.dashboard-metric-success::after,
+  .nx-dashboard-metric-card.dashboard-metric-warning::after,
+  .nx-dashboard-metric-card.dashboard-metric-danger::after{top:12px;right:12px}
   .nx-chart-stage{height:224px!important;padding:10px 8px 12px!important}
   .nx-chart-stage-pareto{height:280px!important;padding:10px 6px 28px!important}
   .nx-chart-stage-scatter{height:252px!important}
@@ -170,9 +197,4 @@
   .nx-dashboard-projection-stage{height:230px!important}
   .nx-chart-card .dashboard-card-header,
   .nx-chart-card .nx-chart-card-header{padding:12px 13px!important}
-}
-
-@media(prefers-reduced-motion:reduce){
-  .nx-dashboard-metric-card.p-card{transition:none!important}
-  .nx-dashboard-metric-card.p-card:hover{transform:none!important}
 }
