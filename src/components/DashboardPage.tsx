@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from 'primereact/button'
+import { Card } from 'primereact/card'
+import { Dropdown } from 'primereact/dropdown'
+import { Message } from 'primereact/message'
+import { SelectButton } from 'primereact/selectbutton'
+import { Skeleton } from 'primereact/skeleton'
 import { fetchDashboard, revalidateDashboard } from '../services/dashboardService'
 import { AdvancedAnalytics } from './AdvancedAnalytics'
 import { DashboardExportActions } from './DashboardExportActions'
@@ -84,11 +90,11 @@ function typeLabel(value: DashboardTypeFilter) {
 
 function MetricCard({ label, value, detail, tone = 'neutral' }: { label: string; value: string; detail: string; tone?: MetricTone }) {
   return (
-    <article className={`dashboard-metric dashboard-metric-${tone}`}>
+    <Card className={`dashboard-metric dashboard-metric-${tone} nx-dashboard-metric-card`}>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{detail}</small>
-    </article>
+    </Card>
   )
 }
 
@@ -96,7 +102,7 @@ function EconomyCard({ label, current, previous, featured = false }: { label: st
   const economy = previous - current
   const economyRate = economyPercent(current, previous)
   const state = economy > 0 ? 'saving' : economy < 0 ? 'increase' : 'neutral'
-  const icon = economy > 0 ? 'trending_down' : economy < 0 ? 'trending_up' : 'remove'
+  const icon = economy > 0 ? 'pi pi-arrow-down' : economy < 0 ? 'pi pi-arrow-up' : 'pi pi-minus'
   const detail = economy > 0
     ? `Economia de ${economyRate == null ? '—' : percent(economyRate)}`
     : economy < 0
@@ -104,14 +110,14 @@ function EconomyCard({ label, current, previous, featured = false }: { label: st
       : 'Sem variação de custo'
 
   return (
-    <article className={`dashboard-economy-card is-${state}${featured ? ' is-featured' : ''}`}>
+    <Card className={`dashboard-economy-card is-${state}${featured ? ' is-featured' : ''} nx-dashboard-economy-card`}>
       <div className="dashboard-economy-label">
-        <span className="material-symbols-rounded" aria-hidden="true">{icon}</span>
+        <i className={icon} aria-hidden="true" />
         <span>{label}</span>
       </div>
       <strong>{currency(Math.abs(economy))}</strong>
       <small>{detail}</small>
-    </article>
+    </Card>
   )
 }
 
@@ -189,7 +195,7 @@ function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceC
       </div>
 
       <div className="dashboard-comparison-insight">
-        <span className="material-symbols-rounded" aria-hidden="true">insights</span>
+        <i className="pi pi-chart-line" aria-hidden="true" />
         <div>
           <strong>Leitura executiva</strong>
           <p>{financialInsight}</p>
@@ -228,13 +234,13 @@ function CompetenceComparison({ comparison }: { comparison: DashboardCompetenceC
               : item.delta > 0
                 ? 'is-up'
                 : 'is-down'
-          const deltaIcon = item.delta == null || item.delta === 0 ? 'remove' : item.delta > 0 ? 'arrow_upward' : 'arrow_downward'
+          const deltaIcon = item.delta == null || item.delta === 0 ? 'pi pi-minus' : item.delta > 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'
           return (
             <div className="dashboard-comparison-row" role="row" key={item.label}>
               <span role="cell">{item.label}</span>
               <strong role="cell">{item.current}</strong>
               <span role="cell">{item.previous}</span>
-              <span role="cell" className={`dashboard-comparison-delta ${deltaClass}`}><span className="material-symbols-rounded" aria-hidden="true">{deltaIcon}</span>{signedPercent(item.delta)}</span>
+              <span role="cell" className={`dashboard-comparison-delta ${deltaClass}`}><i className={deltaIcon} aria-hidden="true" />{signedPercent(item.delta)}</span>
             </div>
           )
         })}
@@ -362,28 +368,18 @@ export function DashboardPage() {
   useEffect(() => {
     let active = true
     let refreshing = false
-
     const refreshSilently = () => {
       if (!active || refreshing || document.visibilityState !== 'visible') return
       refreshing = true
       void revalidateDashboard(query)
-        .then((latest) => {
-          if (active) setData(latest)
-        })
+        .then((latest) => { if (active) setData(latest) })
         .catch(() => undefined)
-        .finally(() => {
-          refreshing = false
-        })
+        .finally(() => { refreshing = false })
     }
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshSilently()
-    }
-
+    const handleVisibilityChange = () => { if (document.visibilityState === 'visible') refreshSilently() }
     const interval = window.setInterval(refreshSilently, 30_000)
     window.addEventListener('focus', refreshSilently)
     document.addEventListener('visibilitychange', handleVisibilityChange)
-
     return () => {
       active = false
       window.clearInterval(interval)
@@ -411,36 +407,50 @@ export function DashboardPage() {
   const totalReal = (kpis?.realizadoMaoObra || 0) + (kpis?.realizadoLanches || 0)
   const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
   const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null ? 'neutral' : kpis.atingimentoMetaPercentual > 100 ? 'danger' : kpis.atingimentoMetaPercentual > 85 ? 'warning' : 'success'
-
   const metaAlertMessage = data?.alertaMeta.status === 'FORA_DA_META' ? `Mantido o ritmo atual, a projeção supera a meta em ${currency(Math.max(data.alertaMeta.desvioProjetadoMeta || 0, 0))}.` : data?.alertaMeta.mensagem || ''
   const remainingDailyLimit = data && kpis?.metaMaoObra != null && data.projecao.diasRestantes > 0 ? (kpis.metaMaoObra - kpis.realizadoMaoObra) / data.projecao.diasRestantes : null
   const remainingDailyMessage = remainingDailyLimit == null ? '' : remainingDailyLimit >= 0 ? `Limite médio restante: ${currency(remainingDailyLimit)}/dia por ${data?.projecao.diasRestantes || 0} dia(s).` : `A meta realizada já foi excedida em ${currency(Math.abs((kpis?.metaMaoObra || 0) - (kpis?.realizadoMaoObra || 0)))}.`
 
+  const tabOptions = [
+    { label: 'Visão Executiva', value: 'executiva' },
+    { label: 'Analytics', value: 'analytics' },
+  ]
+  const optionize = (values: string[], allLabel: string) => [{ label: allLabel, value: 'TODOS' }, ...values.map((value) => ({ label: value, value }))]
+  const yearOptions = (data?.filtros.anos.length ? data.filtros.anos : [query.ano || initial.ano]).map((value) => ({ label: value, value }))
+  const competenceOptions = (data?.filtros.mesesCompetencia.length ? data.filtros.mesesCompetencia : [query.mesCompetencia || initial.mesCompetencia]).map((value) => ({ label: monthName(value), value }))
+  const typeOptions = (['TODOS', 'MAO_DE_OBRA', 'ALIMENTACAO_BEBIDA'] as DashboardTypeFilter[]).map((value) => ({ label: typeLabel(value), value }))
+
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page nx-modern-page">
       <div className="dashboard-page-heading">
         <div><span className="ui-eyebrow">CUSTOS EXTRAS</span><h1>Visão geral</h1><p>Leitura executiva e analítica de mão de obra terceirizada e lanches.</p>{data && <p><strong>Competência: {monthName(data.competencia.slice(5, 7))}/{data.competencia.slice(0, 4)}</strong> · {shortDate(data.periodoInicio)} a {shortDate(data.periodoFim)}</p>}</div>
         <DashboardExportActions query={query} />
       </div>
 
-      <div className="dashboard-tabs" role="tablist" aria-label="Áreas do dashboard"><button type="button" className={tab === 'executiva' ? 'active' : ''} onClick={() => setTab('executiva')}>Visão Executiva</button><button type="button" className={tab === 'analytics' ? 'active' : ''} onClick={() => setTab('analytics')}>Analytics</button></div>
+      <SelectButton value={tab} options={tabOptions} onChange={(event) => event.value && setTab(event.value as DashboardTab)} className="nx-dashboard-tabs" aria-label="Áreas do dashboard" />
 
-      <section className="dashboard-filter-panel" aria-label="Filtros do dashboard"><div className="dashboard-filters">
-        <label>Ano<select value={query.ano} onChange={(event) => update('ano', event.target.value)}>{(data?.filtros.anos.length ? data.filtros.anos : [query.ano || initial.ano]).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
-        <label>Competência<select value={query.mesCompetencia} onChange={(event) => update('mesCompetencia', event.target.value)}>{(data?.filtros.mesesCompetencia.length ? data.filtros.mesesCompetencia : [query.mesCompetencia || initial.mesCompetencia]).map((value) => <option key={value} value={value}>{monthName(value)}</option>)}</select></label>
-        <label>Operação<select value={query.operacao} onChange={(event) => update('operacao', event.target.value)}><option value="TODOS">Todas</option>{data?.filtros.operacoes.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label>Supervisor<select value={query.supervisor} onChange={(event) => update('supervisor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.supervisores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label>Fornecedor<select value={query.fornecedor} onChange={(event) => update('fornecedor', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.fornecedores.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label>Tipo<select value={query.tipo} onChange={(event) => update('tipo', event.target.value as DashboardTypeFilter)}>{(['TODOS', 'MAO_DE_OBRA', 'ALIMENTACAO_BEBIDA'] as DashboardTypeFilter[]).map((item) => <option key={item} value={item}>{typeLabel(item)}</option>)}</select></label>
-        <label>Responsável pelo custo<select value={query.responsavelCusto} onChange={(event) => update('responsavelCusto', event.target.value)}><option value="TODOS">Todos</option>{data?.filtros.responsaveisCusto.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label>Atividade<select value={query.atividade} onChange={(event) => update('atividade', event.target.value)}><option value="TODOS">Todas</option>{data?.filtros.atividades.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <button type="button" className="button" onClick={clearDimensionFilters}>Limpar dimensões</button>
-      </div></section>
+      <Card className="dashboard-filter-panel nx-dashboard-filter-card">
+        <div className="nx-dashboard-filter-grid">
+          <label className="nx-field">Ano<Dropdown value={query.ano} options={yearOptions} onChange={(event) => update('ano', event.value)} /></label>
+          <label className="nx-field">Competência<Dropdown value={query.mesCompetencia} options={competenceOptions} onChange={(event) => update('mesCompetencia', event.value)} /></label>
+          <label className="nx-field">Operação<Dropdown value={query.operacao} options={optionize(data?.filtros.operacoes || [], 'Todas')} onChange={(event) => update('operacao', event.value)} filter={(data?.filtros.operacoes.length || 0) > 8} /></label>
+          <label className="nx-field">Supervisor<Dropdown value={query.supervisor} options={optionize(data?.filtros.supervisores || [], 'Todos')} onChange={(event) => update('supervisor', event.value)} filter={(data?.filtros.supervisores.length || 0) > 8} /></label>
+          <label className="nx-field">Fornecedor<Dropdown value={query.fornecedor} options={optionize(data?.filtros.fornecedores || [], 'Todos')} onChange={(event) => update('fornecedor', event.value)} filter={(data?.filtros.fornecedores.length || 0) > 8} /></label>
+          <label className="nx-field">Tipo<Dropdown value={query.tipo} options={typeOptions} onChange={(event) => update('tipo', event.value as DashboardTypeFilter)} /></label>
+          <label className="nx-field">Responsável pelo custo<Dropdown value={query.responsavelCusto} options={optionize(data?.filtros.responsaveisCusto || [], 'Todos')} onChange={(event) => update('responsavelCusto', event.value)} /></label>
+          <label className="nx-field">Atividade<Dropdown value={query.atividade} options={optionize(data?.filtros.atividades || [], 'Todas')} onChange={(event) => update('atividade', event.value)} filter={(data?.filtros.atividades.length || 0) > 8} /></label>
+        </div>
+        <div className="nx-dashboard-filter-actions">
+          <Button label="Limpar dimensões" icon="pi pi-filter-slash" outlined onClick={clearDimensionFilters} />
+        </div>
+      </Card>
 
-      {loading && !data ? <div className="ui-panel"><div className="ui-skeleton"><span /><span /><span /><span /></div></div> : null}
-      {error ? <div className="ui-panel"><div className="ui-empty-state ui-empty-state-error"><div><strong>Falha ao carregar o dashboard</strong><p>{error}</p></div></div></div> : null}
+      {loading && !data ? (
+        <Card className="nx-dashboard-loading-card"><div className="nx-prime-skeleton"><Skeleton height="1.3rem" /><Skeleton /><Skeleton /><Skeleton /></div></Card>
+      ) : null}
+      {error ? <Message severity="error" text={error} className="nx-dashboard-error" /> : null}
 
-      {data && kpis ? <>{loading && <div className="dashboard-refreshing">Atualizando indicadores…</div>}{tab === 'executiva' ? (
+      {data && kpis ? <>{loading && <div className="dashboard-refreshing"><i className="pi pi-spin pi-spinner" /> Atualizando indicadores…</div>}{tab === 'executiva' ? (
         <div className="dashboard-view">
           <div className="dashboard-metrics-grid">
             <MetricCard label="Previsto · Mão de obra" value={currency(kpis.previstoMaoObra)} detail="Solicitações da competência" />
@@ -453,7 +463,7 @@ export function DashboardPage() {
             <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
           </div>
           <CompetenceComparison comparison={data.comparativoCompetencia} />
-          <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}><div className="dashboard-meta-alert-icon"><span className="material-symbols-rounded" aria-hidden="true">{data.alertaMeta.status === 'FORA_DA_META' ? 'warning' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'error_outline' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'check_circle' : 'info'}</span></div><div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div><div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div></section>
+          <section className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()}`}><div className="dashboard-meta-alert-icon"><i className={data.alertaMeta.status === 'FORA_DA_META' ? 'pi pi-exclamation-triangle' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'pi pi-exclamation-circle' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'pi pi-check-circle' : 'pi pi-info-circle'} aria-hidden="true" /></div><div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div><div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div></section>
           <ProjectionChart points={data.evolucaoMetaProjecao} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>
           <section className="dashboard-card"><div className="dashboard-card-header"><div><span className="ui-eyebrow">EVOLUÇÃO</span><h2>Movimento diário da competência</h2><p>Data operacional dentro da janela 21–20.</p></div></div><div className="dashboard-daily-grid">{data.evolucaoDiaria.length ? data.evolucaoDiaria.map((item) => <div className="dashboard-daily-item" key={item.data}><span>{shortDate(item.data).slice(0, 5)}</span><strong>{currency(item.realizado)}</strong><small>Prev. {currency(item.previsto)}</small></div>) : <div className="ui-empty-state"><div><strong>Sem movimento</strong><p>Não há custos na combinação de filtros selecionada.</p></div></div>}</div></section>
