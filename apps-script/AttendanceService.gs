@@ -18,6 +18,8 @@ const AttendanceService = (() => {
     }
 
     try {
+      SolicitationStatusService.ensureSchema();
+
       const found = SheetRepository.findRowByField(
         SHEET_SOLICITACOES,
         'ID_SOLICITACAO',
@@ -31,6 +33,15 @@ const AttendanceService = (() => {
       const record = found.record;
       if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== 'MAO_DE_OBRA') {
         ValidationService.fail('Quantidade comparecida só pode ser registrada para solicitação de mão de obra.');
+      }
+
+      const status = SolicitationStatusService.resolve(record);
+      if (
+        status !== SolicitationStatusService.STATUS.SUPPLIER_SENT &&
+        status !== SolicitationStatusService.STATUS.IN_SERVICE &&
+        status !== SolicitationStatusService.STATUS.ATTENDED
+      ) {
+        ValidationService.fail('A solicitação precisa estar enviada ao fornecedor antes de registrar o comparecimento.');
       }
 
       const unitPrice = toMoneyNumber_(record.PRECO_UNITARIO_APLICADO);
@@ -58,16 +69,20 @@ const AttendanceService = (() => {
           {
             QTD_COMPARECIDA: attendedQuantity,
             VALOR_REAL: realValue,
+            STATUS: SolicitationStatusService.attended(),
           }
         );
       } else {
         const existingRealValue = toMoneyNumber_(record.VALOR_REAL);
+        const updates = {};
         if (existingRealValue == null || existingRealValue !== realValue) {
-          SheetRepository.updateFields(
-            SHEET_SOLICITACOES,
-            found.rowNumber,
-            { VALOR_REAL: realValue }
-          );
+          updates.VALOR_REAL = realValue;
+        }
+        if (status !== SolicitationStatusService.STATUS.ATTENDED) {
+          updates.STATUS = SolicitationStatusService.attended();
+        }
+        if (Object.keys(updates).length) {
+          SheetRepository.updateFields(SHEET_SOLICITACOES, found.rowNumber, updates);
         }
       }
 
@@ -85,6 +100,7 @@ const AttendanceService = (() => {
       precoUnitarioAplicado: unitPrice,
       valorReal: realValue,
       divergencia: Number(record.QTD_SOLICITADA) !== attendedQuantity,
+      status: SolicitationStatusService.STATUS.ATTENDED,
     };
   }
 
