@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Card } from 'primereact/card'
 import type { DashboardAnalytics, DashboardResponse } from '../types/dashboard'
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
@@ -9,6 +10,8 @@ const LINEARITY_QUADRANTS = {
   bottomLeft: 'Baixo custo · não recorrente',
   bottomRight: 'Baixo custo · recorrente',
 } as const
+
+type AnalyticsMetricTone = 'neutral' | 'info' | 'warning' | 'danger'
 
 function currency(value: number | null | undefined) {
   if (value == null) return '—'
@@ -43,6 +46,26 @@ function emptyAnalytics(): DashboardAnalytics {
   }
 }
 
+function AnalyticsMetric({
+  label,
+  value,
+  detail,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  detail: string
+  tone?: AnalyticsMetricTone
+}) {
+  return (
+    <Card className={`dashboard-metric dashboard-metric-${tone} nx-dashboard-metric-card nx-analytics-metric`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </Card>
+  )
+}
+
 function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
   const items = analytics.diasSemana
   const max = Math.max(...items.map((item) => item.realizado), 1)
@@ -61,7 +84,7 @@ function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
   )
 
   return (
-    <section className="dashboard-card analytics-viz-card">
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
       <div className="dashboard-card-header">
         <div>
           <span className="ui-eyebrow">DIA DA SEMANA</span>
@@ -71,44 +94,46 @@ function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
       </div>
 
       {items.length ? (
-        <svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Custo realizado por dia da semana">
-          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-            const y = top + chartHeight * (1 - ratio)
-            return (
-              <g key={ratio}>
-                <line x1={left} x2={width - 10} y1={y} y2={y} className="analytics-grid-line" />
-                <text x={left - 8} y={y + 4} textAnchor="end" className="analytics-axis-text">
-                  {currency(max * ratio)}
-                </text>
-              </g>
-            )
-          })}
+        <div className="nx-analytics-chart-scroll">
+          <svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Custo realizado por dia da semana">
+            {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+              const y = top + chartHeight * (1 - ratio)
+              return (
+                <g key={ratio}>
+                  <line x1={left} x2={width - 10} y1={y} y2={y} className="analytics-grid-line" />
+                  <text x={left - 8} y={y + 4} textAnchor="end" className="analytics-axis-text">
+                    {currency(max * ratio)}
+                  </text>
+                </g>
+              )
+            })}
 
-          {items.map((item, index) => {
-            const h = (item.realizado / max) * chartHeight
-            const x = left + slot * index + (slot - barWidth) / 2
-            const y = top + chartHeight - h
-            const isPeak = topItem?.chave === item.chave
+            {items.map((item, index) => {
+              const h = (item.realizado / max) * chartHeight
+              const x = left + slot * index + (slot - barWidth) / 2
+              const y = top + chartHeight - h
+              const isPeak = topItem?.chave === item.chave
 
-            return (
-              <g key={item.chave} className={isPeak ? 'analytics-bar-peak' : ''}>
-                <rect x={x} y={y} width={barWidth} height={Math.max(h, 1)} rx="4" className="analytics-bar-column">
-                  <title>{`${item.chave}: ${currency(item.realizado)} · ${item.solicitacoes} solicitação(ões)`}</title>
-                </rect>
-                <text x={x + barWidth / 2} y={Math.max(y - 6, 12)} textAnchor="middle" className="analytics-value-label">
-                  {item.realizado ? currency(item.realizado) : ''}
-                </text>
-                <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" className="analytics-axis-label">
-                  {WEEKDAYS[index]}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
+              return (
+                <g key={item.chave} className={isPeak ? 'analytics-bar-peak' : ''}>
+                  <rect x={x} y={y} width={barWidth} height={Math.max(h, 1)} rx="4" className="analytics-bar-column">
+                    <title>{`${item.chave}: ${currency(item.realizado)} · ${item.solicitacoes} solicitação(ões)`}</title>
+                  </rect>
+                  <text x={x + barWidth / 2} y={Math.max(y - 6, 12)} textAnchor="middle" className="analytics-value-label">
+                    {item.realizado ? currency(item.realizado) : ''}
+                  </text>
+                  <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" className="analytics-axis-label">
+                    {WEEKDAYS[index]}
+                  </text>
+                </g>
+              )
+            })}
+          </svg>
+        </div>
       ) : (
         <div className="ui-empty-state"><div><strong>Sem dados no período</strong></div></div>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -130,7 +155,7 @@ function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
   const line = points.map((point, index) => `${index ? 'L' : 'M'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ')
 
   return (
-    <section className="dashboard-card analytics-viz-card">
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
       <div className="dashboard-card-header">
         <div>
           <span className="ui-eyebrow">PARETO</span>
@@ -141,36 +166,38 @@ function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
       </div>
 
       {items.length ? (
-        <svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Pareto do custo por depositante">
-          {items.map((item, index) => {
-            const y = top + row * index + row * 0.2
-            const h = row * 0.6
-            const w = (item.realizado / max) * barMaxWidth
+        <div className="nx-analytics-chart-scroll">
+          <svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Pareto do custo por depositante">
+            {items.map((item, index) => {
+              const y = top + row * index + row * 0.2
+              const h = row * 0.6
+              const w = (item.realizado / max) * barMaxWidth
 
-            return (
-              <g key={item.chave}>
-                <text x={left - 8} y={y + h / 2 + 4} textAnchor="end" className="analytics-axis-label">{item.chave}</text>
-                <rect x={left} y={y} width={barMaxWidth} height={h} rx="3" className="analytics-bar-track-svg" />
-                <rect x={left} y={y} width={Math.max(w, 1)} height={h} rx="3" className="analytics-pareto-bar">
-                  <title>{`${item.chave}: ${currency(item.realizado)} · ${percent(item.percentual)} · acumulado ${percent(item.acumulado)}`}</title>
-                </rect>
-                <text x={Math.min(left + w + 6, width - right)} y={y + h / 2 + 4} className="analytics-value-label">
-                  {currency(item.realizado)}
-                </text>
-              </g>
-            )
-          })}
-          <path d={line} className="analytics-pareto-line" />
-          {points.map((point, index) => (
-            <circle key={items[index].chave} cx={point.x} cy={point.y} r="4" className="analytics-pareto-point">
-              <title>{`${items[index].chave}: ${percent(items[index].acumulado)} acumulado`}</title>
-            </circle>
-          ))}
-        </svg>
+              return (
+                <g key={item.chave}>
+                  <text x={left - 8} y={y + h / 2 + 4} textAnchor="end" className="analytics-axis-label">{item.chave}</text>
+                  <rect x={left} y={y} width={barMaxWidth} height={h} rx="3" className="analytics-bar-track-svg" />
+                  <rect x={left} y={y} width={Math.max(w, 1)} height={h} rx="3" className="analytics-pareto-bar">
+                    <title>{`${item.chave}: ${currency(item.realizado)} · ${percent(item.percentual)} · acumulado ${percent(item.acumulado)}`}</title>
+                  </rect>
+                  <text x={Math.min(left + w + 6, width - right)} y={y + h / 2 + 4} className="analytics-value-label">
+                    {currency(item.realizado)}
+                  </text>
+                </g>
+              )
+            })}
+            <path d={line} className="analytics-pareto-line" />
+            {points.map((point, index) => (
+              <circle key={items[index].chave} cx={point.x} cy={point.y} r="4" className="analytics-pareto-point">
+                <title>{`${items[index].chave}: ${percent(items[index].acumulado)} acumulado`}</title>
+              </circle>
+            ))}
+          </svg>
+        </div>
       ) : (
         <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -179,7 +206,7 @@ function SupervisorRanking({ data }: { data: DashboardResponse }) {
   const max = Math.max(...items.map((item) => item.realizado), 1)
 
   return (
-    <section className="dashboard-card analytics-viz-card">
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
       <div className="dashboard-card-header">
         <div>
           <span className="ui-eyebrow">SUPERVISÃO</span>
@@ -197,7 +224,7 @@ function SupervisorRanking({ data }: { data: DashboardResponse }) {
           </div>
         ))}
       </div>
-    </section>
+    </Card>
   )
 }
 
@@ -206,7 +233,7 @@ function Heatmap({ analytics }: { analytics: DashboardAnalytics }) {
   const max = Math.max(...rows.flatMap((row) => row.valores), 1)
 
   return (
-    <section className="dashboard-card analytics-viz-card">
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
       <div className="dashboard-card-header">
         <div>
           <span className="ui-eyebrow">PADRÃO DE SOLICITAÇÕES</span>
@@ -240,7 +267,7 @@ function Heatmap({ analytics }: { analytics: DashboardAnalytics }) {
       ) : (
         <div className="ui-empty-state"><div><strong>Sem matriz disponível</strong></div></div>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -268,7 +295,7 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
   )
 
   return (
-    <section className="dashboard-card analytics-viz-card">
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
       <div className="dashboard-card-header">
         <div>
           <span className="ui-eyebrow">LINEARIDADE × CUSTO</span>
@@ -332,7 +359,7 @@ function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
       ) : (
         <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -348,31 +375,34 @@ export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
   return (
     <div className="advanced-analytics-grid">
       <div className="dashboard-analytics-summary analytics-summary-five">
-        <article className="dashboard-metric dashboard-metric-info">
-          <span>Dia mais impactante</span>
-          <strong>{topDay?.chave || '—'}</strong>
-          <small>{topDay ? currency(topDay.realizado) : 'Sem movimento'}</small>
-        </article>
-        <article className="dashboard-metric">
-          <span>Depositante líder</span>
-          <strong>{topOperation?.chave || '—'}</strong>
-          <small>{topOperation ? `${currency(topOperation.realizado)} · ${percent(topOperation.percentual)}` : 'Sem dados'}</small>
-        </article>
-        <article className="dashboard-metric">
-          <span>Supervisor líder</span>
-          <strong>{topSupervisor?.chave || '—'}</strong>
-          <small>{topSupervisor ? currency(topSupervisor.realizado) : 'Sem dados'}</small>
-        </article>
-        <article className="dashboard-metric dashboard-metric-warning">
-          <span>Concentração Top 5</span>
-          <strong>{percent(analytics.concentracaoTop5Percentual)}</strong>
-          <small>{currency(analytics.concentracaoTop5Valor)}</small>
-        </article>
-        <article className="dashboard-metric dashboard-metric-danger">
-          <span>Maior desvio</span>
-          <strong>{analytics.maiorDesvio ? percent(analytics.maiorDesvio.diferencaPercentual) : '—'}</strong>
-          <small>{analytics.maiorDesvio ? `${analytics.maiorDesvio.chave} · ${currency(analytics.maiorDesvio.diferenca)}` : 'Sem desvio'}</small>
-        </article>
+        <AnalyticsMetric
+          label="Dia mais impactante"
+          value={topDay?.chave || '—'}
+          detail={topDay ? currency(topDay.realizado) : 'Sem movimento'}
+          tone="info"
+        />
+        <AnalyticsMetric
+          label="Depositante líder"
+          value={topOperation?.chave || '—'}
+          detail={topOperation ? `${currency(topOperation.realizado)} · ${percent(topOperation.percentual)}` : 'Sem dados'}
+        />
+        <AnalyticsMetric
+          label="Supervisor líder"
+          value={topSupervisor?.chave || '—'}
+          detail={topSupervisor ? currency(topSupervisor.realizado) : 'Sem dados'}
+        />
+        <AnalyticsMetric
+          label="Concentração Top 5"
+          value={percent(analytics.concentracaoTop5Percentual)}
+          detail={currency(analytics.concentracaoTop5Valor)}
+          tone="warning"
+        />
+        <AnalyticsMetric
+          label="Maior desvio"
+          value={analytics.maiorDesvio ? percent(analytics.maiorDesvio.diferencaPercentual) : '—'}
+          detail={analytics.maiorDesvio ? `${analytics.maiorDesvio.chave} · ${currency(analytics.maiorDesvio.diferenca)}` : 'Sem desvio'}
+          tone="danger"
+        />
       </div>
 
       <div className="analytics-three-columns">
@@ -386,7 +416,7 @@ export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
         <LinearityScatter analytics={analytics} />
       </div>
 
-      <section className="dashboard-card analytics-opportunities-card">
+      <Card className="dashboard-card analytics-opportunities-card nx-analytics-card">
         <div className="dashboard-card-header">
           <div>
             <span className="ui-eyebrow">OPORTUNIDADES DE REDUÇÃO</span>
@@ -409,7 +439,7 @@ export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
             </article>
           ))}
         </div>
-      </section>
+      </Card>
     </div>
   )
 }
