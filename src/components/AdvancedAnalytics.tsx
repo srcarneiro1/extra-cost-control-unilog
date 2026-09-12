@@ -1,17 +1,26 @@
+'use client'
+
 import type { CSSProperties } from 'react'
 import { Card } from 'primereact/card'
+import { Chart } from 'primereact/chart'
 import type { DashboardAnalytics, DashboardResponse } from '../types/dashboard'
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-const LINEARITY_QUADRANTS = {
-  topLeft: 'Alto custo · não recorrente',
-  topRight: 'Alto custo · recorrente',
-  bottomLeft: 'Baixo custo · não recorrente',
-  bottomRight: 'Baixo custo · recorrente',
-} as const
-
 type AnalyticsMetricTone = 'neutral' | 'info' | 'warning' | 'danger'
+
+const PALETTE = {
+  ink: '#242a36',
+  graphite: '#494a56',
+  graphiteSoft: '#8b9099',
+  red: '#db0812',
+  redSoft: 'rgba(219,8,18,.14)',
+  grid: '#eceef1',
+  text: '#5f636b',
+  muted: '#858a93',
+  surface: '#ffffff',
+  track: '#f1f2f4',
+}
 
 function currency(value: number | null | undefined) {
   if (value == null) return '—'
@@ -25,10 +34,6 @@ function currency(value: number | null | undefined) {
 function percent(value: number | null | undefined) {
   if (value == null) return '—'
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)}%`
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
 }
 
 function emptyAnalytics(): DashboardAnalytics {
@@ -46,12 +51,24 @@ function emptyAnalytics(): DashboardAnalytics {
   }
 }
 
-function AnalyticsMetric({
-  label,
-  value,
-  detail,
-  tone = 'neutral',
-}: {
+const baseLegend = {
+  labels: {
+    color: PALETTE.text,
+    boxWidth: 9,
+    boxHeight: 9,
+    usePointStyle: true,
+    pointStyle: 'circle' as const,
+    padding: 14,
+    font: { size: 10, family: 'Inter, Roboto, Arial, sans-serif' },
+  },
+}
+
+const axisTicks = {
+  color: PALETTE.muted,
+  font: { size: 9, family: 'Inter, Roboto, Arial, sans-serif' },
+}
+
+function AnalyticsMetric({ label, value, detail, tone = 'neutral' }: {
   label: string
   value: string
   detail: string
@@ -66,164 +83,166 @@ function AnalyticsMetric({
   )
 }
 
+function AnalyticsCardHeader({ eyebrow, title, description, trailing }: {
+  eyebrow: string
+  title: string
+  description: string
+  trailing?: React.ReactNode
+}) {
+  return (
+    <div className="dashboard-card-header nx-chart-card-header">
+      <div>
+        <span className="ui-eyebrow">{eyebrow}</span>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+      {trailing}
+    </div>
+  )
+}
+
 function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
   const items = analytics.diasSemana
-  const max = Math.max(...items.map((item) => item.realizado), 1)
-  const width = 620
-  const height = 270
-  const left = 46
-  const bottom = 36
-  const top = 20
-  const chartHeight = height - top - bottom
-  const availableWidth = width - left - 14
-  const slot = availableWidth / Math.max(items.length, 1)
-  const barWidth = Math.min(48, slot * 0.62)
-  const topItem = items.reduce(
-    (best, item) => (!best || item.realizado > best.realizado ? item : best),
-    items[0],
-  )
+  const chartData = {
+    labels: items.map((item, index) => WEEKDAYS[index] || item.chave),
+    datasets: [{
+      label: 'Custo realizado',
+      data: items.map((item) => item.realizado),
+      backgroundColor: items.map((_, index) => index === items.findIndex((item) => item.realizado === Math.max(...items.map((candidate) => candidate.realizado))) ? PALETTE.red : PALETTE.graphite),
+      borderRadius: 7,
+      borderSkipped: false,
+      maxBarThickness: 42,
+    }],
+  }
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false as const,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: PALETTE.ink,
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 10,
+        callbacks: {
+          label: (context: any) => ` ${currency(context.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: axisTicks, border: { display: false } },
+      y: {
+        beginAtZero: true,
+        grid: { color: PALETTE.grid },
+        border: { display: false },
+        ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) },
+      },
+    },
+  }
 
   return (
-    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
-      <div className="dashboard-card-header">
-        <div>
-          <span className="ui-eyebrow">DIA DA SEMANA</span>
-          <h2>Impacto por dia da semana</h2>
-          <p>Custo realizado agrupado pela data operacional.</p>
-        </div>
-      </div>
-
-      {items.length ? (
-        <div className="nx-analytics-chart-scroll">
-          <svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Custo realizado por dia da semana">
-            {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-              const y = top + chartHeight * (1 - ratio)
-              return (
-                <g key={ratio}>
-                  <line x1={left} x2={width - 10} y1={y} y2={y} className="analytics-grid-line" />
-                  <text x={left - 8} y={y + 4} textAnchor="end" className="analytics-axis-text">
-                    {currency(max * ratio)}
-                  </text>
-                </g>
-              )
-            })}
-
-            {items.map((item, index) => {
-              const h = (item.realizado / max) * chartHeight
-              const x = left + slot * index + (slot - barWidth) / 2
-              const y = top + chartHeight - h
-              const isPeak = topItem?.chave === item.chave
-
-              return (
-                <g key={item.chave} className={isPeak ? 'analytics-bar-peak' : ''}>
-                  <rect x={x} y={y} width={barWidth} height={Math.max(h, 1)} rx="4" className="analytics-bar-column">
-                    <title>{`${item.chave}: ${currency(item.realizado)} · ${item.solicitacoes} solicitação(ões)`}</title>
-                  </rect>
-                  <text x={x + barWidth / 2} y={Math.max(y - 6, 12)} textAnchor="middle" className="analytics-value-label">
-                    {item.realizado ? currency(item.realizado) : ''}
-                  </text>
-                  <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" className="analytics-axis-label">
-                    {WEEKDAYS[index]}
-                  </text>
-                </g>
-              )
-            })}
-          </svg>
-        </div>
-      ) : (
-        <div className="ui-empty-state"><div><strong>Sem dados no período</strong></div></div>
-      )}
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card nx-chart-card">
+      <AnalyticsCardHeader eyebrow="DIA DA SEMANA" title="Impacto por dia da semana" description="Custo realizado agrupado pela data operacional." />
+      {items.length ? <div className="nx-chart-stage"><Chart type="bar" data={chartData} options={options} /></div> : <div className="ui-empty-state"><div><strong>Sem dados no período</strong></div></div>}
     </Card>
   )
 }
 
 function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
   const items = analytics.paretoOperacao.slice(0, 8)
-  const width = 660
-  const height = 290
-  const left = 118
-  const right = 46
-  const top = 22
-  const bottom = 30
-  const max = Math.max(...items.map((item) => item.realizado), 1)
-  const row = (height - top - bottom) / Math.max(items.length, 1)
-  const barMaxWidth = width - left - right
-  const points = items.map((item, index) => ({
-    x: left + (item.acumulado / 100) * barMaxWidth,
-    y: top + row * index + row / 2,
-  }))
-  const line = points.map((point, index) => `${index ? 'L' : 'M'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ')
+  const chartData = {
+    labels: items.map((item) => item.chave),
+    datasets: [
+      {
+        type: 'bar' as const,
+        label: 'Custo realizado',
+        data: items.map((item) => item.realizado),
+        backgroundColor: PALETTE.graphite,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: 24,
+        yAxisID: 'y',
+      },
+      {
+        type: 'line' as const,
+        label: 'Participação acumulada',
+        data: items.map((item) => item.acumulado),
+        borderColor: PALETTE.red,
+        backgroundColor: PALETTE.red,
+        pointBackgroundColor: PALETTE.red,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        tension: .28,
+        yAxisID: 'y1',
+      },
+    ],
+  }
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false as const,
+    interaction: { mode: 'index' as const, intersect: false },
+    plugins: {
+      legend: baseLegend,
+      tooltip: {
+        backgroundColor: PALETTE.ink,
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 10,
+        callbacks: {
+          label: (context: any) => context.datasetIndex === 0 ? ` ${currency(context.raw)}` : ` ${percent(context.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { ...axisTicks, maxRotation: 0, autoSkip: false }, border: { display: false } },
+      y: { beginAtZero: true, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) } },
+      y1: { beginAtZero: true, max: 100, position: 'right' as const, grid: { drawOnChartArea: false }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => `${value}%` } },
+    },
+  }
 
   return (
-    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
-      <div className="dashboard-card-header">
-        <div>
-          <span className="ui-eyebrow">PARETO</span>
-          <h2>Custo por depositante</h2>
-          <p>Barras = custo realizado · Linha = participação acumulada.</p>
-        </div>
-        <strong className="analytics-highlight">Top 5 {percent(analytics.concentracaoTop5Percentual)}</strong>
-      </div>
-
-      {items.length ? (
-        <div className="nx-analytics-chart-scroll">
-          <svg className="analytics-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Pareto do custo por depositante">
-            {items.map((item, index) => {
-              const y = top + row * index + row * 0.2
-              const h = row * 0.6
-              const w = (item.realizado / max) * barMaxWidth
-
-              return (
-                <g key={item.chave}>
-                  <text x={left - 8} y={y + h / 2 + 4} textAnchor="end" className="analytics-axis-label">{item.chave}</text>
-                  <rect x={left} y={y} width={barMaxWidth} height={h} rx="3" className="analytics-bar-track-svg" />
-                  <rect x={left} y={y} width={Math.max(w, 1)} height={h} rx="3" className="analytics-pareto-bar">
-                    <title>{`${item.chave}: ${currency(item.realizado)} · ${percent(item.percentual)} · acumulado ${percent(item.acumulado)}`}</title>
-                  </rect>
-                  <text x={Math.min(left + w + 6, width - right)} y={y + h / 2 + 4} className="analytics-value-label">
-                    {currency(item.realizado)}
-                  </text>
-                </g>
-              )
-            })}
-            <path d={line} className="analytics-pareto-line" />
-            {points.map((point, index) => (
-              <circle key={items[index].chave} cx={point.x} cy={point.y} r="4" className="analytics-pareto-point">
-                <title>{`${items[index].chave}: ${percent(items[index].acumulado)} acumulado`}</title>
-              </circle>
-            ))}
-          </svg>
-        </div>
-      ) : (
-        <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>
-      )}
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card nx-chart-card">
+      <AnalyticsCardHeader eyebrow="PARETO" title="Custo por depositante" description="Custo realizado e participação acumulada." trailing={<strong className="analytics-highlight">Top 5 {percent(analytics.concentracaoTop5Percentual)}</strong>} />
+      {items.length ? <div className="nx-chart-stage nx-chart-stage-pareto"><Chart type="bar" data={chartData} options={options} /></div> : <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}
     </Card>
   )
 }
 
 function SupervisorRanking({ data }: { data: DashboardResponse }) {
   const items = data.porSupervisor.slice(0, 7)
-  const max = Math.max(...items.map((item) => item.realizado), 1)
+  const chartData = {
+    labels: items.map((item) => item.chave),
+    datasets: [{
+      label: 'Custo realizado',
+      data: items.map((item) => item.realizado),
+      backgroundColor: PALETTE.graphite,
+      borderRadius: 6,
+      borderSkipped: false,
+      maxBarThickness: 22,
+    }],
+  }
+  const options = {
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false as const,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: PALETTE.ink, titleColor: '#fff', bodyColor: '#fff', callbacks: { label: (context: any) => ` ${currency(context.raw)}` } },
+    },
+    scales: {
+      x: { beginAtZero: true, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) } },
+      y: { grid: { display: false }, border: { display: false }, ticks: axisTicks },
+    },
+  }
 
   return (
-    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
-      <div className="dashboard-card-header">
-        <div>
-          <span className="ui-eyebrow">SUPERVISÃO</span>
-          <h2>Custo por supervisor</h2>
-          <p>Ranking do realizado no escopo filtrado.</p>
-        </div>
-      </div>
-      <div className="analytics-ranking-list">
-        {items.map((item, index) => (
-          <div className="analytics-ranking-item" key={item.chave}>
-            <span className="analytics-rank">{index + 1}</span>
-            <strong>{item.chave}</strong>
-            <div><i style={{ width: `${Math.max((item.realizado / max) * 100, 2)}%` }} /></div>
-            <span>{currency(item.realizado)}</span>
-          </div>
-        ))}
-      </div>
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card nx-chart-card">
+      <AnalyticsCardHeader eyebrow="SUPERVISÃO" title="Custo por supervisor" description="Ranking do realizado no escopo filtrado." />
+      {items.length ? <div className="nx-chart-stage"><Chart type="bar" data={chartData} options={options} /></div> : <div className="ui-empty-state"><div><strong>Sem dados por supervisor</strong></div></div>}
     </Card>
   )
 }
@@ -233,176 +252,84 @@ function Heatmap({ analytics }: { analytics: DashboardAnalytics }) {
   const max = Math.max(...rows.flatMap((row) => row.valores), 1)
 
   return (
-    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
-      <div className="dashboard-card-header">
-        <div>
-          <span className="ui-eyebrow">PADRÃO DE SOLICITAÇÕES</span>
-          <h2>Depositante × dia da semana</h2>
-          <p>Intensidade do custo realizado por combinação.</p>
-        </div>
-      </div>
-
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card nx-heatmap-card">
+      <AnalyticsCardHeader eyebrow="PADRÃO DE SOLICITAÇÕES" title="Depositante × dia da semana" description="Intensidade do custo realizado por combinação." />
       {rows.length ? (
         <div className="analytics-heatmap">
-          <div className="analytics-heatmap-head">
-            <span />
-            {WEEKDAYS.map((day) => <strong key={day}>{day}</strong>)}
-          </div>
-
+          <div className="analytics-heatmap-head"><span />{WEEKDAYS.map((day) => <strong key={day}>{day}</strong>)}</div>
           {rows.map((row) => (
             <div className="analytics-heatmap-row" key={row.operacao}>
               <strong>{row.operacao}</strong>
               {row.valores.map((value, index) => (
-                <span
-                  key={`${row.operacao}-${index}`}
-                  style={{ '--heat': String(value / max) } as CSSProperties}
-                  title={`${row.operacao} · ${WEEKDAYS[index]}: ${currency(value)}`}
-                >
-                  {value ? currency(value) : '—'}
-                </span>
+                <span key={`${row.operacao}-${index}`} style={{ '--heat': String(value / max) } as CSSProperties} title={`${row.operacao} · ${WEEKDAYS[index]}: ${currency(value)}`}>{value ? currency(value) : '—'}</span>
               ))}
             </div>
           ))}
         </div>
-      ) : (
-        <div className="ui-empty-state"><div><strong>Sem matriz disponível</strong></div></div>
-      )}
+      ) : <div className="ui-empty-state"><div><strong>Sem matriz disponível</strong></div></div>}
     </Card>
   )
 }
 
 function LinearityScatter({ analytics }: { analytics: DashboardAnalytics }) {
   const items = analytics.linearidadeOperacao.slice(0, 10)
-  const width = 660
-  const height = 320
-  const left = 66
-  const right = 28
-  const top = 20
-  const bottom = 20
-  const chartWidth = width - left - right
-  const chartHeight = height - top - bottom
-  const chartBottom = height - bottom
-  const maxCost = Math.max(...items.map((item) => item.custo), 1)
-  const maxRequests = Math.max(...items.map((item) => item.solicitacoes), 1)
-  const centerX = left + chartWidth / 2
-  const centerY = top + chartHeight / 2
-  const bubblePadding = 3
-  const labeledOperations = new Set(
-    [...items]
-      .sort((leftItem, rightItem) => rightItem.custo - leftItem.custo)
-      .slice(0, 5)
-      .map((item) => item.operacao),
-  )
+  const chartData = {
+    datasets: [{
+      label: 'Depositantes',
+      data: items.map((item) => ({ x: item.indiceLinearidade, y: item.custo, operation: item.operacao, requests: item.solicitacoes, cv: item.coeficienteVariacao })),
+      backgroundColor: PALETTE.graphite,
+      borderColor: '#fff',
+      borderWidth: 2,
+      pointRadius: items.map((item) => 5 + Math.min(item.solicitacoes, 18) * .55),
+      pointHoverRadius: items.map((item) => 7 + Math.min(item.solicitacoes, 18) * .55),
+      pointHoverBackgroundColor: PALETTE.red,
+    }],
+  }
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false as const,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: PALETTE.ink,
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 10,
+        callbacks: {
+          title: (contexts: any[]) => contexts[0]?.raw?.operation || '',
+          label: (context: any) => [`Custo: ${currency(context.raw.y)}`, `Linearidade: ${percent(context.raw.x)}`, `Solicitações: ${context.raw.requests}`, `CV: ${percent(context.raw.cv)}`],
+        },
+      },
+    },
+    scales: {
+      x: { min: 0, max: 100, title: { display: true, text: 'Índice de linearidade', color: PALETTE.text, font: { size: 10, weight: 'bold' as const } }, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => `${value}%` } },
+      y: { beginAtZero: true, title: { display: true, text: 'Custo realizado', color: PALETTE.text, font: { size: 10, weight: 'bold' as const } }, grid: { color: PALETTE.grid }, border: { display: false }, ticks: { ...axisTicks, callback: (value: any) => currency(Number(value)) } },
+    },
+  }
 
   return (
-    <Card className="dashboard-card analytics-viz-card nx-analytics-card">
-      <div className="dashboard-card-header">
-        <div>
-          <span className="ui-eyebrow">LINEARIDADE × CUSTO</span>
-          <h2>Regularidade da demanda × impacto</h2>
-          <p>Tamanho da bolha = quantidade de solicitações. Os cinco maiores custos permanecem identificados; passe sobre as demais bolhas para ver o depositante.</p>
-        </div>
-      </div>
-
-      {items.length ? (
-        <div className="analytics-linearity-stage">
-          <div className="analytics-linearity-edge-labels analytics-linearity-edge-labels-top" aria-label="Quadrantes de alto custo">
-            <span>{LINEARITY_QUADRANTS.topLeft}</span>
-            <span>{LINEARITY_QUADRANTS.topRight}</span>
-          </div>
-
-          <div className="analytics-linearity-plot-shell">
-            <div className="analytics-linearity-axis-heading analytics-linearity-y-axis-heading">Custo realizado →</div>
-            <svg className="analytics-svg analytics-linearity-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dispersão de linearidade e custo por depositante">
-              <rect x={left} y={top} width={chartWidth} height={chartHeight} className="analytics-quadrant-frame" />
-              <line x1={centerX} x2={centerX} y1={top} y2={chartBottom} className="analytics-quadrant-line" />
-              <line x1={left} x2={width - right} y1={centerY} y2={centerY} className="analytics-quadrant-line" />
-
-              {items.map((item, index) => {
-                const r = 7 + (item.solicitacoes / maxRequests) * 11
-                const rawX = left + (item.indiceLinearidade / 100) * chartWidth
-                const rawY = top + chartHeight - (item.custo / maxCost) * chartHeight
-                const x = clamp(rawX, left + r + bubblePadding, width - right - r - bubblePadding)
-                const y = clamp(rawY, top + r + bubblePadding, chartBottom - r - bubblePadding)
-                const labelRight = x < centerX
-                const labelX = labelRight ? x + r + 5 : x - r - 5
-                const labelY = y + (index % 2 === 0 ? -5 : 10)
-                const labeled = labeledOperations.has(item.operacao)
-
-                return (
-                  <g key={item.operacao} className={`analytics-bubble-group ${labeled ? 'is-labeled' : ''}`}>
-                    <circle cx={x} cy={y} r={r} className="analytics-bubble">
-                      <title>{`${item.operacao} · Custo ${currency(item.custo)} · Linearidade ${percent(item.indiceLinearidade)} · CV ${percent(item.coeficienteVariacao)} · ${item.solicitacoes} solicitações`}</title>
-                    </circle>
-                    <text
-                      x={labelX}
-                      y={labelY}
-                      textAnchor={labelRight ? 'start' : 'end'}
-                      className="analytics-bubble-label"
-                      pointerEvents="none"
-                    >
-                      {item.operacao}
-                    </text>
-                  </g>
-                )
-              })}
-            </svg>
-          </div>
-
-          <div className="analytics-linearity-edge-labels analytics-linearity-edge-labels-bottom" aria-label="Quadrantes de baixo custo">
-            <span>{LINEARITY_QUADRANTS.bottomLeft}</span>
-            <span>{LINEARITY_QUADRANTS.bottomRight}</span>
-          </div>
-
-          <div className="analytics-linearity-axis-heading analytics-linearity-x-axis-heading">Índice de linearidade →</div>
-        </div>
-      ) : (
-        <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>
-      )}
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card nx-chart-card">
+      <AnalyticsCardHeader eyebrow="LINEARIDADE × CUSTO" title="Regularidade da demanda × impacto" description="Tamanho da bolha representa a quantidade de solicitações. Toque ou passe o cursor para ver o depositante." />
+      {items.length ? <div className="nx-chart-stage nx-chart-stage-scatter"><Chart type="scatter" data={chartData} options={options} /></div> : <div className="ui-empty-state"><div><strong>Sem dados de linearidade</strong></div></div>}
     </Card>
   )
 }
 
 export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
   const analytics = data.analytics || emptyAnalytics()
-  const topDay = analytics.diasSemana.reduce(
-    (best, item) => (!best || item.realizado > best.realizado ? item : best),
-    analytics.diasSemana[0],
-  )
+  const topDay = analytics.diasSemana.reduce((best, item) => (!best || item.realizado > best.realizado ? item : best), analytics.diasSemana[0])
   const topOperation = analytics.paretoOperacao[0]
   const topSupervisor = data.porSupervisor[0]
 
   return (
     <div className="advanced-analytics-grid">
       <div className="dashboard-analytics-summary analytics-summary-five">
-        <AnalyticsMetric
-          label="Dia mais impactante"
-          value={topDay?.chave || '—'}
-          detail={topDay ? currency(topDay.realizado) : 'Sem movimento'}
-          tone="info"
-        />
-        <AnalyticsMetric
-          label="Depositante líder"
-          value={topOperation?.chave || '—'}
-          detail={topOperation ? `${currency(topOperation.realizado)} · ${percent(topOperation.percentual)}` : 'Sem dados'}
-        />
-        <AnalyticsMetric
-          label="Supervisor líder"
-          value={topSupervisor?.chave || '—'}
-          detail={topSupervisor ? currency(topSupervisor.realizado) : 'Sem dados'}
-        />
-        <AnalyticsMetric
-          label="Concentração Top 5"
-          value={percent(analytics.concentracaoTop5Percentual)}
-          detail={currency(analytics.concentracaoTop5Valor)}
-          tone="warning"
-        />
-        <AnalyticsMetric
-          label="Maior desvio"
-          value={analytics.maiorDesvio ? percent(analytics.maiorDesvio.diferencaPercentual) : '—'}
-          detail={analytics.maiorDesvio ? `${analytics.maiorDesvio.chave} · ${currency(analytics.maiorDesvio.diferenca)}` : 'Sem desvio'}
-          tone="danger"
-        />
+        <AnalyticsMetric label="Dia mais impactante" value={topDay?.chave || '—'} detail={topDay ? currency(topDay.realizado) : 'Sem movimento'} tone="info" />
+        <AnalyticsMetric label="Depositante líder" value={topOperation?.chave || '—'} detail={topOperation ? `${currency(topOperation.realizado)} · ${percent(topOperation.percentual)}` : 'Sem dados'} />
+        <AnalyticsMetric label="Supervisor líder" value={topSupervisor?.chave || '—'} detail={topSupervisor ? currency(topSupervisor.realizado) : 'Sem dados'} />
+        <AnalyticsMetric label="Concentração Top 5" value={percent(analytics.concentracaoTop5Percentual)} detail={currency(analytics.concentracaoTop5Valor)} tone="warning" />
+        <AnalyticsMetric label="Maior desvio" value={analytics.maiorDesvio ? percent(analytics.maiorDesvio.diferencaPercentual) : '—'} detail={analytics.maiorDesvio ? `${analytics.maiorDesvio.chave} · ${currency(analytics.maiorDesvio.diferenca)}` : 'Sem desvio'} tone="danger" />
       </div>
 
       <div className="analytics-three-columns">
@@ -417,25 +344,12 @@ export function AdvancedAnalytics({ data }: { data: DashboardResponse }) {
       </div>
 
       <Card className="dashboard-card analytics-opportunities-card nx-analytics-card">
-        <div className="dashboard-card-header">
-          <div>
-            <span className="ui-eyebrow">OPORTUNIDADES DE REDUÇÃO</span>
-            <h2>Achados baseados em evidências</h2>
-            <p>Fato observado, evidência e ação recomendada. Economia não é estimada sem regra validada.</p>
-          </div>
-        </div>
+        <AnalyticsCardHeader eyebrow="OPORTUNIDADES DE REDUÇÃO" title="Achados baseados em evidências" description="Fato observado, evidência e ação recomendada. Economia não é estimada sem regra validada." />
         <div className="analytics-opportunities">
           {analytics.oportunidades.map((item, index) => (
-            <article
-              className={`analytics-opportunity analytics-opportunity-${item.severidade.toLowerCase()}`}
-              key={`${index}-${item.titulo}`}
-            >
+            <article className={`analytics-opportunity analytics-opportunity-${item.severidade.toLowerCase()}`} key={`${index}-${item.titulo}`}>
               <span>{index + 1}</span>
-              <div>
-                <strong>{item.titulo}</strong>
-                <p>{item.evidencia}</p>
-                <small>Ação: {item.acao}</small>
-              </div>
+              <div><strong>{item.titulo}</strong><p>{item.evidencia}</p><small>Ação: {item.acao}</small></div>
             </article>
           ))}
         </div>
