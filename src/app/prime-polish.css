@@ -1,0 +1,178 @@
+/* Visual refinement after the initial Next.js + PrimeReact migration.
+   This layer is intentionally loaded after prime-design-system.css.
+   It only adjusts presentation: no business rules, data contracts or auth. */
+
+/* --------------------------------------------------------------------------
+   SEARCH / FILTER INPUT ICON ALIGNMENT
+   -------------------------------------------------------------------------- */
+.ui-search-field.nx-prime-search{
+  position:relative!important;
+  display:block!important;
+  width:100%;
+}
+.ui-search-field.nx-prime-search>i.pi{
+  position:absolute!important;
+  left:.9rem!important;
+  top:50%!important;
+  margin:0!important;
+  transform:translateY(-50%)!important;
+  line-height:1!important;
+  height:1em;
+  width:1em;
+  z-index:2;
+  color:var(--unilog-muted)!important;
+  pointer-events:none;
+}
+.ui-search-field.nx-prime-search>.p-inputtext{
+  width:100%!important;
+  padding-left:2.55rem!important;
+}
+
+/* --------------------------------------------------------------------------
+   KPI CARDS — SEMANTIC SIGNAL WITHOUT COLOR NOISE
+   -------------------------------------------------------------------------- */
+.nx-dashboard-metric-card.p-card{
+  position:relative;
+  isolation:isolate;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.nx-dashboard-metric-card.p-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 28px rgba(18,24,34,.075)!important;
+}
+.nx-dashboard-metric-card.p-card::after{
+  content:"";
+  position:absolute;
+  top:14px;
+  right:14px;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#cfd3d9;
+  box-shadow:0 0 0 5px rgba(207,211,217,.18);
+  opacity:.72;
+  pointer-events:none;
+}
+.nx-dashboard-metric-card.dashboard-metric-info{
+  background:linear-gradient(90deg,rgba(73,74,86,.035) 0%,#fff 24%)!important;
+}
+.nx-dashboard-metric-card.dashboard-metric-info::after{
+  background:var(--unilog-graphite);
+  box-shadow:0 0 0 5px rgba(73,74,86,.09);
+}
+.nx-dashboard-metric-card.dashboard-metric-success{
+  border-left-width:4px!important;
+  background:linear-gradient(90deg,rgba(63,124,89,.065) 0%,#fff 26%)!important;
+}
+.nx-dashboard-metric-card.dashboard-metric-success::after{
+  background:var(--unilog-success);
+  box-shadow:0 0 0 5px rgba(63,124,89,.11);
+}
+.nx-dashboard-metric-card.dashboard-metric-warning{
+  border-left-width:4px!important;
+  background:linear-gradient(90deg,rgba(168,121,0,.065) 0%,#fff 26%)!important;
+}
+.nx-dashboard-metric-card.dashboard-metric-warning::after{
+  background:var(--unilog-warning);
+  box-shadow:0 0 0 5px rgba(168,121,0,.11);
+}
+.nx-dashboard-metric-card.dashboard-metric-danger{
+  border-left-width:4px!important;
+  background:linear-gradient(90deg,rgba(201,26,35,.06) 0%,#fff 26%)!important;
+}
+.nx-dashboard-metric-card.dashboard-metric-danger::after{
+  background:var(--unilog-danger);
+  box-shadow:0 0 0 5px rgba(201,26,35,.10);
+}
+.nx-dashboard-metric-card.dashboard-metric-success .p-card-content>strong{color:#315f45!important}
+.nx-dashboard-metric-card.dashboard-metric-warning .p-card-content>strong{color:#846200!important}
+.nx-dashboard-metric-card.dashboard-metric-danger .p-card-content>strong{color:#a91820!important}
+
+/* Economy cards keep the same restrained semantic treatment. */
+.nx-dashboard-economy-card.is-saving{
+  background:linear-gradient(90deg,rgba(63,124,89,.055),#fff 28%)!important;
+}
+.nx-dashboard-economy-card.is-increase{
+  background:linear-gradient(90deg,rgba(201,26,35,.05),#fff 28%)!important;
+}
+
+/* --------------------------------------------------------------------------
+   CHART DENSITY
+   PrimeReact Chart renders an internal .p-chart wrapper. It must fill the
+   stage; otherwise the canvas sits at the top and leaves unused white space.
+   -------------------------------------------------------------------------- */
+.nx-chart-stage{
+  display:block;
+  height:248px!important;
+  padding:12px 16px 14px!important;
+}
+.nx-chart-stage>.p-chart{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+}
+.nx-chart-stage>.p-chart>canvas,
+.nx-chart-stage canvas{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+}
+
+/* Different chart families need different but compact heights. */
+.nx-chart-stage-pareto{height:292px!important;padding:12px 14px 24px!important}
+.nx-chart-stage-scatter{height:276px!important}
+.nx-dashboard-ranking-stage{height:230px!important}
+.nx-dashboard-projection-stage{height:252px!important}
+
+/* Prevent grid siblings from stretching cards beyond their own content. */
+.analytics-three-columns,
+.dashboard-two-columns{
+  align-items:start!important;
+}
+.analytics-viz-card,
+.nx-chart-card{
+  min-height:0!important;
+  height:auto!important;
+}
+
+/* Chart cards use a tighter header on desktop, keeping more focus on data. */
+.nx-chart-card .dashboard-card-header,
+.nx-chart-card .nx-chart-card-header{
+  padding:13px 16px!important;
+}
+.nx-chart-card .dashboard-card-header h2,
+.nx-chart-card .nx-chart-card-header h2{
+  margin-top:2px!important;
+  margin-bottom:2px!important;
+}
+.nx-chart-card .dashboard-card-header p,
+.nx-chart-card .nx-chart-card-header p{
+  line-height:1.35!important;
+}
+
+@media(max-width:900px){
+  .nx-chart-stage{height:238px!important;padding:12px 12px 14px!important}
+  .nx-chart-stage-pareto{height:292px!important;padding-bottom:26px!important}
+  .nx-chart-stage-scatter{height:268px!important}
+  .nx-dashboard-ranking-stage{height:235px!important}
+  .nx-dashboard-projection-stage{height:245px!important}
+}
+
+@media(max-width:600px){
+  .nx-dashboard-metric-card.p-card:hover{transform:none}
+  .nx-dashboard-metric-card.p-card::after{top:12px;right:12px}
+  .nx-chart-stage{height:224px!important;padding:10px 8px 12px!important}
+  .nx-chart-stage-pareto{height:280px!important;padding:10px 6px 28px!important}
+  .nx-chart-stage-scatter{height:252px!important}
+  .nx-dashboard-ranking-stage{height:230px!important}
+  .nx-dashboard-projection-stage{height:230px!important}
+  .nx-chart-card .dashboard-card-header,
+  .nx-chart-card .nx-chart-card-header{padding:12px 13px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .nx-dashboard-metric-card.p-card{transition:none!important}
+  .nx-dashboard-metric-card.p-card:hover{transform:none!important}
+}
