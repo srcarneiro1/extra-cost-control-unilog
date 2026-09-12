@@ -9,7 +9,7 @@ import { Password } from 'primereact/password'
 import { Tag } from 'primereact/tag'
 import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
-import { EmptyState, Panel, PanelHeader, Skeleton, SummaryMetrics, type SummaryMetricItem } from './ui/Primitives'
+import { EmptyState, Panel, PanelHeader, SearchField, Skeleton, SummaryMetrics, type SummaryMetricItem } from './ui/Primitives'
 import { fetchCatalogoAdminScope } from '../services/catalogService'
 import {
   fetchUsers,
@@ -278,10 +278,14 @@ export function UsersPage() {
         />
 
         <div className="nx-table-toolbar">
-          <span className="p-input-icon-left nx-table-search">
-            <i className="pi pi-search" />
-            <InputText value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, perfil ou operação…" />
-          </span>
+          <div className="nx-table-search">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar nome, e-mail, perfil ou operação…"
+              ariaLabel="Buscar usuários"
+            />
+          </div>
           <span className="nx-table-count">{filtered.length} de {users.length} usuário(s)</span>
         </div>
 
