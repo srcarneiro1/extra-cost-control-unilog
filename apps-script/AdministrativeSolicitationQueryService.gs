@@ -1,10 +1,6 @@
 const AdministrativeSolicitationQueryService = (() => {
   const SHEET_SOLICITACOES = 'SOLICITACOES';
-  const ACTIONS = Object.freeze({
-    LIST: 'LISTAR',
-    DETAIL: 'DETALHAR',
-    METADATA: 'METADADOS',
-  });
+  const ACTIONS = Object.freeze({ LIST: 'LISTAR', DETAIL: 'DETALHAR', METADATA: 'METADADOS' });
   const TYPE_LABOR = 'MAO_DE_OBRA';
 
   function execute(payload) {
@@ -14,7 +10,6 @@ const AdministrativeSolicitationQueryService = (() => {
       'Ação da consulta',
       [ACTIONS.LIST, ACTIONS.DETAIL, ACTIONS.METADATA]
     );
-
     if (action === ACTIONS.DETAIL) return detail_(input);
     if (action === ACTIONS.METADATA) return metadata_(input);
     return list_(input);
@@ -25,121 +20,86 @@ const AdministrativeSolicitationQueryService = (() => {
     const page = normalizePage_(input.pagina);
     const offset = (page - 1) * pageSize;
     const filters = normalizeFilters_(input);
-    const hasFilters = hasFilters_(filters);
-
-    let total;
-    let rows;
+    let sourceRows;
     let summary = null;
 
-    if (!hasFilters) {
-      total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
-      rows = SheetRepository.readObjectsWindowFromEnd(SHEET_SOLICITACOES, offset, pageSize);
-    } else if (isMonthFilter_(filters)) {
-      const periodRows = SheetRepository.readObjectsForMonthFromEnd(
+    if (!hasFilters_(filters)) {
+      const total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
+      const rows = SheetRepository.readObjectsWindowFromEnd(SHEET_SOLICITACOES, offset, pageSize);
+      return response_(rows, total, page, pageSize, null);
+    }
+
+    if (isMonthFilter_(filters)) {
+      sourceRows = SheetRepository.readObjectsForMonthFromEnd(
         SHEET_SOLICITACOES,
         'DATA_CRIACAO',
         filters.anoRegistro,
         filters.mesRegistro
       );
-      const scopedPeriodRows = applyOperationScope_(periodRows, filters.operacaoEscopo);
-      const filteredRows = scopedPeriodRows
-        .filter(function (record) { return matchesNonPeriodFilters_(record, filters); })
-        .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); });
-
-      total = filteredRows.length;
-      rows = filteredRows.slice(offset, offset + pageSize);
-      summary = summarize_(scopedPeriodRows);
     } else {
-      const allRows = SheetRepository.readObjects(SHEET_SOLICITACOES);
-      const periodRows = allRows.filter(function (record) { return matchesPeriod_(record, filters); });
-      const scopedPeriodRows = applyOperationScope_(periodRows, filters.operacaoEscopo);
-      const filteredRows = scopedPeriodRows
-        .filter(function (record) { return matchesNonPeriodFilters_(record, filters); })
-        .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); });
-
-      total = filteredRows.length;
-      rows = filteredRows.slice(offset, offset + pageSize);
-      summary = summarize_(scopedPeriodRows);
+      sourceRows = SheetRepository.readObjects(SHEET_SOLICITACOES).filter(function (record) {
+        return matchesPeriod_(record, filters);
+      });
     }
 
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const scopedRows = applyOperationScope_(sourceRows, filters.operacaoEscopo);
+    summary = summarize_(scopedRows);
+    const filteredRows = scopedRows
+      .filter(function (record) { return matchesNonPeriodFilters_(record, filters); })
+      .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); });
 
+    return response_(filteredRows.slice(offset, offset + pageSize), filteredRows.length, page, pageSize, summary);
+  }
+
+  function response_(rows, total, page, pageSize, summary) {
     return {
       total: total,
       limite: pageSize,
       pagina: page,
       tamanhoPagina: pageSize,
-      totalPaginas: totalPages,
+      totalPaginas: Math.max(1, Math.ceil(total / pageSize)),
       resumo: summary,
-      itens: rows
-        .slice()
-        .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); })
-        .map(toListItem_),
+      itens: (rows || []).map(toListItem_),
     };
   }
 
   function metadata_(input) {
     const operationScope = ValidationService.normalizeUpper(input.operacaoEscopo || '');
     const rows = applyOperationScope_(SheetRepository.readObjects(SHEET_SOLICITACOES), operationScope);
-    return buildMetadata_(rows);
-  }
-
-  function buildMetadata_(rows) {
     const dates = {};
-    (rows || []).forEach(function (record) {
+    rows.forEach(function (record) {
       const date = dateOnly_(record.DATA_CRIACAO);
       if (date) dates[date] = true;
     });
-
-    return {
-      resumo: summarize_(rows || []),
-      datasRegistro: Object.keys(dates).sort().reverse(),
-    };
+    return { resumo: summarize_(rows), datasRegistro: Object.keys(dates).sort().reverse() };
   }
 
   function summarize_(rows) {
-    const summary = {
-      total: (rows || []).length,
-      aguardandoTriagem: 0,
-      aguardandoRealizado: 0,
-      divergencias: 0,
-    };
-
+    const summary = { total: (rows || []).length, aguardandoTriagem: 0, aguardandoRealizado: 0, divergencias: 0 };
     (rows || []).forEach(function (record) {
       const indicators = indicators_(record);
       const status = SolicitationStatusService.resolve(record);
-
       if (
         status === SolicitationStatusService.STATUS.SENT ||
         status === SolicitationStatusService.STATUS.TRIAGE ||
         status === SolicitationStatusService.STATUS.ADJUSTMENT
-      ) {
-        summary.aguardandoTriagem += 1;
-      }
-
+      ) summary.aguardandoTriagem += 1;
       if (
         ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) === TYPE_LABOR &&
         (status === SolicitationStatusService.STATUS.SUPPLIER_SENT || status === SolicitationStatusService.STATUS.IN_SERVICE)
-      ) {
-        summary.aguardandoRealizado += 1;
-      }
-
+      ) summary.aguardandoRealizado += 1;
       if (indicators.divergencia) summary.divergencias += 1;
     });
-
     return summary;
   }
 
   function detail_(input) {
     const solicitationId = ValidationService.requiredText(input.idSolicitacao, 'ID da solicitação');
     const operationScope = ValidationService.normalizeUpper(input.operacaoEscopo || '');
-
     const found = SheetRepository.findRowByField(SHEET_SOLICITACOES, 'ID_SOLICITACAO', solicitationId);
-
     if (!found || (operationScope && ValidationService.normalizeUpper(found.record.OPERACAO) !== operationScope)) {
       ValidationService.fail('Solicitação não encontrada: ' + solicitationId + '.');
     }
-
     return toDetail_(found.record);
   }
 
@@ -156,10 +116,7 @@ const AdministrativeSolicitationQueryService = (() => {
   }
 
   function hasFilters_(filters) {
-    return Boolean(
-      filters.busca || filters.tipo || filters.status || filters.anoRegistro ||
-      filters.mesRegistro || filters.dataRegistro || filters.operacaoEscopo
-    );
+    return Boolean(filters.busca || filters.tipo || filters.status || filters.anoRegistro || filters.mesRegistro || filters.dataRegistro || filters.operacaoEscopo);
   }
 
   function isMonthFilter_(filters) {
@@ -170,7 +127,6 @@ const AdministrativeSolicitationQueryService = (() => {
     const date = dateOnly_(record.DATA_CRIACAO);
     const year = date ? date.slice(0, 4) : '';
     const month = date ? date.slice(5, 7) : '';
-
     if (filters.anoRegistro && year !== filters.anoRegistro) return false;
     if (filters.mesRegistro && month !== filters.mesRegistro) return false;
     if (filters.dataRegistro && date !== filters.dataRegistro) return false;
@@ -179,26 +135,35 @@ const AdministrativeSolicitationQueryService = (() => {
 
   function matchesNonPeriodFilters_(record, filters) {
     if (filters.operacaoEscopo && ValidationService.normalizeUpper(record.OPERACAO) !== filters.operacaoEscopo) return false;
+    if (filters.tipo && ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== filters.tipo) return false;
 
     const indicators = indicators_(record);
-
-    if (filters.tipo && ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== filters.tipo) return false;
-    if (filters.status && statusKey_(record, indicators) !== filters.status) return false;
+    if (filters.status && !matchesStatusFilter_(record, indicators, filters.status)) return false;
 
     if (filters.busca) {
-      const haystack = [
-        record.ID_SOLICITACAO,
-        record.OPERACAO,
-        record.SUPERVISOR,
-        record.FORNECEDOR,
-        record.USUARIO_CRIACAO,
-      ].map(function (value) { return ValidationService.normalizeUpper(value || ''); });
-
-      const matched = haystack.some(function (value) { return value.indexOf(filters.busca) !== -1; });
-      if (!matched) return false;
+      const values = [record.ID_SOLICITACAO, record.OPERACAO, record.SUPERVISOR, record.FORNECEDOR, record.USUARIO_CRIACAO]
+        .map(function (value) { return ValidationService.normalizeUpper(value || ''); });
+      if (!values.some(function (value) { return value.indexOf(filters.busca) !== -1; })) return false;
     }
-
     return true;
+  }
+
+  function matchesStatusFilter_(record, indicators, filter) {
+    const status = SolicitationStatusService.resolve(record);
+    if (filter === status) return true;
+    if (filter === 'AGUARDANDO_TRIAGEM') {
+      return status === 'ENVIADA' || status === 'EM_TRIAGEM' || status === 'AGUARDANDO_AJUSTE';
+    }
+    if (filter === 'AGUARDANDO_REALIZADO') {
+      return ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) === TYPE_LABOR &&
+        (status === 'ENVIADA_AO_FORNECEDOR' || status === 'EM_ATENDIMENTO');
+    }
+    if (filter === 'TRIAGEM_CONCLUIDA') {
+      return indicators.triagemConcluida && status !== 'ATENDIDA';
+    }
+    if (filter === 'COM_DIVERGENCIA') return indicators.divergencia === true;
+    if (filter === 'CONCLUIDO') return status === 'ATENDIDA';
+    return false;
   }
 
   function applyOperationScope_(rows, operationScope) {
@@ -208,13 +173,8 @@ const AdministrativeSolicitationQueryService = (() => {
     });
   }
 
-  function statusKey_(record) {
-    return SolicitationStatusService.resolve(record);
-  }
-
   function toListItem_(record) {
     const indicators = indicators_(record);
-
     return {
       idSolicitacao: text_(record.ID_SOLICITACAO),
       tipoSolicitacao: text_(record.TIPO_SOLICITACAO),
@@ -248,7 +208,6 @@ const AdministrativeSolicitationQueryService = (() => {
     const type = ValidationService.normalizeUpper(record.TIPO_SOLICITACAO);
     const unitPrice = numberOrNull_(record.PRECO_UNITARIO_APLICADO);
     const solicitationId = text_(record.ID_SOLICITACAO);
-
     return {
       idSolicitacao: solicitationId,
       tipoSolicitacao: text_(record.TIPO_SOLICITACAO),
@@ -302,15 +261,10 @@ const AdministrativeSolicitationQueryService = (() => {
       hasValue_(record.PRECO_ALIMENTACAO_APLICADO) ||
       hasValue_(record.PRECO_BEBIDA_APLICADO)
     );
-
-    if (type !== TYPE_LABOR) {
-      return { triagemConcluida: triageCompleted, realizadoRegistrado: null, divergencia: null };
-    }
-
+    if (type !== TYPE_LABOR) return { triagemConcluida: triageCompleted, realizadoRegistrado: null, divergencia: null };
     const attendanceRegistered = hasValue_(record.QTD_COMPARECIDA);
     const requested = numberOrNull_(record.QTD_SOLICITADA);
     const attended = numberOrNull_(record.QTD_COMPARECIDA);
-
     return {
       triagemConcluida: triageCompleted,
       realizadoRegistrado: attendanceRegistered,
@@ -332,25 +286,14 @@ const AdministrativeSolicitationQueryService = (() => {
     return parsed;
   }
 
-  function text_(value) {
-    return ValidationService.normalizeText(value);
-  }
-
-  function hasValue_(value) {
-    return value !== '' && value != null;
-  }
-
+  function text_(value) { return ValidationService.normalizeText(value); }
+  function hasValue_(value) { return value !== '' && value != null; }
   function numberOrNull_(value) {
     if (!hasValue_(value)) return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
   }
-
-  function dateOnly_(value) {
-    if (!hasValue_(value)) return '';
-    return DateService.toIsoDate(value);
-  }
-
+  function dateOnly_(value) { return hasValue_(value) ? DateService.toIsoDate(value) : ''; }
   function dateTime_(value) {
     if (!hasValue_(value)) return '';
     if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
@@ -358,15 +301,11 @@ const AdministrativeSolicitationQueryService = (() => {
     }
     return text_(value);
   }
-
   function sortTimestamp_(value) {
     if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) return value.getTime();
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
   }
 
-  return {
-    ACTIONS,
-    execute,
-  };
+  return { ACTIONS, execute };
 })();
