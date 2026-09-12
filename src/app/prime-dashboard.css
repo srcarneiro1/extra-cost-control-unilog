@@ -1,0 +1,58 @@
+.nx-dashboard-section-card.p-card{
+  min-width:0;
+  overflow:hidden;
+  border:1px solid var(--nx-card-border);
+  border-radius:var(--nx-card-radius);
+  background:#fff;
+  box-shadow:var(--nx-card-shadow);
+}
+.nx-dashboard-section-card.p-card>.p-card-body,
+.nx-dashboard-section-card.p-card>.p-card-body>.p-card-content{padding:0!important}
+
+.nx-dashboard-alert-card.p-card{
+  display:block!important;
+  padding:0!important;
+  overflow:hidden;
+}
+.nx-dashboard-alert-card.p-card>.p-card-body{height:100%;padding:0!important}
+.nx-dashboard-alert-card.p-card>.p-card-body>.p-card-content{
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr) auto!important;
+  align-items:center;
+  gap:14px;
+  padding:14px 16px!important;
+}
+
+.nx-dashboard-section-card .dashboard-comparison-chart,
+.nx-dashboard-section-card .dashboard-comparison-table,
+.nx-dashboard-section-card .dashboard-ranking,
+.nx-dashboard-section-card .dashboard-chart-wrap,
+.nx-dashboard-section-card .dashboard-daily-grid{min-width:0;max-width:100%}
+
+@media(max-width:760px){
+  .nx-dashboard-alert-card.p-card>.p-card-body>.p-card-content{
+    grid-template-columns:1fr!important;
+    align-items:start;
+    gap:9px;
+    padding:13px 14px!important;
+  }
+  .nx-dashboard-alert-card .dashboard-meta-alert-value{justify-items:start!important}
+
+  .nx-dashboard-section-card .dashboard-comparison-chart{
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  .nx-dashboard-section-card .dashboard-comparison-chart>*{min-width:560px}
+  .nx-dashboard-section-card .dashboard-comparison-table{overflow-x:auto}
+  .nx-dashboard-section-card .dashboard-comparison-table>*{min-width:560px}
+
+  .nx-dashboard-section-card.dashboard-projection-card .dashboard-chart-wrap{
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  .nx-dashboard-section-card.dashboard-projection-card .dashboard-projection-chart,
+  .nx-dashboard-section-card.dashboard-projection-card .dashboard-chart-axis,
+  .nx-dashboard-section-card.dashboard-projection-card .dashboard-chart-legend{min-width:760px}
+}

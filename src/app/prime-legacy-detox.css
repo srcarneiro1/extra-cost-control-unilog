@@ -1,0 +1,25 @@
+/* Small compatibility layer kept after removing the old shell/modal stylesheets. */
+.page-header.nx-prime-page-header{margin:0!important}
+.page-actions.nx-modern-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+
+.ui-modal-title-row{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%;flex-wrap:wrap}
+.ui-modal-title-row h2{margin:0;max-width:100%;overflow-wrap:anywhere}
+.ui-modal-loading{min-height:280px;display:grid;align-content:start}
+
+.nx-prime-dialog.p-dialog{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  overflow:hidden;
+  border:1px solid var(--nx-card-border);
+  background:#fff;
+}
+.nx-prime-dialog .p-dialog-content{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.nx-prime-dialog .p-dialog-header{background:linear-gradient(180deg,#fff,#fbfcfd)}
+.nx-prime-dialog .p-dialog-footer{background:#fbfcfd}
+
+@media(max-width:760px){
+  .page-actions.nx-modern-actions{width:100%}
+  .nx-prime-dialog.p-dialog{height:auto!important;max-height:88dvh!important;border-radius:16px!important}
+  .ui-modal-loading{min-height:220px}
+}

@@ -1,0 +1,329 @@
+/* Final visual-integrity pass for the PrimeReact migration.
+   This file is intentionally loaded last. It fixes component-structure issues
+   that cannot be solved reliably by legacy selectors. */
+
+/* --------------------------------------------------------------------------
+   SHELL / SESSION STATUS
+   -------------------------------------------------------------------------- */
+
+/* The role belongs to the signed-in user block beside logout, not the topbar.
+   The topbar only communicates connectivity. */
+.nx-topbar-status .nx-scope-chip,
+.nx-topbar-status > .p-tag{
+  display:none!important;
+}
+
+.nx-topbar-status .nx-gateway-state{
+  display:flex!important;
+  align-items:center;
+  gap:8px;
+  padding:7px 10px;
+  border:1px solid #e2e7e4;
+  border-radius:999px;
+  background:#f7faf8;
+  color:#53645a;
+  font-size:0!important;
+  font-weight:700;
+  white-space:nowrap;
+}
+.nx-topbar-status .nx-gateway-state::after{
+  content:'Base conectada';
+  font-size:9px;
+  line-height:1;
+}
+.nx-topbar-status .nx-gateway-state>i{
+  width:7px;
+  height:7px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:#3f7c59;
+  box-shadow:0 0 0 3px rgba(63,124,89,.11);
+}
+
+.nx-user-copy strong{font-size:10.5px!important;color:#fff}
+.nx-user-copy span{font-size:9px!important;color:#c2c8d1!important}
+.nx-user-card>.nx-icon-button{
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.035);
+}
+.nx-user-card>.nx-icon-button:hover{background:rgba(255,255,255,.09)}
+
+@media(max-width:1180px){
+  .nx-sidebar{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    padding-bottom:max(14px,env(safe-area-inset-bottom))!important;
+  }
+  .nx-sidebar-brand{flex:0 0 auto}
+  .nx-navigation{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding-bottom:12px;
+  }
+  .nx-user-card{
+    flex:0 0 auto;
+    margin-top:10px!important;
+    padding-bottom:4px;
+  }
+}
+
+@media(max-width:760px){
+  /* Connectivity is intentionally omitted on the phone header to preserve the
+     page title. It remains visible on web/tablet. */
+  .nx-topbar-status{display:none!important}
+}
+
+/* --------------------------------------------------------------------------
+   DASHBOARD FILTER DENSITY
+   -------------------------------------------------------------------------- */
+
+/* Do not collapse a desktop/notebook dashboard to only two giant columns.
+   auto-fit uses the available space and keeps controls at a sensible width. */
+.nx-dashboard-filter-grid{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr))!important;
+  gap:12px!important;
+}
+.nx-dashboard-filter-grid>.nx-field{min-width:0}
+.nx-dashboard-filter-actions{justify-content:flex-end!important}
+
+@media(max-width:720px){
+  .nx-dashboard-filter-grid{grid-template-columns:1fr!important}
+  .nx-dashboard-filter-actions{justify-content:stretch!important}
+  .nx-dashboard-filter-actions>.p-button{width:100%}
+}
+
+/* --------------------------------------------------------------------------
+   PRIMEREACT CARD INTERNAL DOM
+   -------------------------------------------------------------------------- */
+
+/* dashboard-meta-alert was written for direct children, but PrimeReact Card
+   inserts .p-card-body > .p-card-content. Put the grid on the real content. */
+.nx-dashboard-alert-card.p-card{
+  display:block!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+.nx-dashboard-alert-card.p-card>.p-card-body{
+  height:100%;
+  padding:0!important;
+}
+.nx-dashboard-alert-card.p-card>.p-card-body>.p-card-content{
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr) auto!important;
+  gap:13px!important;
+  align-items:center!important;
+  padding:16px 18px!important;
+}
+.nx-dashboard-alert-card .p-card-content>.dashboard-meta-alert-icon{
+  align-self:start;
+}
+.nx-dashboard-alert-card .p-card-content>div:nth-child(2){
+  display:grid!important;
+  gap:5px!important;
+  min-width:0;
+}
+.nx-dashboard-alert-card .p-card-content>div:nth-child(2)>.ui-eyebrow,
+.nx-dashboard-alert-card .p-card-content>div:nth-child(2)>strong,
+.nx-dashboard-alert-card .p-card-content>div:nth-child(2)>p{
+  display:block!important;
+  width:100%;
+  min-width:0;
+}
+.nx-dashboard-alert-card .p-card-content>div:nth-child(2)>strong{
+  margin:0;
+  font-size:15px!important;
+  line-height:1.25!important;
+}
+.nx-dashboard-alert-card .p-card-content>div:nth-child(2)>p{
+  margin:0!important;
+  font-size:10.5px!important;
+  line-height:1.5!important;
+}
+.nx-dashboard-alert-card .dashboard-meta-alert-value{
+  min-width:120px;
+}
+
+@media(max-width:760px){
+  .nx-dashboard-alert-card.p-card>.p-card-body>.p-card-content{
+    grid-template-columns:38px minmax(0,1fr)!important;
+    gap:10px 12px!important;
+    align-items:start!important;
+    padding:15px!important;
+  }
+  .nx-dashboard-alert-card .dashboard-meta-alert-icon{
+    grid-column:1;
+    grid-row:1;
+    width:36px!important;
+    height:36px!important;
+  }
+  .nx-dashboard-alert-card .p-card-content>div:nth-child(2){
+    grid-column:2;
+    grid-row:1;
+  }
+  .nx-dashboard-alert-card .dashboard-meta-alert-value{
+    grid-column:2!important;
+    grid-row:2;
+    min-width:0!important;
+    justify-items:start!important;
+    padding-top:7px;
+    border-top:1px solid #edf0f2;
+  }
+  .nx-dashboard-alert-card .p-card-content>div:nth-child(2)>strong{font-size:14px!important}
+  .nx-dashboard-alert-card .p-card-content>div:nth-child(2)>p{font-size:10px!important}
+}
+
+/* KPI Cards: keep the three text levels in separate rows even if another
+   stylesheet later targets .dashboard-metric. */
+.nx-dashboard-metric-card.p-card>.p-card-body>.p-card-content{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:auto auto auto!important;
+  align-content:center!important;
+  row-gap:5px!important;
+}
+.nx-dashboard-metric-card .p-card-content>span,
+.nx-dashboard-metric-card .p-card-content>strong,
+.nx-dashboard-metric-card .p-card-content>small{display:block!important;min-width:0}
+
+/* --------------------------------------------------------------------------
+   CHARTS
+   -------------------------------------------------------------------------- */
+
+/* The projection SVG had a forced min-height that stretched the viewBox on
+   phones and could leave a large empty panel. Preserve its native ratio. */
+.dashboard-chart-wrap{min-width:0;overflow:hidden}
+.dashboard-projection-chart{
+  display:block!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  aspect-ratio:920 / 300;
+}
+
+/* Linearity chart: quadrant labels belong inside the plot. The DOM still has
+   top/bottom label rows, so position those rows over the chart instead of
+   consuming external space. */
+.analytics-linearity-stage{
+  position:relative!important;
+  overflow:visible!important;
+  padding:10px 14px 12px!important;
+}
+.analytics-linearity-plot-shell{
+  position:relative;
+  min-width:0!important;
+  width:100%;
+}
+.analytics-linearity-svg{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  height:auto!important;
+  min-width:0!important;
+  padding:0!important;
+  overflow:visible;
+}
+.analytics-linearity-edge-labels{
+  position:absolute!important;
+  left:10.5%!important;
+  right:4.5%!important;
+  z-index:4;
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:14px!important;
+  min-width:0!important;
+  padding:0!important;
+  pointer-events:none;
+}
+.analytics-linearity-edge-labels-top{
+  top:34px!important;
+  margin:0!important;
+}
+.analytics-linearity-edge-labels-bottom{
+  bottom:39px!important;
+  margin:0!important;
+}
+.analytics-linearity-edge-labels span{
+  justify-self:stretch;
+  padding:4px 6px!important;
+  border:1px solid rgba(215,219,224,.9)!important;
+  border-radius:6px!important;
+  background:rgba(255,255,255,.88)!important;
+  box-shadow:0 1px 4px rgba(18,24,34,.035);
+  color:#666e78!important;
+  font-size:7.5px!important;
+  font-weight:800!important;
+  line-height:1.2!important;
+  text-align:center;
+  backdrop-filter:blur(2px);
+}
+.analytics-linearity-y-axis-heading{
+  left:9px!important;
+  font-size:8px!important;
+}
+.analytics-linearity-x-axis-heading{
+  min-width:0!important;
+  padding-top:8px!important;
+  font-size:8px!important;
+}
+
+@media(max-width:760px){
+  /* Override both analytics.css and prime-refinement.css min-width rules that
+     were forcing a 560–620px chart inside a phone viewport. */
+  .analytics-linearity-stage{
+    overflow:visible!important;
+    padding:8px 8px 10px!important;
+  }
+  .analytics-linearity-stage>.analytics-linearity-plot-shell,
+  .analytics-linearity-stage>.analytics-linearity-edge-labels,
+  .analytics-linearity-stage>.analytics-linearity-axis-heading{
+    min-width:0!important;
+  }
+  .analytics-linearity-edge-labels{
+    left:11.5%!important;
+    right:5%!important;
+    gap:7px!important;
+  }
+  .analytics-linearity-edge-labels-top{top:24px!important}
+  .analytics-linearity-edge-labels-bottom{bottom:31px!important}
+  .analytics-linearity-edge-labels span{
+    padding:3px 4px!important;
+    font-size:6.5px!important;
+    border-radius:5px!important;
+  }
+  .analytics-linearity-y-axis-heading{
+    left:5px!important;
+    font-size:6.5px!important;
+    letter-spacing:.02em!important;
+  }
+  .analytics-linearity-x-axis-heading{
+    padding-top:6px!important;
+    font-size:7px!important;
+  }
+  /* Dense labels become unreadable when several bubbles share the same x/y
+     area on a phone. Circle titles remain available for hover/assistive use;
+     the chart itself stays clean instead of stacking names on top of names. */
+  .analytics-linearity-svg .analytics-bubble-label{display:none!important}
+}
+
+/* Heatmaps are matrices, so horizontal scrolling remains appropriate there,
+   but it must be contained inside the card rather than widening the page. */
+.analytics-heatmap{
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* --------------------------------------------------------------------------
+   PHONE PAGE WIDTH / SAFARI
+   -------------------------------------------------------------------------- */
+@media(max-width:480px){
+  .nx-content{overflow-x:hidden}
+  .dashboard-page,
+  .dashboard-view,
+  .advanced-analytics-grid,
+  .nx-analytics-card,
+  .nx-dashboard-section-card{width:100%;max-width:100%;min-width:0}
+}

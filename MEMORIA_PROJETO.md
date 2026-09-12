@@ -2,8 +2,8 @@
 
 **Projeto:** Extra Cost Control — UNILOG  
 **Repositório oficial:** `srcarneiro1/extra-cost-control-unilog`  
-**Status:** MVP 1 em desenvolvimento  
-**Última consolidação:** 02/09/2026 — pós-merge da triagem e comparecimento
+**Status:** evolução do MVP / modernização visual em homologação  
+**Última consolidação:** 12/09/2026 — Next.js + PrimeReact + audit visual completo
 
 ---
 
@@ -13,28 +13,36 @@ Antes de alterar o projeto, leia este arquivo e trate-o como fonte de verdade fu
 
 Decisões vigentes:
 
-1. Não usar Supabase neste MVP.
+1. **Não usar Supabase.**
 2. Google Planilhas é a persistência operacional.
-3. Google Apps Script é a API e camada de regras de negócio.
-4. React + TypeScript + Vite roda em Cloudflare Pages.
-5. Cloudflare Pages Functions é o gateway protegido entre frontend e Apps Script.
-6. GitHub privado é a fonte oficial de código, branches, PRs e merges.
-7. Segredos somente em Cloudflare Environment/Secrets e Apps Script `PropertiesService`.
-8. Bases legadas devem permanecer intactas.
-9. Competência financeira usa o ciclo dia 21 → dia 20.
-10. Entrada operacional permanece aberta via Google Forms.
-11. Autenticação é destinada ao módulo administrativo/gestão.
-12. Regra central: **o solicitante informa a necessidade; o Administrativo decide quem atende.**
-13. Fornecedor, preço aplicado e realizado não são preenchidos pelo solicitante.
-14. Mudanças devem ser pequenas, testáveis e sem regras inventadas.
+3. Google Apps Script é a API e a camada de regras de negócio.
+4. Frontend vigente: **Next.js 15 + React 19 + PrimeReact 10 + PrimeIcons**.
+5. Gráficos compatíveis devem usar **PrimeReact Chart + Chart.js**.
+6. O frontend é exportado estaticamente e publicado no Cloudflare Pages.
+7. Cloudflare Pages Functions permanece como gateway protegido para `/api/*` entre frontend e Apps Script.
+8. GitHub privado é a fonte oficial de código, branches, PRs e merges.
+9. Segredos somente em Cloudflare Environment/Secrets e Apps Script `PropertiesService`.
+10. Bases legadas devem permanecer intactas.
+11. Competência financeira usa o ciclo dia 21 → dia 20.
+12. A entrada operacional existente via Google Forms permanece válida enquanto não houver decisão explícita para substituí-la.
+13. A aplicação autenticada possui perfis `OWNER`, `ADMINISTRATIVO` e `OPERACIONAL`.
+14. Regra central: **o solicitante informa a necessidade; o Administrativo decide quem atende.**
+15. Fornecedor, preço aplicado e realizado não são preenchidos pelo solicitante.
+16. Mudanças devem ser incrementais, testáveis e sem regras de negócio inventadas.
+17. PR visual não pode alterar cálculo, preço, competência, Apps Script ou regras de autorização.
+18. PR só é mergeado após build verde no head exato e homologação explícita do usuário.
+
+Documento visual complementar obrigatório:
+
+`docs/PRIMEREACT_DESIGN_SYSTEM.md`
 
 ---
 
-# 2. OBJETIVO DO MVP
+# 2. OBJETIVO DO SISTEMA
 
-Controlar Custos Extras da UNILOG com rastreabilidade, solicitado x realizado, histórico de preços e tratamento administrativo simples.
+Controlar Custos Extras da UNILOG com rastreabilidade, solicitado x realizado, histórico de preços, tratamento administrativo e leitura executiva/analítica.
 
-Escopo atual:
+Escopo funcional principal:
 
 - mão de obra terceirizada;
 - alimentação e bebidas;
@@ -50,9 +58,12 @@ Escopo atual:
 - valor previsto;
 - valor real;
 - produto solicitado x produto aplicado;
-- rastreabilidade da origem.
+- rastreabilidade da origem;
+- dashboard executivo e analytics;
+- cadastros administrativos;
+- gestão de usuários.
 
-Fluxo vigente:
+Fluxo operacional de origem:
 
 ```text
 necessidade operacional
@@ -68,43 +79,116 @@ necessidade operacional
 
 ---
 
-# 3. ARQUITETURA
+# 3. ARQUITETURA VIGENTE
 
 ## 3.1 Entrada operacional
 
 ```text
 Usuário operacional
-→ Google Forms público
+→ Google Forms
 → RESPOSTAS_FORM
 → gatilho onFormSubmit
 → FormResponseNormalizerService
 → SOLICITACOES
 ```
 
-O Forms é o canal operacional oficial do MVP.
+O Forms continua como canal operacional de origem já homologado. Não remover sem decisão explícita.
 
-## 3.2 Administrativo
+## 3.2 Aplicação autenticada
 
 ```text
-Usuário administrativo autenticado
-→ Cloudflare Access
-→ React / Cloudflare Pages
-→ Pages Functions
+Usuário autenticado
+→ Cloudflare
+→ Next.js / PrimeReact
+→ /api/* via Cloudflare Pages Functions
 → Apps Script Web App
 → Google Sheets
+```
+
+Frontend ativo no branch de modernização:
+
+```text
+Next.js 15 App Router
+React 19
+PrimeReact 10.9.x
+PrimeIcons
+Chart.js via PrimeReact Chart
+TypeScript
+Cloudflare Pages static export
 ```
 
 Regra de desacoplamento:
 
 ```text
-Frontend → API → Planilha
+Frontend → API → Apps Script → Planilha
 ```
 
 Nunca criar dependência do frontend com posição física de coluna/célula.
 
+## 3.3 Compatibilidade de deploy
+
+O projeto usa `next build` com `output: 'export'`.
+
+Após a exportação:
+
+```text
+out/ → dist/
+```
+
+para preservar a configuração existente do Cloudflare Pages.
+
+A migração visual não deve mover o backend para Next Route Handlers nem alterar contratos `/api/*` neste momento.
+
 ---
 
-# 4. SEGURANÇA
+# 4. AUTENTICAÇÃO E AUTORIZAÇÃO
+
+A aplicação possui sessão própria, além da camada de segurança externa do Cloudflare.
+
+Perfis:
+
+```text
+OWNER
+ADMINISTRATIVO
+OPERACIONAL
+```
+
+Matriz vigente:
+
+| Perfil | Dashboard | Solicitações | Cadastros | Usuários | Escopo |
+| --- | --- | --- | --- | --- | --- |
+| OWNER | tudo | tudo | tudo | sim | TODOS |
+| ADMINISTRATIVO | permitido | permitido | permitido | não | TODOS ou operação definida |
+| OPERACIONAL | própria operação | própria operação | não | não | operação específica |
+
+Regras importantes:
+
+- autorização é validada também no backend;
+- OPERACIONAL não pode usar escopo `TODOS`;
+- OWNER + `TODOS` possui visão completa;
+- perfil e operação ficam no bloco do usuário junto ao logout;
+- topbar não deve repetir `Owner`, escopo técnico ou frases como `Executivo · Custos extras`;
+- topbar pode exibir apenas conectividade (`Base conectada`) quando houver espaço;
+- em mobile a conectividade pode ser omitida para preservar o título da página.
+
+`CAD_USUARIOS`:
+
+```text
+EMAIL
+NOME
+SENHA_HASH
+SALT
+PERFIL
+OPERACAO
+ATIVO
+ULTIMA_ALTERACAO
+```
+
+Nunca expor hash, salt, pepper ou senha no browser.
+
+---
+
+# 5. SEGURANÇA
 
 Permitido:
 
@@ -113,33 +197,27 @@ Permitido:
 
 Proibido:
 
-- segredos no React;
+- segredos no React/Next client;
 - segredos no GitHub;
 - segredos em células;
-- `.env` sensível commitado.
+- `.env` sensível commitado;
+- senha em texto puro.
 
-Integração Cloudflare → Apps Script usa:
+Variáveis relevantes incluem:
 
 ```text
+APPS_SCRIPT_URL
 APPS_SCRIPT_GATEWAY_TOKEN
-GATEWAY_TOKEN
+APP_SESSION_SECRET
 ```
 
-Cloudflare Access já está incorporado ao gateway. O middleware valida `Cf-Access-Jwt-Assertion`, issuer, audience e identidade autenticada.
+`AUTH_PASSWORD_PEPPER` pertence ao Apps Script Properties e não deve ser perdido ou alterado sem migração planejada.
 
-O token temporário `GATEWAY_TEST_TOKEN` continua permitido somente para transição/testes controlados.
-
-Ainda é necessário homologar Access no ambiente Cloudflare com:
-
-- `CLOUDFLARE_ACCESS_TEAM_DOMAIN`;
-- `CLOUDFLARE_ACCESS_AUD`;
-- request sem autenticação → 401;
-- request autenticado → permitido;
-- identidade administrativa derivada da autenticação confiável.
+Sessões atuais possuem duração limitada e mudanças de perfil/senha podem exigir novo login para refletir imediatamente no navegador.
 
 ---
 
-# 5. PLANILHA CENTRAL
+# 6. PLANILHA CENTRAL
 
 Planilha oficial:
 
@@ -152,7 +230,7 @@ ID:
 Locale: `pt_BR`  
 Timezone: `America/Sao_Paulo`
 
-Abas:
+Abas principais:
 
 ```text
 RESPOSTAS_FORM
@@ -165,13 +243,14 @@ CAD_FUNCOES
 CAD_PRODUTOS
 PRECOS_MO
 PRECOS_PRODUTOS
+CAD_USUARIOS
 ```
 
 `RESPOSTAS_FORM` é origem bruta e não deve ser corrigida para caber no modelo final.
 
-## 5.1 SOLICITACOES
+## 6.1 SOLICITACOES
 
-Estrutura vigente: **36 colunas**.
+Campos centrais incluem:
 
 ```text
 ID_SOLICITACAO
@@ -214,234 +293,53 @@ MOTIVO_AJUSTE_PRODUTO
 
 Regras:
 
-- `PRODUTO_ALIMENTACAO` e `PRODUTO_BEBIDA` preservam o pedido original;
+- campos originais de produto preservam o pedido;
 - campos `*_APLICADO` armazenam o item efetivamente atendido;
-- se aplicado ≠ solicitado, `MOTIVO_AJUSTE_PRODUTO` é obrigatório;
-- `COMPETENCIA`, `CENTRO_CUSTO` e `ID_ORIGEM` devem preservar comportamento textual quando necessário;
+- aplicado ≠ solicitado exige motivo;
 - centro de custo deve preservar zeros à esquerda;
-- `QTD_COMPARECIDA` é campo administrativo e está visualmente destacado na planilha;
+- `QTD_COMPARECIDA` é administrativo;
 - `VALOR_REAL` é calculado, nunca digitado manualmente.
 
 ---
 
-# 6. CADASTROS
+# 7. CADASTROS E PREÇOS
 
-## CAD_OPERACOES
-
-```text
-OPERACAO | ATIVO
-```
-
-## CAD_SUPERVISORES
+Cadastros principais:
 
 ```text
-SUPERVISOR | ATIVO
+CAD_OPERACOES
+CAD_SUPERVISORES
+CAD_FORNECEDORES
+CAD_ATIVIDADES
+CAD_FUNCOES
+CAD_PRODUTOS
 ```
 
-## CAD_FORNECEDORES
+Regras relevantes:
 
-```text
-FORNECEDOR | MAO_DE_OBRA | ALIMENTACAO | ATIVO
-```
-
-Fornecedores cadastrados incluem MULT, AGUIA, ALMIRANTE e W-SLOW. Elegibilidade sempre deve vir do cadastro atual.
-
-## CAD_ATIVIDADES
-
-```text
-ATIVIDADE | ATIVO
-```
-
-`OPERADOR DE EMPILHADEIRA` é função, não atividade.
-
-O Forms usa `Outro` nativo para atividade livre.
-
-## CAD_FUNCOES
-
-```text
-FUNCAO | ATIVO
-```
-
-Funções atuais:
-
-- AUXILIAR OPERACIONAL;
-- OPERADOR DE EMPILHADEIRA.
-
-Regra de turno:
-
+- `OPERADOR DE EMPILHADEIRA` é função, não atividade;
 - AUXILIAR OPERACIONAL → DIURNO;
-- OPERADOR DE EMPILHADEIRA → DIURNO ou NOTURNO.
+- OPERADOR DE EMPILHADEIRA → DIURNO ou NOTURNO;
+- turno é manual;
+- produtos possuem categoria ALIMENTACAO ou BEBIDA;
+- elegibilidade sempre vem do cadastro atual.
 
-Turno é manual. Não inferir horário.
+## 7.1 Preços versionados
 
-## CAD_PRODUTOS
-
-```text
-PRODUTO | CATEGORIA | ATIVO
-```
-
-Categorias:
-
-- ALIMENTACAO;
-- BEBIDA.
-
-Produto só aparece no Forms quando estiver ativo e houver pelo menos um fornecedor ativo/compatível com preço ativo e vigente.
-
----
-
-# 7. GOOGLE FORMS
-
-Formulário oficial:
-
-**UNILOG | Solicitação de Custo Extra**
-
-ID nativo:
-
-`1y_2dEWZS0cPofJotpPI2f4DcNe-l-ODVhzoUru9hT-o`
-
-O Forms é aberto e não exige e-mail. `Nome do solicitante` é obrigatório.
-
-Regra central:
-
-> O solicitante informa a necessidade. Fornecedor e preços são definidos depois pelo Administrativo.
-
-Fluxos:
-
-### Mão de obra
-
-- solicitante;
-- supervisor;
-- operação;
-- data operacional;
-- justificativa;
-- atividade;
-- quantidade solicitada;
-- volume/unidade opcionais;
-- função;
-- turno conforme função;
-- responsável pelo custo;
-- centro de custo somente se UNILOG.
-
-### Alimentação/Bebidas
-
-- mesmos campos comuns;
-- alimentação e quantidade quando houver;
-- bebida e quantidade quando houver;
-- pelo menos um grupo deve existir;
-- catálogo unificado, sem fornecedor no Forms.
-
----
-
-# 8. SINCRONIZAÇÃO DO FORMS
-
-Serviço:
-
-`FormCatalogSyncService.gs`
-
-Funções principais:
-
-```text
-syncFormCatalogs
-onCatalogEdit
-scheduledFormCatalogSync
-installFormCatalogSyncTriggers
-```
-
-Sincroniza:
-
-- supervisor;
-- operação;
-- atividade;
-- alimentação;
-- bebida.
-
-Não sincroniza `Função`, porque o campo controla ramificação do Forms.
-
-Elegibilidade de produto:
-
-```text
-produto ativo
-+ preço ativo
-+ preço vigente
-+ fornecedor ativo
-+ fornecedor com ALIMENTACAO = SIM
-```
-
-Gatilhos homologados:
-
-- edição da planilha;
-- execução horária de segurança.
-
----
-
-# 9. NORMALIZAÇÃO FORMS → SOLICITACOES
-
-Serviços:
-
-```text
-FormResponseNormalizerService.gs
-ProtocolService.gs
-```
-
-Gatilho:
-
-`onOperationalFormSubmit`
-
-O normalizador:
-
-- usa `FormResponse.getId()` como `ID_ORIGEM`;
-- impede duplicidade por `ORIGEM=GOOGLE_FORMS + ID_ORIGEM`;
-- gera `CE-YYYY-######`;
-- deriva competência;
-- revalida cadastros ativos;
-- deixa fornecedor/preços/valores administrativos vazios;
-- preserva respostas inválidas apenas na origem bruta.
-
-Homologação:
-
-`CE-2026-000007` foi criado corretamente via Forms.
-
-Teste inválido `AUXILIAR OPERACIONAL + NOTURNO` foi bloqueado sem contaminar `SOLICITACOES`.
-
----
-
-# 10. PROTOCOLO E COMPETÊNCIA
-
-Protocolo:
-
-`CE-YYYY-######`
-
-Nunca usar número de linha como ID.
-
-`ProtocolService` é a referência única para geração de protocolo.
-
-Competência:
-
-```text
-dia 21 de um mês → dia 20 do mês seguinte
-```
-
-Representação:
-
-`YYYY-MM`
-
----
-
-# 11. PREÇOS VERSIONADOS
-
-## PRECOS_MO
+`PRECOS_MO`:
 
 ```text
 FORNECEDOR
 FUNCAO
 TURNO
+TIPO_DIA
 VIGENCIA_INICIO
 VIGENCIA_FIM
 PRECO_UNITARIO
 ATIVO
 ```
 
-## PRECOS_PRODUTOS
+`PRECOS_PRODUTOS`:
 
 ```text
 FORNECEDOR
@@ -455,107 +353,58 @@ ATIVO
 
 Preço é resolvido pela `DATA_OPERACIONAL` e congelado na solicitação.
 
-Snapshots:
-
-- `PRECO_UNITARIO_APLICADO`;
-- `PRECO_ALIMENTACAO_APLICADO`;
-- `PRECO_BEBIDA_APLICADO`.
-
-Alteração futura de tabela não pode recalcular histórico.
+Snapshots históricos nunca devem ser recalculados quando uma tabela de preço futura mudar.
 
 ---
 
-# 12. TRIAGEM ADMINISTRATIVA
+# 8. PROTOCOLO E COMPETÊNCIA
 
-Serviço:
+Protocolo:
 
-`TriageService.gs`
+```text
+CE-YYYY-######
+```
 
-Rota Apps Script:
+Nunca usar número de linha como ID.
 
-`route=triagem`
+Competência:
 
-Gateway:
+```text
+dia 21 de um mês → dia 20 do mês seguinte
+```
 
-`POST /api/triagem`
+Representação:
 
-A triagem:
+```text
+YYYY-MM
+```
+
+---
+
+# 9. TRIAGEM / REALIZADO
+
+Triagem administrativa:
 
 1. localiza por `ID_SOLICITACAO`;
 2. exige fornecedor ativo;
 3. valida compatibilidade com o tipo;
-4. usa `DATA_OPERACIONAL` para resolver o preço;
-5. grava fornecedor;
-6. congela preço(s);
-7. calcula `VALOR_PREVISTO`;
-8. preserva produto original;
-9. grava produto aplicado separadamente;
-10. exige motivo quando houver troca de produto;
-11. bloqueia retriagem silenciosa de solicitação já precificada.
+4. resolve preço pela data operacional;
+5. congela fornecedor/preço;
+6. calcula valor previsto;
+7. preserva produto original;
+8. grava produto aplicado separadamente;
+9. exige motivo quando houver substituição;
+10. bloqueia retriagem silenciosa já precificada.
 
-Homologação de mão de obra concluída com:
-
-```text
-CE-2026-000007
-FORNECEDOR = MULT
-PRECO_UNITARIO_APLICADO = 180
-QTD_SOLICITADA = 12
-VALOR_PREVISTO = 2160
-```
-
-A lógica de ajuste de alimentação/bebida está implementada. Antes de depender dela na UI, ainda é recomendada uma homologação dirigida de produto solicitado x aplicado.
-
----
-
-# 13. COMPARECIMENTO / REALIZADO DE MÃO DE OBRA
-
-Serviço:
-
-`AttendanceService.gs`
-
-Rota Apps Script:
-
-`route=comparecimento`
-
-Gateway:
-
-`POST /api/comparecimento`
-
-Regras:
+Mão de obra:
 
 ```text
 VALOR_REAL = QTD_COMPARECIDA × PRECO_UNITARIO_APLICADO
 ```
 
-`QTD_COMPARECIDA`:
+`QTD_COMPARECIDA` pode ser 0, menor, igual ou maior que solicitado. Divergência não bloqueia registro.
 
-- pode ser 0;
-- pode ser menor que a solicitada;
-- pode ser igual;
-- pode ser maior;
-- divergência não bloqueia o registro.
-
-`VALOR_REAL` nunca é informado manualmente.
-
-Homologação concluída:
-
-```text
-CE-2026-000007
-QTD_SOLICITADA = 12
-QTD_COMPARECIDA = 10
-PRECO_UNITARIO_APLICADO = 180
-VALOR_PREVISTO = 2160
-VALOR_REAL = 1800
-DIVERGENCIA = true
-```
-
----
-
-# 14. ALIMENTAÇÃO / BEBIDAS
-
-Não existe quantidade comparecida.
-
-Cálculos:
+Alimentação/Bebidas:
 
 ```text
 VALOR_ALIMENTACAO = QTD_ALIMENTACAO × PRECO_ALIMENTACAO_APLICADO
@@ -563,130 +412,297 @@ VALOR_BEBIDA = QTD_BEBIDA × PRECO_BEBIDA_APLICADO
 VALOR_PREVISTO = VALOR_ALIMENTACAO + VALOR_BEBIDA
 ```
 
-Quando o fornecedor escolhido não atender exatamente o item solicitado:
-
-- o item original permanece nos campos originais;
-- o Administrativo informa o produto aplicado;
-- motivo do ajuste é obrigatório;
-- não é permitido adicionar uma categoria que não existia no pedido original.
+Não existe quantidade comparecida para alimentação/bebidas.
 
 ---
 
-# 15. APPS SCRIPT — ARQUIVOS PRINCIPAIS
+# 10. FRONTEND ATIVO — ESTADO EM 12/09/2026
+
+Telas montadas pelo App Router atual:
 
 ```text
-Code.gs
-Api.gs
-CatalogService.gs
-SheetRepository.gs
-JsonResponse.gs
-PricingService.gs
-DateService.gs
-ValidationService.gs
-SolicitationService.gs
-FormCatalogSyncService.gs
-FormResponseNormalizerService.gs
-ProtocolService.gs
-TriageService.gs
-AttendanceService.gs
+Login
+Shell / navegação
+Dashboard — Visão Executiva
+Dashboard — Analytics
+Solicitações
+Cadastros
+Usuários
+Dialogs de detalhe/triagem/comparecimento/correção
 ```
 
-Capacidades implementadas e já incorporadas ao `main`:
+Arquivos históricos de React/Vite podem continuar no repositório durante a migração, mas não devem ser tratados como telas ativas sem confirmar import/mount no App Router.
 
-- health;
-- catálogos;
-- criação via API;
-- preços;
-- protocolo;
-- sincronização do Forms;
-- normalização do Forms;
-- triagem administrativa;
-- comparecimento/realizado de mão de obra.
+## 10.1 Login
+
+- identidade visual de referência aprovada;
+- PrimeReact InputText, Password e Button;
+- painel grafite baseado em `#171b24 → #353d4e`;
+- vermelho Unilog apenas como CTA/foco.
+
+## 10.2 Shell
+
+- sidebar grafite;
+- item ativo = grafite elevado + faixa vermelha;
+- usuário/perfil/operação/logout no rodapé;
+- topbar mostra somente página e conectividade quando útil;
+- mobile usa drawer compacto, `100dvh` e safe area.
+
+## 10.3 Solicitações
+
+Estrutura migrada para PrimeReact:
+
+- DataTable;
+- Dropdown;
+- Paginator;
+- Tag;
+- Button;
+- Dialog;
+- InputText / InputTextarea nos workflows.
+
+Mobile:
+
+- tabela vira record cards verticais;
+- ações ficam no fim do card;
+- não usar scroll horizontal como solução principal para registros.
+
+## 10.4 Cadastros
+
+Estrutura migrada para PrimeReact:
+
+- TabMenu/Dropdown;
+- DataTable;
+- Paginator;
+- InputText;
+- InputSwitch;
+- Checkbox;
+- Dialog.
+
+Preços e histórico mantêm as mesmas regras de backend.
+
+## 10.5 Usuários
+
+Estrutura migrada para PrimeReact:
+
+- DataTable;
+- Dropdown;
+- Password;
+- InputSwitch;
+- Tag;
+- Dialog.
+
+Somente OWNER acessa a gestão de usuários.
 
 ---
 
-# 16. FRONTEND
+# 11. DESIGN SYSTEM PRIMEREACT — REGRA OBRIGATÓRIA
 
-Stack:
+Fonte detalhada:
 
-- React;
-- TypeScript;
-- Vite;
-- Cloudflare Pages.
+`docs/PRIMEREACT_DESIGN_SYSTEM.md`
 
-Já existe client tipado inicial de catálogos.
+CSS final:
 
-Próxima necessidade funcional do frontend:
+`src/app/prime-design-system.css`
 
-1. listagem de solicitações administrativas;
-2. detalhe da solicitação;
-3. ação de triagem;
-4. ação de registro do real;
-5. feedback de divergências e ajustes.
+Esse arquivo é carregado por último e é a camada visual canônica enquanto estilos antigos ainda são retirados gradualmente.
 
-Ordem correta:
-
-```text
-regra → API → teste → interface
-```
-
----
-
-# 17. IDENTIDADE VISUAL
-
-Paleta base:
+## 11.1 Paleta canônica
 
 ```css
---brand-primary: #db0812;
---brand-primary-hover: #b8070f;
---brand-primary-soft: #fdecee;
---brand-gray: #494a56;
---brand-gray-dark: #3a3b45;
-
---status-success: #3f7c59;
---status-success-soft: #edf6f0;
---status-warning: #a87900;
---status-warning-soft: #fff6d8;
---status-danger: #c91a23;
---status-danger-soft: #fff0f1;
---status-neutral: #6f747d;
---status-neutral-soft: #f1f2f4;
-
---surface-canvas: #f5f6f8;
---surface-primary: #ffffff;
---surface-secondary: #f8f9fa;
---surface-tertiary: #f2f3f5;
-
---text-primary: #2f3136;
---text-secondary: #5f636b;
---text-muted: #858a93;
-
---border-default: #e2e4e8;
---border-strong: #cdd0d5;
+--unilog-red: #db0812;
+--unilog-red-dark: #b8070f;
+--unilog-red-soft: #fdecee;
+--unilog-ink: #171b24;
+--unilog-ink-2: #242a36;
+--unilog-graphite: #494a56;
+--unilog-graphite-2: #676d77;
+--unilog-muted: #8a9099;
+--unilog-border: #e2e5e9;
+--unilog-border-soft: #edf0f2;
+--unilog-canvas: #f5f6f8;
+--unilog-surface: #ffffff;
+--unilog-surface-soft: #f8f9fb;
+--unilog-success: #3f7c59;
+--unilog-warning: #a87900;
+--unilog-danger: #c91a23;
 ```
 
-Vermelho é marca/CTA/foco, não sinônimo automático de erro.
+Regras:
 
-Tipografia preferencial: Roboto.
+- vermelho = marca/CTA/foco/acento;
+- grafite = informação e séries principais;
+- cinza claro = previsto/referência;
+- verde/amarelo/vermelho de estado somente em semântica de sucesso/atenção/erro;
+- azul, roxo, teal e índigo do tema Lara não podem aparecer como cores do produto;
+- highlights/focus/select do PrimeReact devem ser sobrescritos pelos tokens Unilog.
 
-Princípios:
+## 11.2 Cards
 
-- alta legibilidade;
-- baixa carga cognitiva;
-- responsividade real;
-- tabela vira record cards no mobile;
-- foco visível;
-- touch targets adequados;
-- `prefers-reduced-motion`;
-- campos administrativos visualmente distintos quando isso reduzir erro operacional.
+Padrão:
+
+```text
+raio 14px
+borda #e2e5e9
+fundo branco
+sombra baixa
+header separado por borda suave
+```
+
+Não criar novos cards com estilo paralelo.
+
+## 11.3 Controles
+
+Sempre preferir PrimeReact quando houver equivalente:
+
+```text
+Card
+DataTable / Column
+Dialog
+Dropdown
+Button
+InputText
+Password
+InputTextarea
+InputSwitch
+Checkbox
+Tag
+Paginator
+SelectButton / TabMenu
+Skeleton
+Message
+Chart
+```
+
+HTML customizado só quando a estrutura não possuir equivalente apropriado.
 
 ---
 
-# 18. AUDITORIA
+# 12. GRÁFICOS — PADRÃO E AUDIT
+
+PrimeReact `Chart` + Chart.js é o padrão para:
+
+- barras;
+- barras horizontais;
+- linhas;
+- dispersão;
+- combinação barras + linha.
+
+Paleta:
+
+```text
+Realizado = grafite #494a56
+Previsto = cinza claro #d7dbe0
+Meta/referência = cinza médio #9aa0a8
+Projeção/acento = vermelho #db0812
+```
+
+Regras de eixo:
+
+- nomes longos são abreviados visualmente e preservados no tooltip;
+- não forçar todos os labels completos quando houver colisão;
+- rotação moderada de 20–35° é permitida;
+- séries temporais podem usar `autoSkip`;
+- eixos monetários usam formatação compacta quando necessário;
+- gráfico nunca pode ter `min-width` maior que o card no mobile;
+- tooltips preservam nomes/valores completos.
+
+## 12.1 Estado atual do Dashboard
+
+Visão Executiva:
+
+- KPIs = PrimeReact Card;
+- filtros = PrimeReact Dropdown;
+- tabs = SelectButton;
+- rankings operação/fornecedor = PrimeReact Chart;
+- meta/projeção = PrimeReact Chart;
+- comparação de competência permanece componente customizado composto, mas usa o design system;
+- movimento diário permanece grade informacional customizada.
+
+Analytics:
+
+- Dia da semana = PrimeReact Chart;
+- Pareto = PrimeReact Chart combinado bar + line;
+- Supervisor = PrimeReact Chart horizontal;
+- Linearidade × custo = PrimeReact scatter;
+- Responsável pelo custo = PrimeReact Chart;
+- Atividades = PrimeReact Chart;
+- heatmap permanece customizado por ser matriz;
+- oportunidades usam Card + Tag semântica.
+
+Correção obrigatória já incorporada ao padrão: Pareto não pode apresentar nomes de depositantes sobrepostos no eixo X.
+
+---
+
+# 13. RESPONSIVIDADE
+
+## Desktop/notebook
+
+- filtros com `auto-fit/minmax`;
+- evitar duas colunas gigantes quando cabem quatro ou mais;
+- DataTable mantém leitura tabular;
+- gráficos ocupam a largura do card e usam canvas responsivo.
+
+## Mobile
+
+- filtros em uma coluna;
+- tabelas viram record cards;
+- dialogs possuem scroll interno e ações adaptadas;
+- sidebar não distribui itens verticalmente por toda a altura;
+- usuário/logout permanece no rodapé;
+- usar `100dvh` e safe area;
+- heatmap pode ter scroll horizontal interno por ser matriz;
+- a página não pode ter overflow horizontal.
+
+---
+
+# 14. CSS LEGADO / ESTRATÉGIA DE RETIRADA
+
+Ainda existem estilos históricos em `src/styles/` e arquivos de ponte usados durante a migração.
+
+Eles não são a fonte visual final.
+
+Regras:
+
+1. `prime-design-system.css` é carregado por último;
+2. novos componentes não podem adicionar cores a estilos legados;
+3. só remover uma folha antiga depois de confirmar que nenhum componente ativo depende dela;
+4. retirada de CSS legado deve ocorrer em mudanças pequenas e verificáveis;
+5. não fazer limpeza em massa no mesmo commit de regra funcional.
+
+---
+
+# 15. AUDIT COMPLETO DAS TELAS — 12/09/2026
+
+| Área | Componente-base | Situação |
+| --- | --- | --- |
+| Login | PrimeReact | migrado |
+| Shell/topbar/sidebar | Next + PrimeIcons/Avatar/Tag | migrado |
+| Dashboard filtros/KPIs | PrimeReact | migrado |
+| Dashboard rankings | PrimeReact Chart | migrado |
+| Dashboard projeção | PrimeReact Chart | migrado |
+| Analytics bar/line/scatter | PrimeReact Chart | migrado |
+| Analytics heatmap | custom matrix + tokens Unilog | aceito |
+| Oportunidades | Card + Tag | migrado |
+| Solicitações | DataTable + controls + Dialog | migrado |
+| Solicitações mobile | record cards | migrado |
+| Cadastros | DataTable/TabMenu/controls/Dialog | migrado |
+| Cadastros mobile | record cards/seletor | migrado |
+| Usuários | DataTable/controls/Dialog | migrado |
+| Usuários mobile | record cards | migrado |
+| Workflow detalhe/triagem | Dialog + controls PrimeReact | migrado |
+| Comparativo competência | custom composto + tokens Unilog | aceito |
+| Movimento diário | grade informacional + tokens Unilog | aceito |
+
+Critério: “custom aceito” significa que não há ganho real em forçar um componente genérico, mas a aparência deve obedecer integralmente ao design system.
+
+---
+
+# 16. AUDITORIA FUNCIONAL
 
 Mudanças materiais não devem sobrescrever histórico silenciosamente.
 
-Modelo conceitual futuro:
+Modelo conceitual:
 
 ```text
 TIMESTAMP
@@ -703,11 +719,11 @@ Retriagem de solicitação já precificada permanece bloqueada até existir flux
 
 ---
 
-# 19. LEGADO
+# 17. LEGADO
 
-Legado permanece intocado.
+Legado permanece preservado.
 
-Migração futura:
+Migração de dados futura:
 
 ```text
 legado
@@ -722,72 +738,49 @@ Preservar origem, ID/linha histórica e lote de importação quando aplicável.
 
 ---
 
-# 20. FORA DO MVP 1
+# 18. FORA DO ESCOPO SEM NOVA DECISÃO
 
-Não implementar sem nova decisão explícita:
+Não implementar silenciosamente:
 
 - Supabase;
 - PostgreSQL dedicado;
 - ERP fiscal completo;
 - workflow excessivamente burocrático;
-- dashboard BI sofisticado antes do fluxo administrativo;
-- WhatsApp automático;
+- mudança de Apps Script para outro backend;
+- mudança de Cloudflare Pages Functions para Next backend;
+- WhatsApp automático sem decisão explícita;
 - split complexo de item entre várias NFs.
 
 ---
 
-# 21. ESTADO HOMOLOGADO EM 02/09/2026
+# 19. ESTADO DE HOMOLOGAÇÃO / PR
 
-Concluído/homologado e incorporado ao `main`:
+A modernização Next.js + PrimeReact está sendo conduzida no PR #59 em branch isolada.
 
-- planilha central;
-- `SOLICITACOES` com 36 colunas;
-- preços versionados;
-- API-base e gateway;
-- Google Forms operacional;
-- sincronização automática de catálogos;
-- normalização Forms → `SOLICITACOES`;
-- protocolo compartilhado;
-- triagem administrativa de mão de obra;
-- congelamento de fornecedor/preço;
-- cálculo de valor previsto;
-- comparecimento real de mão de obra;
-- cálculo de valor real;
-- proteção contra retriagem silenciosa;
-- rastreabilidade de produto solicitado x aplicado;
-- Cloudflare Access incorporado ao código.
+Regras desse PR:
 
-Referências de merge deste marco:
-
-- PR #14 — comparecimento real de mão de obra;
-- PR #15 — triagem administrativa;
-- PR #13 — consolidação documental anterior.
-
-Ainda pendente:
-
-- homologação dirigida da troca de produto em alimentação/bebida;
-- listagem/detalhe administrativo via API;
-- frontend administrativo completo;
-- validação operacional do Cloudflare Access no ambiente Cloudflare;
-- migração do legado.
+- permanece Draft durante homologação;
+- não mergear sem aprovação explícita;
+- confirmar Cloudflare no head exato antes de chamar uma versão de validada;
+- qualquer regressão visual deve ser corrigida antes do merge;
+- backend e regras de negócio permanecem intactos.
 
 ---
 
-# 22. PRÓXIMAS AÇÕES
+# 20. PRÓXIMAS AÇÕES
 
-1. Criar API de listagem e detalhe de solicitações administrativas.
-2. Homologar um caso de alimentação/bebida com produto aplicado diferente do solicitado.
-3. Construir tela administrativa de fila/detalhe.
-4. Integrar ações de triagem e comparecimento na UI.
-5. Configurar e validar Cloudflare Access em Preview/Production.
-6. Remover dependência do token temporário após homologação do Access.
-7. Somente depois avançar para migração do legado.
-
-**Não iniciar pelo dashboard.**
+1. concluir homologação visual do PR #59 em desktop e mobile;
+2. validar Dashboard Executivo e Analytics com dados reais e nomes longos;
+3. validar Solicitações desktop + record cards mobile;
+4. validar todas as seções de Cadastros e dialogs;
+5. validar Usuários e reset de senha;
+6. validar workflow de detalhe/triagem/comparecimento/correção;
+7. remover CSS legado apenas após confirmar ausência de consumidores ativos;
+8. somente então marcar PR ready e mergear mediante aprovação explícita.
 
 ---
 
-# 23. COMANDO CURTO DE RETOMADA
+# 21. COMANDO CURTO DE RETOMADA
 
 ```text
 Retome o projeto Extra Cost Control UNILOG.
@@ -795,13 +788,13 @@ Retome o projeto Extra Cost Control UNILOG.
 Repositório oficial:
 https://github.com/srcarneiro1/extra-cost-control-unilog
 
-Antes de qualquer alteração, leia integralmente MEMORIA_PROJETO.md e trate-o como fonte de verdade funcional, arquitetural e visual.
+Antes de qualquer alteração, leia integralmente MEMORIA_PROJETO.md e docs/PRIMEREACT_DESIGN_SYSTEM.md. Trate ambos como fonte de verdade funcional, arquitetural e visual.
 
-Arquitetura vigente: Google Forms aberto para entrada operacional; React + TypeScript + Vite no Cloudflare Pages para administrativo; Cloudflare Access/gateway para camada protegida; Google Apps Script como API/regras; Google Planilhas como persistência. Não usar Supabase.
+Arquitetura vigente: Next.js + React + PrimeReact no Cloudflare Pages; Pages Functions como gateway; Google Apps Script como API/regras; Google Planilhas como persistência. Não usar Supabase.
 
 Regra central: o solicitante informa a necessidade; o Administrativo define fornecedor, congela preços e registra o realizado.
 
-Preserve o legado e avance em mudanças pequenas e verificáveis.
+Preserve backend, histórico e regras de negócio. Mudanças visuais devem usar a paleta Unilog e componentes PrimeReact, com Chart.js via PrimeReact Chart para gráficos compatíveis.
 
-Continue pela seção Próximas ações.
+Não mergear PR sem build verde no head exato e homologação explícita do usuário.
 ```

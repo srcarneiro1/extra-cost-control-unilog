@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from 'primereact/button'
+import { Dropdown } from 'primereact/dropdown'
+import { InputText } from 'primereact/inputtext'
+import { InputTextarea } from 'primereact/inputtextarea'
+import { Message } from 'primereact/message'
 import type { CatalogosDto } from '../types/catalog'
 import type { AdministrativeSolicitationDetail } from '../types/solicitation'
 import { correctAdministrativeSolicitation } from '../services/solicitationService'
@@ -60,6 +65,10 @@ function fromDetail(detail: AdministrativeSolicitationDetail): FormState {
     motivoAjusteProduto: detail.motivoAjusteProduto || '',
     motivoCorrecao: '',
   }
+}
+
+function options(items: Array<{ nome: string }> | undefined) {
+  return (items || []).map((item) => ({ label: item.nome, value: item.nome }))
 }
 
 export function SolicitationCorrectionModal({
@@ -156,6 +165,20 @@ export function SolicitationCorrectionModal({
   }
 
   const isLoading = loading || !detail || !form
+  const supervisorOptions = options(catalogs?.supervisores)
+  const operationOptions = options(catalogs?.operacoes)
+  const providerOptions = [
+    { label: 'Sem triagem', value: '' },
+    ...providers.map((item) => ({ label: item.nome, value: item.nome })),
+  ]
+  const foodOptions = [
+    { label: 'Sem alimentação', value: '' },
+    ...foods.map((item) => ({ label: item.nome, value: item.nome })),
+  ]
+  const drinkOptions = [
+    { label: 'Sem bebida', value: '' },
+    ...drinks.map((item) => ({ label: item.nome, value: item.nome })),
+  ]
 
   return (
     <Modal
@@ -167,131 +190,156 @@ export function SolicitationCorrectionModal({
       onClose={onClose}
       busy={saving}
       width="medium"
-      bodyClassName={isLoading ? 'correction-modal-body ui-modal-loading' : 'correction-modal-body'}
+      bodyClassName={isLoading ? 'correction-modal-body ui-modal-loading nx-prime-workflow' : 'correction-modal-body nx-prime-workflow'}
       footer={!isLoading ? (
         <>
-          <button type="button" className="button" onClick={onClose} disabled={saving}>Cancelar</button>
-          <button
-            type="button"
-            className="button button-primary"
+          <Button label="Cancelar" text onClick={onClose} disabled={saving} />
+          <Button
+            label={saving ? 'Salvando…' : 'Salvar correção'}
+            icon={saving ? 'pi pi-spin pi-spinner' : 'pi pi-check'}
             onClick={() => void handleSave()}
             disabled={saving || !form.motivoCorrecao.trim()}
-          >
-            {saving ? 'Salvando…' : 'Salvar correção'}
-          </button>
+            className="nx-primary-button"
+          />
         </>
       ) : undefined}
     >
       {isLoading ? (
         <Skeleton lines={10} />
       ) : (
-        <>
-          {error && <div className="admin-alert correction-modal-error" role="alert">{error}</div>}
+        <div className="nx-workflow-form-stack">
+          {error && <Message severity="error" text={error} className="nx-workflow-message" />}
 
-          <div className="correction-form-grid">
-            <label>Supervisor
-              <select value={form.supervisor} onChange={(event) => set('supervisor', event.target.value)}>
-                {catalogs?.supervisores.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-              </select>
+          <div className="correction-form-grid nx-workflow-grid">
+            <label className="nx-workflow-field">
+              <span>Supervisor</span>
+              <Dropdown value={form.supervisor} options={supervisorOptions} onChange={(event) => set('supervisor', event.value || '')} filter />
             </label>
-            <label>Operação
-              <select value={form.operacao} onChange={(event) => set('operacao', event.target.value)}>
-                {catalogs?.operacoes.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-              </select>
+            <label className="nx-workflow-field">
+              <span>Operação</span>
+              <Dropdown value={form.operacao} options={operationOptions} onChange={(event) => set('operacao', event.value || '')} filter />
             </label>
-            <label>Data operacional
-              <input type="date" value={form.dataOperacional} onChange={(event) => set('dataOperacional', event.target.value)} />
+            <label className="nx-workflow-field">
+              <span>Data operacional</span>
+              <InputText type="date" value={form.dataOperacional} onChange={(event) => set('dataOperacional', event.target.value)} />
             </label>
-            <label>Fornecedor
-              <select value={form.fornecedor} onChange={(event) => set('fornecedor', event.target.value)}>
-                <option value="">Sem triagem</option>
-                {providers.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-              </select>
+            <label className="nx-workflow-field">
+              <span>Fornecedor</span>
+              <Dropdown value={form.fornecedor} options={providerOptions} onChange={(event) => set('fornecedor', event.value || '')} filter />
             </label>
-            <label>Responsável pelo custo
-              <select value={form.responsavelCusto} onChange={(event) => set('responsavelCusto', event.target.value)}>
-                <option value="CLIENTE">CLIENTE</option>
-                <option value="UNILOG">UNILOG</option>
-              </select>
+            <label className="nx-workflow-field">
+              <span>Responsável pelo custo</span>
+              <Dropdown
+                value={form.responsavelCusto}
+                options={[
+                  { label: 'CLIENTE', value: 'CLIENTE' },
+                  { label: 'UNILOG', value: 'UNILOG' },
+                ]}
+                onChange={(event) => set('responsavelCusto', event.value)}
+              />
             </label>
-            {form.responsavelCusto === 'UNILOG' && <label>Centro de custo
-              <input value={form.centroCusto} onChange={(event) => set('centroCusto', event.target.value.replace(/\D/g, ''))} inputMode="numeric" />
-            </label>}
+            {form.responsavelCusto === 'UNILOG' && (
+              <label className="nx-workflow-field">
+                <span>Centro de custo</span>
+                <InputText value={form.centroCusto} onChange={(event) => set('centroCusto', event.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+              </label>
+            )}
           </div>
 
-          <label>Justificativa
-            <textarea value={form.justificativa} onChange={(event) => set('justificativa', event.target.value)} rows={3} />
+          <label className="nx-workflow-field nx-workflow-field-wide">
+            <span>Justificativa</span>
+            <InputTextarea value={form.justificativa} onChange={(event) => set('justificativa', event.target.value)} rows={3} autoResize />
           </label>
 
           {detail.tipoSolicitacao === 'MAO_DE_OBRA' ? (
-            <div className="correction-form-grid correction-section">
-              <label>Atividade
-                <select value={form.atividade} onChange={(event) => set('atividade', event.target.value)}>
-                  {catalogs?.atividades.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-                </select>
+            <div className="correction-form-grid correction-section nx-workflow-grid nx-workflow-section">
+              <label className="nx-workflow-field">
+                <span>Atividade</span>
+                <Dropdown value={form.atividade} options={options(catalogs?.atividades)} onChange={(event) => set('atividade', event.value || '')} filter />
               </label>
-              <label>Função
-                <select value={form.funcao} onChange={(event) => set('funcao', event.target.value)}>
-                  {catalogs?.funcoes.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-                </select>
+              <label className="nx-workflow-field">
+                <span>Função</span>
+                <Dropdown value={form.funcao} options={options(catalogs?.funcoes)} onChange={(event) => set('funcao', event.value || '')} filter />
               </label>
-              <label>Turno
-                <select value={form.turno} onChange={(event) => set('turno', event.target.value)}>
-                  <option value="DIURNO">DIURNO</option>
-                  <option value="NOTURNO">NOTURNO</option>
-                </select>
+              <label className="nx-workflow-field">
+                <span>Turno</span>
+                <Dropdown
+                  value={form.turno}
+                  options={[
+                    { label: 'DIURNO', value: 'DIURNO' },
+                    { label: 'NOTURNO', value: 'NOTURNO' },
+                  ]}
+                  onChange={(event) => set('turno', event.value)}
+                />
               </label>
-              <label>Qtd. solicitada
-                <input type="number" min="1" step="1" value={form.qtdSolicitada} onChange={(event) => set('qtdSolicitada', event.target.value)} />
+              <label className="nx-workflow-field">
+                <span>Qtd. solicitada</span>
+                <InputText type="number" min="1" step="1" value={form.qtdSolicitada} onChange={(event) => set('qtdSolicitada', event.target.value)} />
               </label>
-              <label>Qtd. comparecida
-                <input type="number" min="0" step="1" value={form.qtdComparecida} onChange={(event) => set('qtdComparecida', event.target.value)} placeholder="Ainda não registrado" />
+              <label className="nx-workflow-field">
+                <span>Qtd. comparecida</span>
+                <InputText type="number" min="0" step="1" value={form.qtdComparecida} onChange={(event) => set('qtdComparecida', event.target.value)} placeholder="Ainda não registrado" />
               </label>
             </div>
           ) : (
-            <div className="correction-section">
-              <div className="correction-form-grid">
-                <label>Alimentação solicitada
-                  <select value={form.produtoAlimentacao} onChange={(event) => set('produtoAlimentacao', event.target.value)}>
-                    <option value="">Sem alimentação</option>
-                    {foods.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-                  </select>
+            <div className="correction-section nx-workflow-section">
+              <div className="correction-form-grid nx-workflow-grid">
+                <label className="nx-workflow-field">
+                  <span>Alimentação solicitada</span>
+                  <Dropdown value={form.produtoAlimentacao} options={foodOptions} onChange={(event) => set('produtoAlimentacao', event.value || '')} filter />
                 </label>
-                {form.produtoAlimentacao && <label>Qtd. alimentação
-                  <input type="number" min="1" step="1" value={form.qtdAlimentacao} onChange={(event) => set('qtdAlimentacao', event.target.value)} />
-                </label>}
-                <label>Bebida solicitada
-                  <select value={form.produtoBebida} onChange={(event) => set('produtoBebida', event.target.value)}>
-                    <option value="">Sem bebida</option>
-                    {drinks.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-                  </select>
+                {form.produtoAlimentacao && (
+                  <label className="nx-workflow-field">
+                    <span>Qtd. alimentação</span>
+                    <InputText type="number" min="1" step="1" value={form.qtdAlimentacao} onChange={(event) => set('qtdAlimentacao', event.target.value)} />
+                  </label>
+                )}
+                <label className="nx-workflow-field">
+                  <span>Bebida solicitada</span>
+                  <Dropdown value={form.produtoBebida} options={drinkOptions} onChange={(event) => set('produtoBebida', event.value || '')} filter />
                 </label>
-                {form.produtoBebida && <label>Qtd. bebida
-                  <input type="number" min="1" step="1" value={form.qtdBebida} onChange={(event) => set('qtdBebida', event.target.value)} />
-                </label>}
+                {form.produtoBebida && (
+                  <label className="nx-workflow-field">
+                    <span>Qtd. bebida</span>
+                    <InputText type="number" min="1" step="1" value={form.qtdBebida} onChange={(event) => set('qtdBebida', event.target.value)} />
+                  </label>
+                )}
               </div>
-              {form.fornecedor && <div className="correction-form-grid">
-                {form.produtoAlimentacao && <label>Alimentação aplicada
-                  <select value={form.produtoAlimentacaoAplicado} onChange={(event) => set('produtoAlimentacaoAplicado', event.target.value)}>
-                    {foods.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-                  </select>
-                </label>}
-                {form.produtoBebida && <label>Bebida aplicada
-                  <select value={form.produtoBebidaAplicado} onChange={(event) => set('produtoBebidaAplicado', event.target.value)}>
-                    {drinks.map((item) => <option key={item.nome} value={item.nome}>{item.nome}</option>)}
-                  </select>
-                </label>}
-                <label className="correction-form-span">Motivo do ajuste de produto
-                  <input value={form.motivoAjusteProduto} onChange={(event) => set('motivoAjusteProduto', event.target.value)} />
-                </label>
-              </div>}
+
+              {form.fornecedor && (
+                <div className="correction-form-grid nx-workflow-grid nx-workflow-subsection">
+                  {form.produtoAlimentacao && (
+                    <label className="nx-workflow-field">
+                      <span>Alimentação aplicada</span>
+                      <Dropdown value={form.produtoAlimentacaoAplicado} options={options(foods)} onChange={(event) => set('produtoAlimentacaoAplicado', event.value || '')} filter />
+                    </label>
+                  )}
+                  {form.produtoBebida && (
+                    <label className="nx-workflow-field">
+                      <span>Bebida aplicada</span>
+                      <Dropdown value={form.produtoBebidaAplicado} options={options(drinks)} onChange={(event) => set('produtoBebidaAplicado', event.value || '')} filter />
+                    </label>
+                  )}
+                  <label className="nx-workflow-field correction-form-span">
+                    <span>Motivo do ajuste de produto</span>
+                    <InputText value={form.motivoAjusteProduto} onChange={(event) => set('motivoAjusteProduto', event.target.value)} />
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
-          <label className="correction-reason">Motivo da correção <span>*</span>
-            <textarea value={form.motivoCorrecao} onChange={(event) => set('motivoCorrecao', event.target.value)} rows={3} placeholder="Ex.: quantidade lançada incorretamente pelo administrativo." />
+          <label className="correction-reason nx-workflow-field nx-workflow-reason">
+            <span>Motivo da correção <strong>*</strong></span>
+            <InputTextarea
+              value={form.motivoCorrecao}
+              onChange={(event) => set('motivoCorrecao', event.target.value)}
+              rows={3}
+              autoResize
+              placeholder="Ex.: quantidade lançada incorretamente pelo administrativo."
+            />
           </label>
-        </>
+        </div>
       )}
     </Modal>
   )

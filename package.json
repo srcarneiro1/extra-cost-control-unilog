@@ -1,23 +1,25 @@
 {
   "name": "extra-cost-control-unilog",
   "private": true,
-  "version": "0.1.0",
-  "type": "module",
+  "version": "0.2.0",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "dev": "next dev",
+    "build": "next build && node scripts/copy-next-export.mjs",
+    "start": "next start"
   },
   "dependencies": {
+    "chart.js": "^4.4.7",
     "jose": "^6.1.0",
+    "next": "15.5.25",
+    "primeicons": "^7.0.0",
+    "primereact": "^10.9.9",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@types/node": "20.17.6",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "@vitejs/plugin-react": "6.0.5",
-    "typescript": "7.0.2",
-    "vite": "8.2.0"
+    "typescript": "^5.9.0"
   }
 }

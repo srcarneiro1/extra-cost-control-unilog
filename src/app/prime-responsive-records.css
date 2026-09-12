@@ -1,0 +1,307 @@
+/* Responsive record architecture.
+   Loaded after every migration stylesheet so desktop DataTables remain tables,
+   while mobile rows become readable vertical record cards. */
+
+/* Login: PrimeReact Lara already applies a vertical icon offset to
+   .p-input-icon-left. The custom field was applying a second offset. */
+.nx-login-form .nx-field-icon>i{
+  top:50%!important;
+  margin-top:0!important;
+  transform:translateY(-50%)!important;
+  line-height:1!important;
+}
+
+/* Solicitações: PageToolbar already wraps `filters` in its own grid. The
+   component passed another grid as its single child, so all controls were
+   constrained to the first outer grid column. Make the outer wrapper neutral
+   and let the actual PrimeReact filter row own the layout. */
+.admin-page:not(.catalog-page) .ui-page-toolbar-filters{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+.admin-page:not(.catalog-page) .ui-page-toolbar-main{
+  display:grid!important;
+  grid-template-columns:minmax(260px,.72fr) minmax(0,2.28fr)!important;
+  align-items:end!important;
+  gap:14px!important;
+}
+.admin-page:not(.catalog-page) .ui-page-toolbar-search{
+  min-width:0!important;
+  width:100%!important;
+}
+.admin-page:not(.catalog-page) .nx-prime-filter-row{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(120px,1fr))!important;
+  align-items:stretch!important;
+  gap:9px!important;
+  width:100%!important;
+}
+.admin-page:not(.catalog-page) .nx-prime-filter-row>*{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+.admin-page:not(.catalog-page) .nx-prime-filter-row>.p-button{
+  white-space:nowrap;
+}
+
+@media(max-width:1320px){
+  .admin-page:not(.catalog-page) .ui-page-toolbar-main{
+    grid-template-columns:1fr!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-filter-row{
+    grid-template-columns:repeat(3,minmax(150px,1fr))!important;
+  }
+}
+
+@media(max-width:980px){
+  .admin-page:not(.catalog-page) .nx-prime-filter-row{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   MOBILE RECORD CARDS
+   ------------------------------------------------------------------------- */
+@media(max-width:820px){
+  /* Shared DataTable reset. Do not horizontally squeeze a desktop table on a
+     phone; preserve semantics while changing its visual formatting. */
+  .admin-page .nx-prime-table .p-datatable-wrapper,
+  .nx-catalog-page .nx-catalog-table .p-datatable-wrapper{
+    overflow:visible!important;
+    max-width:100%!important;
+  }
+  .admin-page .nx-prime-table table,
+  .nx-catalog-page .nx-catalog-table table,
+  .admin-page .nx-prime-table .p-datatable-table,
+  .nx-catalog-page .nx-catalog-table .p-datatable-table{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    table-layout:auto!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-thead,
+  .nx-catalog-page .nx-catalog-table .p-datatable-thead{
+    position:absolute!important;
+    width:1px!important;
+    height:1px!important;
+    margin:-1px!important;
+    padding:0!important;
+    overflow:hidden!important;
+    clip:rect(0 0 0 0)!important;
+    clip-path:inset(50%)!important;
+    white-space:nowrap!important;
+    border:0!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-tbody,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody{
+    display:grid!important;
+    gap:11px!important;
+    padding:12px!important;
+    width:100%!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-tbody>tr,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:12px 14px!important;
+    width:100%!important;
+    padding:15px!important;
+    border:1px solid #e0e4e8!important;
+    border-radius:14px!important;
+    background:#fff!important;
+    box-shadow:0 6px 20px rgba(18,24,34,.05)!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td{
+    position:static!important;
+    display:grid!important;
+    align-content:start!important;
+    gap:4px!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:100%!important;
+    min-height:0!important;
+    padding:0!important;
+    border:0!important;
+    background:transparent!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    font-size:11px!important;
+    line-height:1.4!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td::before,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td::before{
+    display:block;
+    font-size:8px;
+    line-height:1.2;
+    font-weight:800;
+    letter-spacing:.075em;
+    text-transform:uppercase;
+    color:#8a9099;
+  }
+  .admin-page .nx-prime-table .p-frozen-column{
+    position:static!important;
+    left:auto!important;
+    right:auto!important;
+    background:transparent!important;
+  }
+
+  /* Solicitações ---------------------------------------------------------- */
+  .admin-page:not(.catalog-page) .ui-page-toolbar-main{
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-filter-row{
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){
+    grid-column:1/-1!important;
+    padding-bottom:11px!important;
+    border-bottom:1px solid #edf0f2!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1)::before{content:'Solicitação'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(2)::before{content:'Registro'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(3)::before{content:'Data operacional'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(4)::before{content:'Operação'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(5)::before{content:'Tipo'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(6)::before{content:'Status'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7)::before{content:'Qtd. prevista'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(8)::before{content:'Qtd. real'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(9)::before{content:'Previsto'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(10)::before{content:'Valor real'}
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(11){
+    grid-column:1/-1!important;
+    padding-top:12px!important;
+    border-top:1px solid #edf0f2!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(11)::before{content:'Ações';margin-bottom:3px}
+  .admin-page:not(.catalog-page) .nx-prime-table .nx-user-cell{
+    min-width:0!important;
+    gap:2px!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .nx-user-cell strong{
+    font-size:13px!important;
+    line-height:1.25!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .nx-modern-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    width:100%!important;
+    min-width:0!important;
+    white-space:normal!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .nx-modern-actions>.p-button{
+    width:100%!important;
+    justify-content:center!important;
+    min-width:0!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .nx-modern-actions>.p-button:last-child{
+    grid-column:1/-1!important;
+  }
+
+  /* Usuários -------------------------------------------------------------- */
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){
+    grid-column:1/-1!important;
+    padding-bottom:11px!important;
+    border-bottom:1px solid #edf0f2!important;
+  }
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1)::before{content:'Usuário'}
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(2)::before{content:'Perfil'}
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(3)::before{content:'Operação'}
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(4)::before{content:'Status'}
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(5)::before{content:'Senha'}
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(6)::before{content:'Último ajuste'}
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7){
+    grid-column:1/-1!important;
+    padding-top:12px!important;
+    border-top:1px solid #edf0f2!important;
+  }
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7)::before{content:'Ação';margin-bottom:3px}
+  .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7) .p-button{
+    width:100%!important;
+    justify-content:center!important;
+  }
+
+  /* Cadastros ------------------------------------------------------------- */
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:first-child{
+    grid-column:1/-1!important;
+    padding-bottom:11px!important;
+    border-bottom:1px solid #edf0f2!important;
+    font-size:13px!important;
+  }
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:first-child::before{display:none}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:last-child{
+    grid-column:1/-1!important;
+    padding-top:11px!important;
+    border-top:1px solid #edf0f2!important;
+  }
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:last-child::before{content:'Ação';margin-bottom:3px}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:last-child .p-button{
+    width:100%!important;
+    justify-content:center!important;
+  }
+
+  /* 3 columns: named catalogs / goals */
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(3):last-child)>td:nth-child(2)::before{content:'Detalhe'}
+
+  /* 4 columns: products */
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(4):last-child)>td:nth-child(2)::before{content:'Categoria'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(4):last-child)>td:nth-child(3)::before{content:'Status'}
+
+  /* 5 columns: providers */
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(5):last-child)>td:nth-child(2)::before{content:'Atendimento'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(5):last-child)>td:nth-child(3)::before{content:'WhatsApp'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(5):last-child)>td:nth-child(4)::before{content:'Status'}
+
+  /* 6 columns: holidays */
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(6):last-child)>td:nth-child(2)::before{content:'Denominação'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(6):last-child)>td:nth-child(3)::before{content:'Município / UF'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(6):last-child)>td:nth-child(4)::before{content:'Fonte'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(6):last-child)>td:nth-child(5)::before{content:'Status'}
+
+  /* 7 columns: product prices */
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(7):last-child)>td:nth-child(2)::before{content:'Produto'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(7):last-child)>td:nth-child(3)::before{content:'Categoria'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(7):last-child)>td:nth-child(4)::before{content:'Vigência'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(7):last-child)>td:nth-child(5)::before{content:'Preço'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(7):last-child)>td:nth-child(6)::before{content:'Status'}
+
+  /* 8 columns: labor prices */
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(8):last-child)>td:nth-child(2)::before{content:'Função'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(8):last-child)>td:nth-child(3)::before{content:'Turno'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(8):last-child)>td:nth-child(4)::before{content:'Tipo de dia'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(8):last-child)>td:nth-child(5)::before{content:'Vigência'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(8):last-child)>td:nth-child(6)::before{content:'Preço'}
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr:has(>td:nth-child(8):last-child)>td:nth-child(7)::before{content:'Status'}
+
+  .nx-catalog-page .nx-catalog-paginator.p-paginator,
+  .admin-page .nx-prime-table .p-paginator,
+  .admin-page .nx-prime-paginator.p-paginator{
+    border-top:1px solid #edf0f2!important;
+    justify-content:center!important;
+    padding:.7rem .45rem!important;
+    gap:3px!important;
+  }
+}
+
+@media(max-width:480px){
+  .admin-page .nx-prime-table .p-datatable-tbody>tr,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr{
+    grid-template-columns:1fr!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td{
+    grid-column:1!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .nx-modern-actions{
+    grid-template-columns:1fr!important;
+  }
+  .admin-page:not(.catalog-page) .nx-prime-table .nx-modern-actions>.p-button:last-child{
+    grid-column:1!important;
+  }
+}

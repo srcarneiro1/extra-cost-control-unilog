@@ -1,0 +1,22 @@
+.nx-analytics-card.p-card{min-width:0;border:1px solid var(--nx-card-border);border-radius:var(--nx-card-radius);background:#fff;box-shadow:var(--nx-card-shadow);overflow:hidden}
+.nx-analytics-card.p-card>.p-card-body{padding:0!important}
+.nx-analytics-card.p-card>.p-card-body>.p-card-content{padding:0!important}
+.nx-analytics-chart-scroll{max-width:100%;overflow:hidden}
+.nx-analytics-card .analytics-svg{display:block;max-width:100%;width:100%;height:auto}
+.nx-analytics-card .analytics-ranking-list{min-width:0}
+.nx-analytics-card .analytics-ranking-item{min-width:0}
+.nx-analytics-card .analytics-ranking-item>strong{min-width:0}
+.nx-analytics-card .analytics-highlight{white-space:nowrap}
+
+@media(max-width:760px){
+  .nx-analytics-chart-scroll{overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+  .nx-analytics-chart-scroll .analytics-svg{width:620px;max-width:none}
+  .nx-analytics-card .analytics-ranking-item{grid-template-columns:24px minmax(100px,1fr) auto;gap:8px}
+  .nx-analytics-card .analytics-ranking-item>div{grid-column:2/-1}
+  .nx-analytics-card .analytics-ranking-item>span:last-child{grid-column:3;grid-row:1}
+}
+
+@media(max-width:480px){
+  .nx-analytics-chart-scroll .analytics-svg{width:560px}
+  .nx-analytics-card .analytics-ranking-item{padding:9px 11px}
+}
