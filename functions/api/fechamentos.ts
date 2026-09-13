@@ -12,6 +12,7 @@ interface Env extends GatewayAuthEnv {
 }
 
 const READ_EDGE_CACHE_SECONDS = 30;
+const MUTATION_ACTIONS = new Set(['FECHAR', 'SALVAR_NF', 'CONCILIAR', 'ENCERRAR']);
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -162,9 +163,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     );
   }
 
+  const action = String(payload.acao || 'FECHAR').trim().toUpperCase();
+  if (!MUTATION_ACTIONS.has(action)) {
+    return jsonResponse(
+      { ok: false, error: { code: 'INVALID_ACTION', message: 'Ação financeira inválida.' } },
+      400,
+    );
+  }
+
   return proxyToAppsScript(env, {
     ...payload,
-    acao: 'FECHAR',
+    acao: action,
     usuarioAdministrativo: identityEmail(identity),
   });
 };
