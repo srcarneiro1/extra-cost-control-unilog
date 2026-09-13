@@ -630,7 +630,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const typeBody = (item: AdministrativeSolicitationListItem) => <Tag value={typeLabel(item.tipoSolicitacao)} severity="secondary" rounded />
   const statusBody = (item: AdministrativeSolicitationListItem) => {
     const status = statusInfo(item)
-    return <Tag value={status.label} severity={status.severity} rounded />
+    return <Tag value={status.label} severity={status.severity} rounded className="nx-solicitation-status-tag" />
   }
 
   const actionsBody = (item: AdministrativeSolicitationListItem) => {
@@ -640,7 +640,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     const canShare = canAdminister && item.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status)
     return (
       <div
-        className="nx-modern-actions nx-solicitation-row-actions"
+        className={`nx-modern-actions nx-solicitation-row-actions ${canAdminister ? 'is-admin' : 'is-readonly'}`}
         onMouseEnter={() => scheduleDetailPrefetch(item.idSolicitacao)}
         onMouseLeave={cancelDetailPrefetch}
         onFocusCapture={() => scheduleDetailPrefetch(item.idSolicitacao, 0)}
@@ -696,18 +696,18 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         ) : items.length === 0 ? (
           <EmptyState title="Nenhuma solicitação encontrada" description="A busca atual não possui registros. Ajuste a busca ou limpe os filtros." />
         ) : (
-          <DataTable value={items} dataKey="idSolicitacao" stripedRows rowHover scrollable responsiveLayout="scroll" className="nx-prime-table" emptyMessage="Nenhuma solicitação encontrada">
+          <DataTable value={items} dataKey="idSolicitacao" stripedRows rowHover scrollable responsiveLayout="scroll" tableStyle={{ tableLayout: 'fixed' }} className="nx-prime-table" emptyMessage="Nenhuma solicitação encontrada">
             <Column header="Solicitação" body={solicitationBody} frozen />
             <Column header="Registro" body={(item: AdministrativeSolicitationListItem) => formatDateTime(item.dataCriacao)} />
             <Column header="Data operacional" body={(item: AdministrativeSolicitationListItem) => formatDate(item.dataOperacional)} />
             <Column field="operacao" header="Operação" />
             <Column header="Tipo" body={typeBody} />
-            <Column header="Status" body={statusBody} />
+            <Column header="Status" body={statusBody} style={{ width: '12rem' }} />
             <Column header="Qtd. solicitada" body={requestedQuantityBody} />
             <Column header="Qtd. considerada" body={consideredQuantityBody} />
             <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
             <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '15rem' : '4rem' }} />
+            <Column header="Ações" body={actionsBody} style={{ width: canAdminister ? '22rem' : '4rem' }} />
           </DataTable>
         )}
 
