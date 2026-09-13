@@ -25,8 +25,11 @@ const SolicitationStatusService = (() => {
     STATUS.ATTENDED,
   ];
 
-  const ALL_STATUSES = ACTIVE_OPERATIONAL_STATUSES.concat([
+  const ACTIVE_TRANSITION_STATUSES = ACTIVE_OPERATIONAL_STATUSES.concat([
     STATUS.WAITING_INVOICE,
+  ]);
+
+  const ALL_STATUSES = ACTIVE_TRANSITION_STATUSES.concat([
     STATUS.CHECKED,
     STATUS.CLOSED,
   ]);
@@ -38,7 +41,8 @@ const SolicitationStatusService = (() => {
     AGUARDANDO_AJUSTE: ['EM_TRIAGEM'],
     ENVIADA_AO_FORNECEDOR: ['EM_ATENDIMENTO', 'ATENDIDA'],
     EM_ATENDIMENTO: ['ATENDIDA'],
-    ATENDIDA: [],
+    ATENDIDA: ['AGUARDANDO_NF'],
+    AGUARDANDO_NF: [],
   });
 
   const AUDIT_HEADERS = [
@@ -78,7 +82,7 @@ const SolicitationStatusService = (() => {
     const target = ValidationService.enumValue(
       input.status,
       'Status',
-      ACTIVE_OPERATIONAL_STATUSES
+      ACTIVE_TRANSITION_STATUSES
     );
 
     const lock = LockService.getScriptLock();
@@ -129,7 +133,7 @@ const SolicitationStatusService = (() => {
     const target = ValidationService.enumValue(
       input.target,
       'Status',
-      ACTIVE_OPERATIONAL_STATUSES
+      ACTIVE_TRANSITION_STATUSES
     );
     const current = resolve(record);
     const updates = Object.assign({}, input.updates || {});
@@ -392,6 +396,10 @@ const SolicitationStatusService = (() => {
       if (type === 'ALIMENTACAO_BEBIDA' && !triageCompleted_(record)) {
         ValidationService.fail('Conclua a triagem antes de marcar a solicitação como atendida.');
       }
+    }
+
+    if (target === STATUS.WAITING_INVOICE && !hasValue_(record.VALOR_REAL)) {
+      ValidationService.fail('Valor real não encontrado. Conclua o realizado antes de enviar a solicitação para aguardando NF.');
     }
   }
 
