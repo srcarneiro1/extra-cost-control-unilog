@@ -63,8 +63,13 @@ async function post<T>(payload: Record<string, unknown>): Promise<T> {
   return parseResponse<T>(response)
 }
 
-export async function fetchFinancialCloseoutMetadata(signal?: AbortSignal): Promise<FinancialCloseoutMetadata> {
-  const response = await fetch('/api/fechamentos?metadata=1', {
+export async function fetchFinancialCloseoutMetadata(
+  signal?: AbortSignal,
+  fresh = false,
+): Promise<FinancialCloseoutMetadata> {
+  const params = new URLSearchParams({ metadata: '1' })
+  if (fresh) params.set('fresh', '1')
+  const response = await fetch(`/api/fechamentos?${params.toString()}`, {
     method: 'GET',
     headers: { accept: 'application/json' },
     signal,
@@ -75,8 +80,11 @@ export async function fetchFinancialCloseoutMetadata(signal?: AbortSignal): Prom
 export async function fetchFinancialCloseout(
   competencia: string,
   signal?: AbortSignal,
+  fresh = false,
 ): Promise<FinancialCloseoutListResponse> {
-  const response = await fetch(`/api/fechamentos?competencia=${encodeURIComponent(competencia)}`, {
+  const params = new URLSearchParams({ competencia })
+  if (fresh) params.set('fresh', '1')
+  const response = await fetch(`/api/fechamentos?${params.toString()}`, {
     method: 'GET',
     headers: { accept: 'application/json' },
     signal,

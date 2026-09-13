@@ -39,8 +39,8 @@
 .nx-closeout-progress-track i{display:block;height:100%;border-radius:inherit;background:var(--unilog-graphite);transition:width .2s ease}
 .nx-closeout-money{font-size:12px;color:var(--unilog-ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
 .nx-closeout-muted{color:var(--unilog-muted)}
-.nx-closeout-row-actions{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
-.nx-closeout-row-actions .p-button{white-space:nowrap}
+.nx-closeout-row-actions,.nx-closeout-action-stack{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.nx-closeout-row-actions .p-button,.nx-closeout-action-stack .p-button{white-space:nowrap}
 
 .nx-closeout-confirm-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .nx-closeout-confirm-summary>div,.nx-closeout-financial-preview{display:grid;gap:4px;padding:14px;border:1px solid var(--unilog-border-soft);border-radius:12px;background:#fafbfc}
@@ -51,6 +51,8 @@
 .nx-closeout-financial-preview{grid-column:1/-1}
 .nx-closeout-reconciliation-stack{display:grid;gap:14px}
 .nx-closeout-reconciliation-stack .p-dropdown,.nx-closeout-reconciliation-stack .p-inputtext,.nx-closeout-reconciliation-stack .p-inputtextarea{width:100%}
+.nx-financial-exception-form{display:grid;gap:14px}
+.nx-financial-exception-form .p-dropdown,.nx-financial-exception-form .p-inputtextarea{width:100%}
 
 @media(max-width:1180px){
   .nx-closeout-summary-shell .ui-summary-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -73,7 +75,7 @@
   .admin-page.nx-closeout-page .nx-closeout-table .p-datatable-tbody>tr>td:nth-child(6)::before{content:'Ação'!important}
   .admin-page.nx-closeout-page .nx-closeout-table .p-datatable-tbody>tr>td:nth-child(6){grid-column:1/-1!important;padding-top:11px!important;border-top:1px solid #edf0f2!important;text-align:left!important}
   .admin-page.nx-closeout-page .nx-closeout-table .p-datatable-tbody>tr>td:nth-child(6) .p-button{width:100%!important;justify-content:center!important}
-  .admin-page.nx-closeout-page .nx-closeout-row-actions{display:grid;grid-template-columns:1fr;gap:7px;width:100%}
+  .admin-page.nx-closeout-page .nx-closeout-row-actions,.admin-page.nx-closeout-page .nx-closeout-action-stack{display:grid;grid-template-columns:1fr;gap:7px;width:100%}
   .admin-page.nx-closeout-page .nx-closeout-progress-copy{display:grid;gap:2px}
   .admin-page.nx-closeout-page .nx-closeout-progress-copy small{text-align:left;white-space:normal}
 }

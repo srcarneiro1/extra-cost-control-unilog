@@ -12,7 +12,8 @@ interface Env extends GatewayAuthEnv {
 }
 
 const READ_EDGE_CACHE_SECONDS = 30;
-const MUTATION_ACTIONS = new Set(['FECHAR', 'SALVAR_NF', 'CONCILIAR', 'ENCERRAR']);
+const CLOSEOUT_MUTATION_ACTIONS = new Set(['FECHAR', 'SALVAR_NF', 'CONCILIAR', 'ENCERRAR']);
+const EXCEPTION_MUTATION_ACTIONS = new Set(['DECIDIR']);
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -31,6 +32,7 @@ function edgeCache_(): Cache | null {
 
 function scopedCacheKey_(request: Request, identity: GatewayIdentity): Request {
   const url = new URL(request.url);
+  url.searchParams.delete('fresh');
   url.searchParams.set('_financial', '1');
   url.searchParams.set('_subject', identityEmail(identity));
   return new Request(url.toString(), { method: 'GET' });
@@ -76,6 +78,7 @@ function cacheSuccessful_(
 async function proxyToAppsScript(
   env: Env,
   payload: Record<string, unknown>,
+  route = 'fechamentos',
 ): Promise<Response> {
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
@@ -85,7 +88,7 @@ async function proxyToAppsScript(
   }
 
   const targetUrl = new URL(env.APPS_SCRIPT_URL);
-  targetUrl.searchParams.set('route', 'fechamentos');
+  targetUrl.searchParams.set('route', route);
 
   const upstreamResponse = await fetch(targetUrl.toString(), {
     method: 'POST',
@@ -135,17 +138,30 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { identity, denied } = await authorizeAdministrative_(request, env);
   if (denied || !identity) return denied!;
 
-  const cached = await matchEdgeCache_(request, identity);
-  if (cached) return cached;
-
   const url = new URL(request.url);
+  const fresh = String(url.searchParams.get('fresh') || '').trim() === '1';
+
+  if (!fresh) {
+    const cached = await matchEdgeCache_(request, identity);
+    if (cached) return cached;
+  }
+
   const competencia = String(url.searchParams.get('competencia') || '').trim();
   const metadata = String(url.searchParams.get('metadata') || '').trim() === '1';
-  const response = await proxyToAppsScript(env, metadata
-    ? { acao: 'METADADOS' }
-    : { acao: 'LISTAR', competencia });
+  const exceptions = String(url.searchParams.get('excecoes') || '').trim() === '1';
+  const fornecedor = String(url.searchParams.get('fornecedor') || '').trim();
 
-  cacheSuccessful_(context, request, identity, response);
+  const response = exceptions
+    ? await proxyToAppsScript(env, {
+        acao: 'LISTAR',
+        ...(competencia ? { competencia } : {}),
+        ...(fornecedor ? { fornecedor } : {}),
+      }, 'excecoes_financeiras')
+    : await proxyToAppsScript(env, metadata
+      ? { acao: 'METADADOS' }
+      : { acao: 'LISTAR', competencia });
+
+  if (!fresh) cacheSuccessful_(context, request, identity, response);
   return response;
 };
 
@@ -164,7 +180,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const action = String(payload.acao || 'FECHAR').trim().toUpperCase();
-  if (!MUTATION_ACTIONS.has(action)) {
+  const isException = EXCEPTION_MUTATION_ACTIONS.has(action);
+  if (!isException && !CLOSEOUT_MUTATION_ACTIONS.has(action)) {
     return jsonResponse(
       { ok: false, error: { code: 'INVALID_ACTION', message: 'Ação financeira inválida.' } },
       400,
@@ -175,5 +192,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     ...payload,
     acao: action,
     usuarioAdministrativo: identityEmail(identity),
-  });
+  }, isException ? 'excecoes_financeiras' : 'fechamentos');
 };

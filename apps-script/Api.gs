@@ -13,6 +13,7 @@ const Api = (() => {
       if (route === 'cadastros') return JsonResponse.unauthorized('Acesso aos cadastros disponível somente pelo gateway protegido.');
       if (route === 'solicitacoes_admin') return JsonResponse.unauthorized('Consulta administrativa disponível somente pelo gateway protegido.');
       if (route === 'fechamentos') return JsonResponse.unauthorized('Fechamento financeiro disponível somente pelo gateway protegido.');
+      if (route === 'excecoes_financeiras') return JsonResponse.unauthorized('Exceções financeiras disponíveis somente pelo gateway protegido.');
       if (route === 'dashboard' || route === 'dashboard_export') return JsonResponse.unauthorized('Dashboard disponível somente pelo gateway protegido.');
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
@@ -80,10 +81,21 @@ const Api = (() => {
         const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
         if (action === FinancialCloseoutService.ACTIONS.CLOSE) {
           return JsonResponse.ok(writeAndInvalidate_(function () {
-            return FinancialCloseoutService.execute(servicePayload);
+            return FinancialCloseoutPhase2CService.execute(servicePayload);
           }));
         }
-        return JsonResponse.ok(FinancialCloseoutService.execute(servicePayload));
+        return JsonResponse.ok(FinancialCloseoutPhase2CService.execute(servicePayload));
+      }
+
+      if (route === 'excecoes_financeiras') {
+        const servicePayload = authorizeGateway_(payload);
+        const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
+        if (action === FinancialExceptionService.ACTIONS.DECIDE) {
+          return JsonResponse.ok(writeAndInvalidate_(function () {
+            return FinancialExceptionPhase2CService.execute(servicePayload);
+          }));
+        }
+        return JsonResponse.ok(FinancialExceptionPhase2CService.execute(servicePayload));
       }
 
       if (route === 'dashboard') {
