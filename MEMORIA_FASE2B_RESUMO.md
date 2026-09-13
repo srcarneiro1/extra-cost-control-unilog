@@ -9,12 +9,15 @@ Atualizado em 13/09/2026.
 - `RESPONSAVEL_CUSTO` não separa NF.
 - O fechamento gera/congela o espelho interno que deve ser conciliado com a NF do fornecedor.
 - `AGUARDANDO_NF` deve ser consequência do fechamento consolidado, não de uma ação isolada por solicitação.
+- Os botões individuais `Enviar para aguardando NF` da lista e do detalhe devem ser removidos quando a Fase 2B assumir o fluxo consolidado.
+- O Apps Script também deve deixar de aceitar a transição individual `ATENDIDA -> AGUARDANDO_NF`; essa transição passará a ser executada apenas pelo fechamento consolidado do grupo.
 - Resultado da conciliação:
   - `CONFERIDA`: bateu sem ajuste.
   - `CONFERIDA_COM_AJUSTE`: houve diferença e ela foi ajustada/documentada.
   - `CONFERIDA_COM_DIVERGENCIA`: a conferência foi concluída, mas permaneceu divergência registrada.
 - Preferência de modelagem: workflow permanece `CONFERIDA`; usar campo separado `RESULTADO_CONCILIACAO = OK | COM_AJUSTE | COM_DIVERGENCIA`.
 - Para ajuste/divergência, registrar motivo, usuário e data/hora. Para ajuste, registrar também valor do fechamento, valor da NF e efeito do ajuste.
+- `ENCERRADA` é o fim da etapa financeira: tudo está concluído e não existe mais ação pendente naquele fechamento. Não depende de pagamento, ERP ou repasse ao cliente.
 - Solicitação tardia após NF emitida não reabre automaticamente o fechamento: pode ir para próxima `COMPETENCIA_FATURAMENTO` ou ser absorvida/não faturada.
 - Nunca sobrescrever a `COMPETENCIA` operacional original.
 - Nunca executar `migrateSolicitationStatuses()` novamente.
