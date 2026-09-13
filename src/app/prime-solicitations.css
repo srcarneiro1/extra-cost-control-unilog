@@ -34,10 +34,8 @@
 .admin-page .nx-prime-table .p-datatable-tbody>tr>td{white-space:nowrap}
 .admin-page .nx-prime-table .nx-user-cell{min-width:120px}
 .admin-page .nx-prime-table .nx-modern-actions{flex-wrap:nowrap;white-space:nowrap}
-.admin-page .nx-prime-table .nx-solicitation-row-actions{display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:290px;white-space:normal}
+.admin-page .nx-prime-table .nx-solicitation-row-actions{display:flex;align-items:center;justify-content:flex-start;gap:5px;white-space:nowrap}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button{
-  position:relative;
-  overflow:visible!important;
   width:34px;
   min-width:34px;
   height:34px;
@@ -45,44 +43,13 @@
   padding:0!important;
   justify-content:center;
   border-radius:9px;
+  transition:background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .14s ease;
 }
+.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:hover:not(:disabled){transform:translateY(-1px)}
+.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:focus-visible{box-shadow:0 0 0 3px rgba(218,0,18,.14)}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button .p-button-icon{margin:0!important;font-size:12px}
-.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button .p-button-label{
-  position:absolute!important;
-  width:1px!important;
-  height:1px!important;
-  padding:0!important;
-  margin:-1px!important;
-  overflow:hidden!important;
-  clip:rect(0,0,0,0)!important;
-  white-space:nowrap!important;
-  border:0!important;
-}
-.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:hover .p-button-label,
-.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:focus-visible .p-button-label{
-  position:absolute!important;
-  z-index:30;
-  left:50%;
-  bottom:calc(100% + 7px);
-  width:max-content!important;
-  max-width:220px;
-  height:auto!important;
-  margin:0!important;
-  padding:5px 7px!important;
-  overflow:visible!important;
-  clip:auto!important;
-  transform:translateX(-50%);
-  border-radius:6px;
-  background:#20242c;
-  color:#fff;
-  font-size:9px;
-  font-weight:600;
-  line-height:1.2;
-  box-shadow:0 6px 18px rgba(24,26,31,.18);
-  pointer-events:none;
-}
 .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:18rem!important;width:18rem!important}
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:15rem!important;width:15rem!important}
 .admin-page .nx-prime-filter-row{grid-template-columns:repeat(3,minmax(0,1fr))}
 .admin-page .nx-prime-filter-row>.p-button{min-height:42px}
 
@@ -94,9 +61,8 @@
   .admin-page>.nx-prime-notice{top:calc(env(safe-area-inset-top,0px) + 10px)!important;width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important}
   .admin-page .nx-prime-filter-row{grid-template-columns:1fr}
   .admin-page .nx-prime-table table{min-width:1120px}
-  .admin-page .nx-prime-table .nx-solicitation-row-actions{max-width:250px}
   .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
-  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:16rem!important;width:16rem!important}
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:15rem!important;width:15rem!important}
   .admin-page .nx-prime-paginator.p-paginator{gap:2px}
   .admin-page .nx-prime-paginator .p-paginator-first,
   .admin-page .nx-prime-paginator .p-paginator-last{display:none}
