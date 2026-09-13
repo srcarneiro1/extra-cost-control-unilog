@@ -1,10 +1,18 @@
-import { authorizeGatewayRequest, type GatewayAuthEnv } from '../_auth'
+import {
+  authorizeGatewayRequest,
+  identityProfile,
+  operationScope,
+  type GatewayAuthEnv,
+  type GatewayIdentity,
+} from '../_auth'
 import { enforceDashboardScope, validateAreaAccess } from '../_access-control'
 
 interface Env extends GatewayAuthEnv {
   APPS_SCRIPT_URL: string
   APPS_SCRIPT_GATEWAY_TOKEN: string
 }
+
+const EDGE_CACHE_SECONDS = 120
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -22,6 +30,68 @@ function optionalParam(url: URL, name: string): string {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function edgeCache_(): Cache | null {
+  if (typeof caches === 'undefined') return null
+  return (caches as unknown as { default?: Cache }).default || null
+}
+
+function scopedCacheKey_(request: Request, identity: GatewayIdentity): Request {
+  const cacheUrl = new URL(request.url)
+  cacheUrl.searchParams.set('_profile', identityProfile(identity))
+  cacheUrl.searchParams.set('_scope', operationScope(identity) || 'TODOS')
+  return new Request(cacheUrl.toString(), { method: 'GET' })
+}
+
+function clientResponse_(response: Response): Response {
+  const headers = new Headers(response.headers)
+  headers.set('cache-control', 'no-store')
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+async function matchEdgeCache_(request: Request, identity: GatewayIdentity): Promise<Response | null> {
+  const cache = edgeCache_()
+  if (!cache) return null
+
+  try {
+    const cached = await cache.match(scopedCacheKey_(request, identity))
+    return cached ? clientResponse_(cached) : null
+  } catch {
+    return null
+  }
+}
+
+function cacheSuccessfulResponse_(
+  context: EventContext<Env, string, unknown>,
+  request: Request,
+  identity: GatewayIdentity,
+  response: Response,
+): void {
+  if (response.status !== 200) return
+
+  const cache = edgeCache_()
+  if (!cache) return
+
+  const headers = new Headers(response.headers)
+  headers.set('cache-control', `public, max-age=${EDGE_CACHE_SECONDS}`)
+  const cachedResponse = new Response(response.clone().body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+
+  try {
+    context.waitUntil(
+      cache.put(scopedCacheKey_(request, identity), cachedResponse).catch(() => undefined),
+    )
+  } catch {
+    // Cache API é apenas otimização; falha não pode afetar a leitura.
+  }
 }
 
 async function fetchAppsScript(
@@ -104,6 +174,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const denied = validateAreaAccess(identity, 'DASHBOARD')
   if (denied) return denied
 
+  const cached = await matchEdgeCache_(request, identity)
+  if (cached) return cached
+
   const url = new URL(request.url)
   const payload: Record<string, unknown> = {}
 
@@ -123,5 +196,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (value) payload[name] = value
   })
 
-  return proxyToAppsScript(env, enforceDashboardScope(identity, payload))
+  const response = await proxyToAppsScript(env, enforceDashboardScope(identity, payload))
+  if (response.status === 200) cacheSuccessfulResponse_(context, request, identity, response)
+  return response
 }
