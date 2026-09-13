@@ -4,7 +4,11 @@ import { Dropdown } from 'primereact/dropdown'
 import { InputText } from 'primereact/inputtext'
 import { InputTextarea } from 'primereact/inputtextarea'
 import type { CatalogosDto } from '../types/catalog'
-import type { AdministrativeSolicitationDetail, SolicitationStatus } from '../types/solicitation'
+import type {
+  AdministrativeSolicitationDetail,
+  OperationalSolicitationStatus,
+  SolicitationStatus,
+} from '../types/solicitation'
 import {
   applyAdministrativeTriage,
   registerAdministrativeAttendance,
@@ -22,6 +26,7 @@ type Props = {
   loading: boolean
   detail: AdministrativeSolicitationDetail | null
   catalogs: CatalogosDto | null
+  canAdminister: boolean
   onClose: () => void
   onChanged: (idSolicitacao: string, message: string) => Promise<void>
   onNotify: (tone: NoticeTone, message: string) => void
@@ -88,8 +93,12 @@ function buildWhatsAppMessage(detail: AdministrativeSolicitationDetail) {
 
   if (detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA') {
     const products: string[] = []
-    if (detail.produtoAlimentacao && detail.qtdAlimentacao != null) products.push(`${detail.qtdAlimentacao} ${detail.produtoAlimentacaoAplicado || detail.produtoAlimentacao}`)
-    if (detail.produtoBebida && detail.qtdBebida != null) products.push(`${detail.qtdBebida} ${detail.produtoBebidaAplicado || detail.produtoBebida}`)
+    if (detail.produtoAlimentacao && detail.qtdAlimentacao != null) {
+      products.push(`${detail.qtdAlimentacao} ${detail.produtoAlimentacaoAplicado || detail.produtoAlimentacao}`)
+    }
+    if (detail.produtoBebida && detail.qtdBebida != null) {
+      products.push(`${detail.qtdBebida} ${detail.produtoBebidaAplicado || detail.produtoBebida}`)
+    }
     if (products.length) lines.push(products.join(' + '))
   } else {
     if (detail.qtdSolicitada != null && detail.funcao) lines.push(`${detail.qtdSolicitada} ${detail.funcao}`)
@@ -123,7 +132,16 @@ function namedOptions(items: Array<{ nome: string }>) {
   return items.map((item) => ({ label: item.nome, value: item.nome }))
 }
 
-export function SolicitationDetailModal({ open, loading, detail, catalogs, onClose, onChanged, onNotify }: Props) {
+export function SolicitationDetailModal({
+  open,
+  loading,
+  detail,
+  catalogs,
+  canAdminister,
+  onClose,
+  onChanged,
+  onNotify,
+}: Props) {
   const [actionLoading, setActionLoading] = useState(false)
   const [provider, setProvider] = useState('')
   const [appliedFood, setAppliedFood] = useState('')
@@ -159,9 +177,24 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
   const attendedCount = detail?.qtdComparecida ?? 0
   const registeredPartialCount = detail?.excecoesJornada?.length ?? 0
   const availablePartialCount = Math.max(0, attendedCount - registeredPartialCount)
-  const canRegisterPartialShift = detail?.tipoSolicitacao === 'MAO_DE_OBRA' && detail.realizadoRegistrado === true && attendedCount > 0 && availablePartialCount > 0
-  const canShare = Boolean(detail?.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(detail.status))
-  const canRegisterAttendance = detail?.tipoSolicitacao === 'MAO_DE_OBRA' && !detail.realizadoRegistrado && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(detail.status)
+  const canRegisterPartialShift = Boolean(
+    canAdminister &&
+    detail?.tipoSolicitacao === 'MAO_DE_OBRA' &&
+    detail.realizadoRegistrado === true &&
+    attendedCount > 0 &&
+    availablePartialCount > 0
+  )
+  const canShare = Boolean(
+    canAdminister &&
+    detail?.triagemConcluida &&
+    ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(detail.status)
+  )
+  const canRegisterAttendance = Boolean(
+    canAdminister &&
+    detail?.tipoSolicitacao === 'MAO_DE_OBRA' &&
+    !detail.realizadoRegistrado &&
+    ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(detail.status)
+  )
   const currentStatus = detail ? statusInfo(detail.status) : null
   const isLoading = loading || !detail
 
@@ -173,6 +206,12 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
     ...Array.from({ length: availablePartialCount }, (_, index) => index + 1).map((value) => ({ label: String(value), value: String(value) })),
   ]
 
+  const whatsappButtonLabel = whatsappProvider?.whatsappDestino === 'GRUPO'
+    ? 'Abrir grupo'
+    : whatsappProvider?.whatsappDestino === 'NUMERO'
+      ? 'Abrir fornecedor'
+      : 'Abrir WhatsApp'
+
   function handlePartialCountChange(raw: string) {
     const next = Math.max(0, Math.min(availablePartialCount, Number(raw) || 0))
     setPartialCount(next)
@@ -183,8 +222,8 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
     setPartialDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item))
   }
 
-  async function handleStatus(status: SolicitationStatus, message: string) {
-    if (!detail) return
+  async function handleStatus(status: OperationalSolicitationStatus, message: string) {
+    if (!detail || !canAdminister) return
     setActionLoading(true)
     try {
       await updateAdministrativeSolicitationStatus({ idSolicitacao: detail.idSolicitacao, status })
@@ -197,7 +236,7 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
   }
 
   async function handleTriage() {
-    if (!detail || detail.triagemConcluida || !provider) return
+    if (!canAdminister || !detail || detail.triagemConcluida || !provider) return
     setActionLoading(true)
     try {
       await applyAdministrativeTriage({
@@ -240,6 +279,11 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
 
   async function handlePartialShifts() {
     if (!detail || !canRegisterPartialShift || partialCount <= 0) return
+    if (partialDrafts.length !== partialCount) {
+      onNotify('error', 'Quantidade de jornadas parciais inconsistente. Selecione novamente a quantidade.')
+      return
+    }
+
     const standardHours = detail.jornadaPadraoHoras || 9
     const seen = new Set<string>()
     const payload: PartialShiftEntryInput[] = []
@@ -252,8 +296,12 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
       const key = name.toUpperCase()
 
       if (!name) return onNotify('error', `Informe o colaborador da jornada parcial #${index + 1}.`)
-      if (seen.has(key) || detail.excecoesJornada.some((existing) => existing.nomeColaborador.trim().toUpperCase() === key)) return onNotify('error', `O colaborador ${name} está duplicado nas jornadas parciais.`)
-      if (!Number.isFinite(hours) || hours <= 0 || hours >= standardHours) return onNotify('error', `Horas trabalhadas da jornada parcial #${index + 1} deve ser maior que zero e menor que ${standardHours} horas.`)
+      if (seen.has(key) || detail.excecoesJornada.some((existing) => existing.nomeColaborador.trim().toUpperCase() === key)) {
+        return onNotify('error', `O colaborador ${name} está duplicado nas jornadas parciais.`)
+      }
+      if (!Number.isFinite(hours) || hours <= 0 || hours >= standardHours) {
+        return onNotify('error', `Horas trabalhadas da jornada parcial #${index + 1} deve ser maior que zero e menor que ${standardHours} horas.`)
+      }
       if (!reason) return onNotify('error', `Informe o motivo da jornada parcial #${index + 1}.`)
 
       seen.add(key)
@@ -360,7 +408,7 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
             </section>
           )}
 
-          {!detail.triagemConcluida && detail.status === 'ENVIADA' && (
+          {canAdminister && !detail.triagemConcluida && detail.status === 'ENVIADA' && (
             <section className="workflow-action-box">
               <SectionHeading icon="pi pi-check-square" title="Triagem administrativa" detail="Defina o fornecedor e congele o preço aplicado" />
               <div className="workflow-form-grid nx-workflow-grid">
@@ -373,7 +421,7 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
             </section>
           )}
 
-          {detail.status === 'EM_TRIAGEM' && (
+          {canAdminister && detail.status === 'EM_TRIAGEM' && (
             <section className="workflow-action-box">
               <SectionHeading icon="pi pi-directions" title="Decisão da triagem" detail="Avance o atendimento ou devolva para ajuste" />
               <div className="nx-workflow-actions">
@@ -383,7 +431,7 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
             </section>
           )}
 
-          {detail.status === 'AGUARDANDO_AJUSTE' && (
+          {canAdminister && detail.status === 'AGUARDANDO_AJUSTE' && (
             <section className="workflow-action-box">
               <SectionHeading icon="pi pi-refresh" title="Ajuste pendente" detail="Após a correção, retome a triagem" />
               <div className="nx-workflow-actions"><Button label="Retomar triagem" icon="pi pi-arrow-right" onClick={() => void handleStatus('EM_TRIAGEM', 'Solicitação devolvida para triagem.')} disabled={actionLoading} className="nx-primary-button" /></div>
@@ -395,12 +443,12 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
               <SectionHeading icon="pi pi-share-alt" title="Contato com fornecedor" detail="Copie ou abra o WhatsApp com o resumo da solicitação" />
               <div className="workflow-share-actions nx-workflow-actions">
                 <Button label="Copiar resumo" icon="pi pi-copy" outlined onClick={() => void handleCopySummary()} />
-                <Button label="Abrir WhatsApp" icon="pi pi-whatsapp" onClick={handleOpenWhatsApp} className="nx-primary-button" />
+                <Button label={whatsappButtonLabel} icon="pi pi-whatsapp" onClick={handleOpenWhatsApp} className="nx-primary-button" />
               </div>
             </section>
           )}
 
-          {detail.status === 'ENVIADA_AO_FORNECEDOR' && (
+          {canAdminister && detail.status === 'ENVIADA_AO_FORNECEDOR' && (
             <section className="workflow-action-box">
               <SectionHeading icon="pi pi-hourglass" title="Atendimento do fornecedor" detail="A etapa em atendimento é opcional" />
               <div className="nx-workflow-actions">
@@ -410,7 +458,7 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
             </section>
           )}
 
-          {detail.status === 'EM_ATENDIMENTO' && detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && (
+          {canAdminister && detail.status === 'EM_ATENDIMENTO' && detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && (
             <section className="workflow-action-box">
               <SectionHeading icon="pi pi-check-circle" title="Concluir atendimento" detail="Confirme quando alimentação/bebida tiver sido atendida" />
               <div className="nx-workflow-actions"><Button label="Marcar atendida" icon="pi pi-check" onClick={() => void handleStatus('ATENDIDA', 'Solicitação marcada como atendida.')} disabled={actionLoading} className="nx-primary-button" /></div>
@@ -435,7 +483,7 @@ export function SolicitationDetailModal({ open, loading, detail, catalogs, onClo
                 <>
                   <label className="partial-shift-count nx-workflow-field nx-partial-count-field"><span>Quantas pessoas saíram antes?</span><Dropdown value={String(partialCount)} options={partialCountOptions} onChange={(event) => handlePartialCountChange(event.value || '0')} /><small>Máximo permitido neste momento: {availablePartialCount}.</small></label>
                   {partialDrafts.length > 0 && <div className="partial-shift-batch">{partialDrafts.map((entry, index) => <fieldset className="partial-shift-entry nx-partial-entry" key={index}><legend>Jornada parcial #{index + 1}</legend><div className="partial-shift-form-grid nx-workflow-grid"><label className="nx-workflow-field"><span>Colaborador</span><InputText value={entry.nomeColaborador} onChange={(event) => updatePartialDraft(index, 'nomeColaborador', event.target.value)} /></label><label className="nx-workflow-field"><span>Horas trabalhadas</span><InputText type="number" min="0.01" max={(detail.jornadaPadraoHoras || 9) - 0.01} step="0.25" value={entry.horasTrabalhadas} onChange={(event) => updatePartialDraft(index, 'horasTrabalhadas', event.target.value)} /></label><label className="nx-workflow-field"><span>Horário de saída</span><InputText type="time" value={entry.horarioSaida} onChange={(event) => updatePartialDraft(index, 'horarioSaida', event.target.value)} /></label><label className="nx-workflow-field nx-workflow-field-wide"><span>Motivo</span><InputTextarea value={entry.motivo} onChange={(event) => updatePartialDraft(index, 'motivo', event.target.value)} rows={2} autoResize /></label></div></fieldset>)}</div>}
-                  {partialCount > 0 && <div className="nx-workflow-actions"><Button label={actionLoading ? 'Salvando…' : 'Registrar jornadas parciais'} icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-save'} onClick={() => void handlePartialShifts()} disabled={actionLoading} className="nx-primary-button" /></div>}
+                  {partialCount > 0 && <div className="nx-workflow-actions"><Button label={actionLoading ? 'Salvando…' : partialCount > 1 ? `Registrar ${partialCount} jornadas parciais` : 'Registrar jornada parcial'} icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-save'} onClick={() => void handlePartialShifts()} disabled={actionLoading} className="nx-primary-button" /></div>}
                 </>
               )}
             </section>
