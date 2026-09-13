@@ -6,6 +6,7 @@ import { Column } from 'primereact/column'
 import { DataTable } from 'primereact/datatable'
 import { Dropdown } from 'primereact/dropdown'
 import { Tag } from 'primereact/tag'
+import { FinancialCloseoutExceptionActions } from './FinancialCloseoutExceptionActions'
 import { FinancialCloseoutFinanceActions } from './FinancialCloseoutFinanceActions'
 import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
@@ -191,15 +192,25 @@ export function FinancialCloseoutPage() {
   }
 
   const actionBody = (group: FinancialCloseoutGroup) => {
+    const exceptionAction = group.novasAposFechamento > 0
+      ? <FinancialCloseoutExceptionActions group={group} competencias={metadata?.competencias || []} onChanged={refresh} onNotice={(tone, message) => setNotice({ tone, message })} />
+      : null
+
     if (group.statusFechamento === 'EM_ACOMPANHAMENTO') {
       return <Button label="Fechar" icon="pi pi-lock" size="small" outlined disabled={!group.podeFechar || refreshing} onClick={() => setTarget(group)} title={group.podeFechar ? 'Fechar competência do fornecedor' : pendingLabel(group)} />
     }
+
     if (group.statusFechamento === 'AGUARDANDO_NF' || group.statusFechamento === 'CONFERIDA') {
-      return <FinancialCloseoutFinanceActions group={group} onChanged={refresh} onNotice={(tone, message) => setNotice({ tone, message })} />
+      return (
+        <div className="nx-closeout-action-stack">
+          <FinancialCloseoutFinanceActions group={group} onChanged={refresh} onNotice={(tone, message) => setNotice({ tone, message })} />
+          {exceptionAction}
+        </div>
+      )
     }
-    return group.novasAposFechamento > 0
-      ? <Tag value={`${group.novasAposFechamento} nova(s)`} severity="danger" rounded title="Solicitações registradas após o fechamento" />
-      : <span className="nx-closeout-muted">—</span>
+
+    if (exceptionAction) return <div className="nx-closeout-action-stack">{exceptionAction}</div>
+    return <span className="nx-closeout-muted">—</span>
   }
 
   return (
