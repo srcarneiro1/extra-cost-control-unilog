@@ -29,12 +29,43 @@
 .admin-page .nx-prime-data-panel.p-card{min-width:0;overflow:hidden}
 .admin-page .nx-prime-table{min-width:0}
 .admin-page .nx-prime-table .p-datatable-wrapper{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
-.admin-page .nx-prime-table table{min-width:1180px}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th{white-space:nowrap}
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td{white-space:nowrap}
-.admin-page .nx-prime-table .nx-user-cell{min-width:120px}
-.admin-page .nx-prime-table .nx-modern-actions{flex-wrap:nowrap;white-space:nowrap}
-.admin-page .nx-prime-table .nx-solicitation-row-actions{display:flex;align-items:center;justify-content:flex-start;gap:5px;white-space:nowrap}
+.admin-page .nx-prime-table table{width:115rem!important;min-width:115rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(1),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){width:10.5rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(2),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(2){width:8.5rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(3),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(3){width:9rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(4),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(4){width:8.5rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(5),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(5){width:10rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(6),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(6){width:11.5rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(7),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7){width:8rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(8),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(8){width:9rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(9),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(9){width:8rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(10),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(10){width:8rem!important}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(11),
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(11){width:24rem!important}
+.admin-page .nx-prime-table .nx-user-cell{min-width:0;overflow:hidden}
+.admin-page .nx-prime-table .nx-user-cell strong,
+.admin-page .nx-prime-table .nx-user-cell small{display:block;overflow:hidden;text-overflow:ellipsis}
+.admin-page .nx-prime-table .nx-solicitation-status-tag{display:inline-flex;justify-content:center;min-width:9.5rem;max-width:100%}
+.admin-page .nx-prime-table .nx-modern-actions{white-space:nowrap}
+.admin-page .nx-prime-table .nx-solicitation-row-actions{align-items:center;justify-content:flex-start;gap:5px;white-space:nowrap}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin{
+  display:grid;
+  grid-template-columns:repeat(9,34px);
+  grid-auto-rows:34px;
+}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-readonly{display:flex}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button{
   width:34px;
   min-width:34px;
@@ -45,11 +76,18 @@
   border-radius:9px;
   transition:background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .14s ease;
 }
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Aguardando ajuste"]{grid-column:1}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Confirmar envio ao fornecedor"]{grid-column:2}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Copiar resumo"]{grid-column:3}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir fornecedor"]{grid-column:4}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar em atendimento"]{grid-column:5}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar atendida"]{grid-column:6}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir detalhes"]{grid-column:7}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Editar solicitação"]{grid-column:8}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Excluir solicitação"]{grid-column:9}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:hover:not(:disabled){transform:translateY(-1px)}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:focus-visible{box-shadow:0 0 0 3px rgba(218,0,18,.14)}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button .p-button-icon{margin:0!important;font-size:12px}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:15rem!important;width:15rem!important}
 .admin-page .nx-prime-filter-row{grid-template-columns:repeat(3,minmax(0,1fr))}
 .admin-page .nx-prime-filter-row>.p-button{min-height:42px}
 
@@ -60,9 +98,6 @@
 @media(max-width:760px){
   .admin-page>.nx-prime-notice{top:calc(env(safe-area-inset-top,0px) + 10px)!important;width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important}
   .admin-page .nx-prime-filter-row{grid-template-columns:1fr}
-  .admin-page .nx-prime-table table{min-width:1120px}
-  .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
-  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:15rem!important;width:15rem!important}
   .admin-page .nx-prime-paginator.p-paginator{gap:2px}
   .admin-page .nx-prime-paginator .p-paginator-first,
   .admin-page .nx-prime-paginator .p-paginator-last{display:none}

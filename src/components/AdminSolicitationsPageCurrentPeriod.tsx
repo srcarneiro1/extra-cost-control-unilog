@@ -256,6 +256,32 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     detailCacheTimeRef.current.delete(idSolicitacao)
   }
 
+  function applyDetailPatch(idSolicitacao: string, patch: Partial<AdministrativeSolicitationDetail>) {
+    const cached = detailCacheRef.current.get(idSolicitacao)
+    const visible = detail?.idSolicitacao === idSolicitacao ? detail : null
+    const current = visible || cached
+    if (!current) return
+
+    const next = { ...current, ...patch }
+    detailCacheRef.current.set(idSolicitacao, next)
+    detailCacheTimeRef.current.set(idSolicitacao, Date.now())
+    setDetail((currentDetail) => currentDetail?.idSolicitacao === idSolicitacao ? { ...currentDetail, ...patch } : currentDetail)
+    setItems((currentItems) => currentItems.map((item) => {
+      if (item.idSolicitacao !== idSolicitacao) return item
+      return {
+        ...item,
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.fornecedor !== undefined ? { fornecedor: patch.fornecedor } : {}),
+        ...(patch.qtdComparecida !== undefined ? { qtdComparecida: patch.qtdComparecida } : {}),
+        ...(patch.valorPrevisto !== undefined ? { valorPrevisto: patch.valorPrevisto } : {}),
+        ...(patch.valorReal !== undefined ? { valorReal: patch.valorReal } : {}),
+        ...(patch.triagemConcluida !== undefined ? { triagemConcluida: patch.triagemConcluida } : {}),
+        ...(patch.realizadoRegistrado !== undefined ? { realizadoRegistrado: patch.realizadoRegistrado } : {}),
+        ...(patch.divergencia !== undefined ? { divergencia: patch.divergencia } : {}),
+      }
+    }))
+  }
+
   function requestDetail(idSolicitacao: string, force = false) {
     if (!force) {
       const cached = freshCachedDetail(idSolicitacao)
@@ -291,7 +317,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
 
   async function refreshDetail(idSolicitacao: string) {
     const loaded = await requestDetail(idSolicitacao, true)
-    setDetail(loaded)
+    setDetail((currentDetail) => currentDetail?.idSolicitacao === idSolicitacao ? loaded : currentDetail)
     return loaded
   }
 
@@ -411,23 +437,20 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     }
   }
 
-  async function handleWorkflowChanged(idSolicitacao: string, message: string) {
+  function handleWorkflowChanged(
+    idSolicitacao: string,
+    message: string,
+    patch: Partial<AdministrativeSolicitationDetail>,
+  ) {
+    applyDetailPatch(idSolicitacao, patch)
     notify('success', message)
-    try {
-      await refreshDetail(idSolicitacao)
-    } catch {
-      notify('error', 'A ação foi salva, mas os detalhes não puderam ser atualizados agora.')
-    }
+    void refreshDetail(idSolicitacao).catch(() => undefined)
     void refreshItems().catch(() => undefined)
   }
 
-  async function handleCorrectionSaved(idSolicitacao: string) {
+  function handleCorrectionSaved(idSolicitacao: string) {
     notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
-    try {
-      await refreshDetail(idSolicitacao)
-    } catch {
-      notify('error', 'A correção foi salva, mas os detalhes não puderam ser atualizados agora.')
-    }
+    void refreshDetail(idSolicitacao).catch(() => undefined)
     void refreshItems().catch(() => undefined)
   }
 
@@ -607,7 +630,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const typeBody = (item: AdministrativeSolicitationListItem) => <Tag value={typeLabel(item.tipoSolicitacao)} severity="secondary" rounded />
   const statusBody = (item: AdministrativeSolicitationListItem) => {
     const status = statusInfo(item)
-    return <Tag value={status.label} severity={status.severity} rounded />
+    return <Tag value={status.label} severity={status.severity} rounded className="nx-solicitation-status-tag" />
   }
 
   const actionsBody = (item: AdministrativeSolicitationListItem) => {
@@ -617,7 +640,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     const canShare = canAdminister && item.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status)
     return (
       <div
-        className="nx-modern-actions nx-solicitation-row-actions"
+        className={`nx-modern-actions nx-solicitation-row-actions ${canAdminister ? 'is-admin' : 'is-readonly'}`}
         onMouseEnter={() => scheduleDetailPrefetch(item.idSolicitacao)}
         onMouseLeave={cancelDetailPrefetch}
         onFocusCapture={() => scheduleDetailPrefetch(item.idSolicitacao, 0)}
@@ -673,18 +696,18 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         ) : items.length === 0 ? (
           <EmptyState title="Nenhuma solicitação encontrada" description="A busca atual não possui registros. Ajuste a busca ou limpe os filtros." />
         ) : (
-          <DataTable value={items} dataKey="idSolicitacao" stripedRows rowHover scrollable responsiveLayout="scroll" className="nx-prime-table" emptyMessage="Nenhuma solicitação encontrada">
+          <DataTable value={items} dataKey="idSolicitacao" stripedRows rowHover scrollable responsiveLayout="scroll" tableStyle={{ tableLayout: 'fixed' }} className="nx-prime-table" emptyMessage="Nenhuma solicitação encontrada">
             <Column header="Solicitação" body={solicitationBody} frozen />
             <Column header="Registro" body={(item: AdministrativeSolicitationListItem) => formatDateTime(item.dataCriacao)} />
             <Column header="Data operacional" body={(item: AdministrativeSolicitationListItem) => formatDate(item.dataOperacional)} />
             <Column field="operacao" header="Operação" />
             <Column header="Tipo" body={typeBody} />
-            <Column header="Status" body={statusBody} />
+            <Column header="Status" body={statusBody} style={{ width: '12rem' }} />
             <Column header="Qtd. solicitada" body={requestedQuantityBody} />
             <Column header="Qtd. considerada" body={consideredQuantityBody} />
             <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
             <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '15rem' : '4rem' }} />
+            <Column header="Ações" body={actionsBody} style={{ width: canAdminister ? '22rem' : '4rem' }} />
           </DataTable>
         )}
 

@@ -41,6 +41,10 @@ function jsonResponse(payload: unknown, status = 200, headers?: HeadersInit): Re
   });
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function edgeCache_(): Cache | null {
   if (typeof caches === 'undefined') return null;
   return (caches as unknown as { default?: Cache }).default || null;
@@ -131,17 +135,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(targetUrl.toString(), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        acao: 'LOGIN',
-        email,
-        password,
-        _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
-      }),
-      redirect: 'follow',
-    });
+    try {
+      upstreamResponse = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          acao: 'LOGIN',
+          email,
+          password,
+          _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
+        }),
+        redirect: 'follow',
+      });
+    } catch {
+      await delay(200);
+      upstreamResponse = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          acao: 'LOGIN',
+          email,
+          password,
+          _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
+        }),
+        redirect: 'follow',
+      });
+    }
   } catch {
     return jsonResponse({ ok: false, error: { code: 'AUTH_UPSTREAM_UNAVAILABLE', message: 'Não foi possível validar o acesso.' } }, 502);
   }

@@ -302,7 +302,7 @@ const SheetRepository = (() => {
     }
 
     const targetMonth = String(year || '').padStart(4, '0') + '-' + String(month || '').padStart(2, '0');
-    const chunkSize = 200;
+    const chunkSize = 1000;
     const result = [];
     let endRow = lastRow;
     let finished = false;

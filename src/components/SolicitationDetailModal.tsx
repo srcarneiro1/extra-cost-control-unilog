@@ -7,6 +7,7 @@ import type { CatalogosDto } from '../types/catalog'
 import type {
   AdministrativeSolicitationDetail,
   OperationalSolicitationStatus,
+  PartialShiftException,
   SolicitationStatus,
 } from '../types/solicitation'
 import {
@@ -28,7 +29,11 @@ type Props = {
   catalogs: CatalogosDto | null
   canAdminister: boolean
   onClose: () => void
-  onChanged: (idSolicitacao: string, message: string) => Promise<void>
+  onChanged: (
+    idSolicitacao: string,
+    message: string,
+    patch: Partial<AdministrativeSolicitationDetail>,
+  ) => void
   onNotify: (tone: NoticeTone, message: string) => void
 }
 
@@ -37,6 +42,30 @@ type PartialShiftDraft = {
   horasTrabalhadas: string
   horarioSaida: string
   motivo: string
+}
+
+type TriageMutationResult = {
+  idSolicitacao: string
+  tipoSolicitacao: string
+  fornecedor: string
+  status: SolicitationStatus
+  precoUnitarioAplicado?: number
+  valorPrevisto: number
+  produtoAlimentacaoAplicado?: string
+  produtoBebidaAplicado?: string
+  motivoAjusteProduto?: string
+  precoAlimentacaoAplicado?: number
+  precoBebidaAplicado?: number
+}
+
+type AttendanceMutationResult = {
+  idSolicitacao: string
+  qtdSolicitada: number
+  qtdComparecida: number
+  precoUnitarioAplicado: number
+  valorReal: number
+  divergencia: boolean
+  status: SolicitationStatus
 }
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -226,8 +255,8 @@ export function SolicitationDetailModal({
     if (!detail || !canAdminister) return
     setActionLoading(true)
     try {
-      await updateAdministrativeSolicitationStatus({ idSolicitacao: detail.idSolicitacao, status })
-      await onChanged(detail.idSolicitacao, message)
+      const result = await updateAdministrativeSolicitationStatus({ idSolicitacao: detail.idSolicitacao, status })
+      onChanged(detail.idSolicitacao, message, { status: result.status })
     } catch (error) {
       onNotify('error', error instanceof Error ? error.message : 'Não foi possível atualizar o status da solicitação.')
     } finally {
@@ -239,7 +268,7 @@ export function SolicitationDetailModal({
     if (!canAdminister || !detail || detail.triagemConcluida || !provider) return
     setActionLoading(true)
     try {
-      await applyAdministrativeTriage({
+      const result = await applyAdministrativeTriage({
         idSolicitacao: detail.idSolicitacao,
         fornecedor: provider,
         ...(detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA'
@@ -249,8 +278,30 @@ export function SolicitationDetailModal({
               motivoAjusteProduto: adjustmentReason || undefined,
             }
           : {}),
-      })
-      await onChanged(detail.idSolicitacao, 'Triagem registrada. A solicitação está pronta para envio ao fornecedor.')
+      }) as TriageMutationResult
+
+      const patch: Partial<AdministrativeSolicitationDetail> = {
+        fornecedor: result.fornecedor,
+        status: result.status,
+        triagemConcluida: true,
+        valorPrevisto: result.valorPrevisto,
+      }
+
+      if (detail.tipoSolicitacao === 'MAO_DE_OBRA') {
+        patch.precoUnitarioAplicado = result.precoUnitarioAplicado ?? detail.precoUnitarioAplicado
+      } else {
+        patch.produtoAlimentacaoAplicado = result.produtoAlimentacaoAplicado ?? detail.produtoAlimentacaoAplicado
+        patch.produtoBebidaAplicado = result.produtoBebidaAplicado ?? detail.produtoBebidaAplicado
+        patch.motivoAjusteProduto = result.motivoAjusteProduto ?? detail.motivoAjusteProduto
+        patch.precoAlimentacaoAplicado = result.precoAlimentacaoAplicado ?? detail.precoAlimentacaoAplicado
+        patch.precoBebidaAplicado = result.precoBebidaAplicado ?? detail.precoBebidaAplicado
+      }
+
+      onChanged(
+        detail.idSolicitacao,
+        'Triagem registrada. A solicitação está pronta para envio ao fornecedor.',
+        patch,
+      )
     } catch (error) {
       onNotify('error', error instanceof Error ? error.message : 'Não foi possível registrar a triagem.')
     } finally {
@@ -268,8 +319,22 @@ export function SolicitationDetailModal({
 
     setActionLoading(true)
     try {
-      await registerAdministrativeAttendance({ idSolicitacao: detail.idSolicitacao, qtdComparecida: quantity })
-      await onChanged(detail.idSolicitacao, 'Comparecimento registrado e solicitação marcada como atendida.')
+      const result = await registerAdministrativeAttendance({
+        idSolicitacao: detail.idSolicitacao,
+        qtdComparecida: quantity,
+      }) as AttendanceMutationResult
+
+      onChanged(
+        detail.idSolicitacao,
+        'Comparecimento registrado e solicitação marcada como atendida.',
+        {
+          qtdComparecida: result.qtdComparecida,
+          valorReal: result.valorReal,
+          divergencia: result.divergencia,
+          status: result.status,
+          realizadoRegistrado: true,
+        },
+      )
     } catch (error) {
       onNotify('error', error instanceof Error ? error.message : 'Não foi possível registrar o comparecimento.')
     } finally {
@@ -310,10 +375,30 @@ export function SolicitationDetailModal({
 
     setActionLoading(true)
     try {
-      await registerPartialShifts({ idSolicitacao: detail.idSolicitacao, excecoes: payload })
+      const result = await registerPartialShifts({ idSolicitacao: detail.idSolicitacao, excecoes: payload })
+      const optimisticExceptions: PartialShiftException[] = result.excecoes.map((exception) => ({
+        idExcecao: exception.idExcecao,
+        nomeColaborador: exception.nomeColaborador,
+        horasTrabalhadas: exception.horasTrabalhadas,
+        horarioSaida: exception.horarioSaida,
+        motivo: exception.motivo,
+        valorProporcional: exception.valorProporcional,
+        valorRegistrado: exception.valorProporcional,
+        dataRegistro: '',
+        usuarioAdministrativo: '',
+      }))
+
       setPartialCount(0)
       setPartialDrafts([])
-      await onChanged(detail.idSolicitacao, `${payload.length} jornada(s) parcial(is) registrada(s) e valor real recalculado.`)
+      onChanged(
+        detail.idSolicitacao,
+        `${payload.length} jornada(s) parcial(is) registrada(s) e valor real recalculado.`,
+        {
+          valorReal: result.valorReal,
+          jornadaPadraoHoras: result.jornadaPadraoHoras,
+          excecoesJornada: [...detail.excecoesJornada, ...optimisticExceptions],
+        },
+      )
     } catch (error) {
       onNotify('error', error instanceof Error ? error.message : 'Não foi possível registrar as jornadas parciais.')
     } finally {
