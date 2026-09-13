@@ -23,6 +23,18 @@ function dateLabel(value: string) {
   return year && month && day ? `${day}/${month}/${year}` : value
 }
 
+function nextCompetences(value: string, amount = 12) {
+  const [yearRaw, monthRaw] = value.split('-')
+  const year = Number(yearRaw)
+  const month = Number(monthRaw)
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return []
+
+  return Array.from({ length: amount }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1 + index + 1, 1))
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+  })
+}
+
 type Props = {
   group: FinancialCloseoutGroup
   competencias: string[]
@@ -41,10 +53,11 @@ export function FinancialCloseoutExceptionActions({ group, competencias, onChang
   const [reason, setReason] = useState('')
 
   const current = items.find((item) => item.idSolicitacao === selectedId) || items[0] || null
-  const futureCompetences = useMemo(
-    () => competencias.filter((value) => value > group.competencia).sort(),
-    [competencias, group.competencia],
-  )
+  const futureCompetences = useMemo(() => {
+    const values = new Set<string>(nextCompetences(group.competencia))
+    competencias.filter((value) => value > group.competencia).forEach((value) => values.add(value))
+    return Array.from(values).sort()
+  }, [competencias, group.competencia])
 
   useEffect(() => {
     if (!open) return
@@ -124,7 +137,7 @@ export function FinancialCloseoutExceptionActions({ group, competencias, onChang
             {items.length > 1 && <label className="nx-workflow-field"><span>Solicitação</span><Dropdown value={current.idSolicitacao} options={itemOptions} onChange={(event) => setSelectedId(event.value || '')} /></label>}
             <div className="nx-closeout-confirm-summary"><div><span>Solicitação</span><strong>{current.idSolicitacao}</strong><small>{current.operacao || 'Operação não informada'}</small></div><div><span>Valor realizado</span><strong>{money.format(current.valorReal || 0)}</strong><small>operacional em {dateLabel(current.dataOperacional)}</small></div></div>
             <label className="nx-workflow-field"><span>Destino financeiro</span><Dropdown value={destination} options={destinationOptions} onChange={(event) => setDestination(event.value)} /></label>
-            {destination === 'RECLASSIFICAR_PROXIMA_COMPETENCIA' && <label className="nx-workflow-field"><span>Competência de faturamento</span><Dropdown value={billingCompetence} options={competenceOptions} onChange={(event) => setBillingCompetence(event.value || '')} placeholder="Selecione uma competência futura" />{!futureCompetences.length && <small>Nenhuma competência futura disponível no momento.</small>}</label>}
+            {destination === 'RECLASSIFICAR_PROXIMA_COMPETENCIA' && <label className="nx-workflow-field"><span>Competência de faturamento</span><Dropdown value={billingCompetence} options={competenceOptions} onChange={(event) => setBillingCompetence(event.value || '')} placeholder="Selecione uma competência futura" /></label>}
             <label className="nx-workflow-field"><span>Justificativa</span><InputTextarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} autoResize placeholder="Explique o motivo da decisão financeira." /></label>
           </div>
         )}
