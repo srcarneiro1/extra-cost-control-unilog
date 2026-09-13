@@ -38,26 +38,27 @@ Escopo:
 - transição até `AGUARDANDO_NF`;
 - filtros `Aguardando NF`, `Conferida`, `Encerrada`;
 - bloco `Fechamento financeiro` no detalhe de solicitação `ATENDIDA`;
-- botão `Enviar para aguardando NF`;
+- botão `Enviar para aguardando NF` no detalhe;
+- ação rápida `Enviar para aguardando NF` também na coluna `Ações` para linhas `ATENDIDA`;
+- a ação rápida reutiliza o slot visual 6 já usado por `Marcar atendida`, porque os dois estados são mutuamente exclusivos;
 - ainda sem entidade real de NF;
 - sem transições para `CONFERIDA`/`ENCERRADA`.
 
-Head funcional antes das atualizações documentais: `7cfa504f74763e007de682e94ecfe0657759693b`, com GitHub Actions e Cloudflare Preview verdes.
+Homologação já realizada:
+- botão do detalhe testado pelo usuário;
+- transição real para `AGUARDANDO_NF` executada com sucesso.
 
 Como esta memória altera o head da branch, revalidar checks no novo head antes de mergear.
 
 ## Próximo passo
 
 No Preview do PR #65:
-1. abrir uma solicitação `ATENDIDA`;
-2. abrir o detalhe;
-3. confirmar o bloco `Fechamento financeiro`;
-4. confirmar o botão `Enviar para aguardando NF`;
-5. escolher conscientemente um registro antes de clicar, porque a transição é de mão única nesta fase;
-6. testar uma transição real;
-7. validar o filtro `Aguardando NF`;
-8. revalidar head exato + GitHub Actions + Cloudflare;
-9. merge somente com autorização explícita do usuário.
+1. confirmar que uma linha `ATENDIDA` exibe a ação rápida `Enviar para aguardando NF` na coluna `Ações`;
+2. confirmar que os botões vizinhos não mudam de posição;
+3. opcionalmente validar a ação rápida em uma solicitação apropriada;
+4. validar o filtro `Aguardando NF`;
+5. revalidar head exato + GitHub Actions + Cloudflare;
+6. merge somente com autorização explícita do usuário.
 
 ## Regras de continuidade
 
@@ -74,4 +75,4 @@ Fase 3: hardening, permissões finais, regressões, documentação e consolidaç
 
 ## Comando de retomada
 
-`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. Se o PR #65 ainda estiver aberto, continue pela branch feature/financial-closeout-phase2a. Nunca execute migrateSolicitationStatuses() novamente. O próximo passo é homologar o bloco Fechamento financeiro e depois testar conscientemente ATENDIDA → AGUARDANDO_NF. Nunca faça merge sem minha autorização explícita.`
+`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. Se o PR #65 ainda estiver aberto, continue pela branch feature/financial-closeout-phase2a. Nunca execute migrateSolicitationStatuses() novamente. O botão para ATENDIDA → AGUARDANDO_NF existe no detalhe e na coluna Ações. Nunca faça merge sem minha autorização explícita.`
