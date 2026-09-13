@@ -26,6 +26,9 @@ type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 
 const ADMIN_LIST_FRESH_MS = 30 * 1000
 const ADMIN_LIST_STALE_MS = 5 * 60 * 1000
+const ADMIN_METADATA_FRESH_MS = 60 * 1000
+const READ_RETRY_DELAY_MS = 250
+
 const adminListCache = new Map<string, {
   value: AdministrativeSolicitationListResponse
   freshUntil: number
@@ -71,46 +74,101 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload.data
 }
 
-async function getRequest<T>(url: string, signal?: AbortSignal): Promise<T> {
-  let response: Response
+function normalizeReadError(error: unknown): Error {
+  if (error instanceof Error) return error
+  return new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+}
 
-  try {
-    response = await fetch(url, {
-      method: 'GET',
-      headers: { accept: 'application/json' },
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+function isRetriableReadError(error: unknown): boolean {
+  if (!(error instanceof SolicitationServiceError)) return true
+  return [
+    'SOLICITATION_REQUEST_FAILED',
+    'UPSTREAM_INVALID_RESPONSE',
+    'INVALID_SOLICITATION_RESPONSE',
+    'HTTP_502',
+    'HTTP_503',
+    'HTTP_504',
+  ].includes(error.code)
+}
+
+function waitBeforeRetry(signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'))
+      return
+    }
+
+    const timeout = window.setTimeout(resolve, READ_RETRY_DELAY_MS)
+    signal?.addEventListener('abort', () => {
+      window.clearTimeout(timeout)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }, { once: true })
+  })
+}
+
+async function getRequest<T>(url: string, signal?: AbortSignal): Promise<T> {
+  let lastError: unknown
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+        signal,
+      })
+      return await parseResponse<T>(response)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error
+      lastError = error instanceof SolicitationServiceError
+        ? error
+        : new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+      if (attempt === 0 && isRetriableReadError(lastError)) {
+        await waitBeforeRetry(signal)
+        continue
+      }
+      throw normalizeReadError(lastError)
+    }
   }
 
-  return parseResponse<T>(response)
+  throw normalizeReadError(lastError)
 }
 
 async function postReadRequest<T>(url: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
-  let response: Response
+  let lastError: unknown
 
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal,
+      })
+      return await parseResponse<T>(response)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error
+      lastError = error instanceof SolicitationServiceError
+        ? error
+        : new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
+      if (attempt === 0 && isRetriableReadError(lastError)) {
+        await waitBeforeRetry(signal)
+        continue
+      }
+      throw normalizeReadError(lastError)
+    }
   }
 
-  return parseResponse<T>(response)
+  throw normalizeReadError(lastError)
 }
 
 function invalidateAdministrativeListCache() {
   adminListCache.clear()
+}
+
+function invalidateAdministrativeMetadataCache() {
   metadataCache = null
 }
 
@@ -284,7 +342,7 @@ export function fetchAdministrativeSolicitationMetadata(
       .then((value) => {
         metadataCache = {
           value,
-          expiresAt: Date.now() + ADMIN_LIST_FRESH_MS,
+          expiresAt: Date.now() + ADMIN_METADATA_FRESH_MS,
         }
         return value
       })
@@ -419,7 +477,7 @@ export function correctAdministrativeSolicitation(input: {
   return postRequest('/api/correcao-solicitacao', input)
 }
 
-export function deleteAdministrativeSolicitation(input: {
+export async function deleteAdministrativeSolicitation(input: {
   idSolicitacao: string
   motivoExclusao: string
 }): Promise<{
@@ -427,5 +485,11 @@ export function deleteAdministrativeSolicitation(input: {
   excluida: boolean
   excecoesJornadaExcluidas: number
 }> {
-  return postRequest('/api/exclusao-solicitacao', input)
+  const result = await postRequest<{
+    idSolicitacao: string
+    excluida: boolean
+    excecoesJornadaExcluidas: number
+  }>('/api/exclusao-solicitacao', input)
+  invalidateAdministrativeMetadataCache()
+  return result
 }
