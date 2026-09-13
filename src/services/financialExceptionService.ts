@@ -56,12 +56,14 @@ export async function fetchFinancialExceptions(
   competencia: string,
   fornecedor: string,
   signal?: AbortSignal,
+  fresh = false,
 ): Promise<FinancialExceptionListResponse> {
   const params = new URLSearchParams({
     excecoes: '1',
     competencia,
     fornecedor,
   })
+  if (fresh) params.set('fresh', '1')
   const response = await fetch(`/api/fechamentos?${params.toString()}`, {
     method: 'GET',
     headers: { accept: 'application/json' },
