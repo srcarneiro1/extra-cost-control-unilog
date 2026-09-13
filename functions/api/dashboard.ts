@@ -37,6 +37,11 @@ function edgeCache_(): Cache | null {
   return (caches as unknown as { default?: Cache }).default || null
 }
 
+function bypassEdgeCache_(request: Request): boolean {
+  const cacheControl = String(request.headers.get('cache-control') || '').toLowerCase()
+  return cacheControl.includes('no-cache') || cacheControl.includes('no-store')
+}
+
 function scopedCacheKey_(request: Request, identity: GatewayIdentity): Request {
   const cacheUrl = new URL(request.url)
   cacheUrl.searchParams.set('_profile', identityProfile(identity))
@@ -134,8 +139,6 @@ async function proxyToAppsScript(
 
   let upstream = await fetchAppsScript(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
 
-  // Dashboard é somente leitura. Uma repetição curta é segura e absorve respostas
-  // transitórias do endpoint publicado do Apps Script sem duplicar qualquer escrita.
   if (!upstream) {
     await delay(200)
     upstream = await fetchAppsScript(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
@@ -174,8 +177,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const denied = validateAreaAccess(identity, 'DASHBOARD')
   if (denied) return denied
 
-  const cached = await matchEdgeCache_(request, identity)
-  if (cached) return cached
+  const bypassCache = bypassEdgeCache_(request)
+  if (!bypassCache) {
+    const cached = await matchEdgeCache_(request, identity)
+    if (cached) return cached
+  }
 
   const url = new URL(request.url)
   const payload: Record<string, unknown> = {}
@@ -197,6 +203,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   })
 
   const response = await proxyToAppsScript(env, enforceDashboardScope(identity, payload))
-  if (response.status === 200) cacheSuccessfulResponse_(context, request, identity, response)
+  if (!bypassCache && response.status === 200) {
+    cacheSuccessfulResponse_(context, request, identity, response)
+  }
   return response
 }
