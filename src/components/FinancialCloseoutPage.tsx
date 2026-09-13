@@ -5,7 +5,6 @@ import { Button } from 'primereact/button'
 import { Column } from 'primereact/column'
 import { DataTable } from 'primereact/datatable'
 import { Dropdown } from 'primereact/dropdown'
-import { Message } from 'primereact/message'
 import { Tag } from 'primereact/tag'
 import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
@@ -48,7 +47,7 @@ function formatDateTime(value: string) {
 function statusSeverity(status: FinancialCloseoutStatus) {
   if (status === 'AGUARDANDO_NF') return 'warning' as const
   if (status === 'CONFERIDA' || status === 'ENCERRADA') return 'success' as const
-  return 'info' as const
+  return 'secondary' as const
 }
 
 function pendingLabel(group: FinancialCloseoutGroup) {
@@ -57,6 +56,31 @@ function pendingLabel(group: FinancialCloseoutGroup) {
   if (group.pendencias.semValorReal) parts.push(`${group.pendencias.semValorReal} sem valor real`)
   if (group.pendencias.statusNaoConcluido) parts.push(`${group.pendencias.statusNaoConcluido} não concluída(s)`)
   return parts.length ? parts.join(' · ') : 'Sem pendências'
+}
+
+function SummaryMetric({
+  icon,
+  label,
+  value,
+  detail,
+  tone = 'neutral',
+}: {
+  icon: string
+  label: string
+  value: string
+  detail: string
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info'
+}) {
+  return (
+    <div className={`ui-summary-metric nx-closeout-metric ui-summary-metric-${tone}`}>
+      <span className="ui-summary-metric-icon" aria-hidden="true"><i className={icon} /></span>
+      <span className="ui-summary-metric-copy">
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{detail}</small>
+      </span>
+    </div>
+  )
 }
 
 export function FinancialCloseoutPage() {
@@ -146,51 +170,69 @@ export function FinancialCloseoutPage() {
   const summary = data?.resumo
 
   const providerBody = (group: FinancialCloseoutGroup) => (
-    <div className="nx-user-cell">
+    <div className="nx-closeout-cell nx-closeout-provider">
       <strong>{group.fornecedor}</strong>
       <small>{group.idFechamento || 'Ainda não fechado'}</small>
     </div>
   )
 
   const statusBody = (group: FinancialCloseoutGroup) => (
-    <Tag value={STATUS_LABELS[group.statusFechamento]} severity={statusSeverity(group.statusFechamento)} rounded />
+    <Tag
+      value={STATUS_LABELS[group.statusFechamento]}
+      severity={statusSeverity(group.statusFechamento)}
+      rounded
+      className="nx-closeout-status"
+    />
   )
 
-  const progressBody = (group: FinancialCloseoutGroup) => (
-    <div className="nx-user-cell">
-      <strong>{group.prontas}/{group.totalSolicitacoes} prontas</strong>
-      <small>{group.pendentes ? pendingLabel(group) : 'Pronto para fechamento'}</small>
-    </div>
-  )
+  const progressBody = (group: FinancialCloseoutGroup) => {
+    const progress = group.totalSolicitacoes > 0
+      ? Math.min(100, Math.round((group.prontas / group.totalSolicitacoes) * 100))
+      : 0
+
+    return (
+      <div className="nx-closeout-progress">
+        <div className="nx-closeout-progress-copy">
+          <strong>{group.prontas}/{group.totalSolicitacoes} prontas</strong>
+          <small>{group.pendentes ? pendingLabel(group) : 'Pronto para fechamento'}</small>
+        </div>
+        <span className="nx-closeout-progress-track" aria-hidden="true">
+          <i style={{ width: `${progress}%` }} />
+        </span>
+      </div>
+    )
+  }
 
   const closeoutBody = (group: FinancialCloseoutGroup) => (
-    <div className="nx-user-cell">
+    <div className="nx-closeout-cell">
       <strong>{group.valorFechado == null ? '—' : money.format(group.valorFechado)}</strong>
-      <small>{formatDateTime(group.dataFechamento)}</small>
+      <small>{group.valorFechado == null ? 'Não fechado' : formatDateTime(group.dataFechamento)}</small>
     </div>
   )
 
   const actionBody = (group: FinancialCloseoutGroup) => {
     if (group.statusFechamento !== 'EM_ACOMPANHAMENTO') {
       return group.novasAposFechamento > 0
-        ? <Tag value={`${group.novasAposFechamento} nova(s) após fechamento`} severity="danger" rounded />
-        : <span>—</span>
+        ? <Tag value={`${group.novasAposFechamento} nova(s)`} severity="danger" rounded title="Solicitações registradas após o fechamento" />
+        : <span className="nx-closeout-muted">—</span>
     }
 
     return (
       <Button
-        label="Fechar fornecedor"
+        label="Fechar"
         icon="pi pi-lock"
         size="small"
+        outlined
         disabled={!group.podeFechar || refreshing}
         onClick={() => setTarget(group)}
         title={group.podeFechar ? 'Congelar o espelho e enviar o grupo para aguardando NF' : pendingLabel(group)}
+        className="nx-closeout-action"
       />
     )
   }
 
   return (
-    <section className="admin-page nx-modern-page">
+    <section className="admin-page nx-modern-page nx-closeout-page">
       <PageHeader
         eyebrow="FECHAMENTO FINANCEIRO"
         title="Fechamentos"
@@ -205,19 +247,20 @@ export function FinancialCloseoutPage() {
         </div>
       )}
 
-      <Panel className="nx-prime-data-panel">
+      <Panel className="nx-prime-data-panel nx-closeout-panel">
         <PanelHeader
           eyebrow="COMPETÊNCIA"
           title={competence ? `Competência ${competenceLabel(competence)}` : 'Selecione a competência'}
-          description="Os valores são acumulados diariamente a partir das solicitações realizadas."
+          description="Espelho diário dos registros realizados antes da conciliação da nota fiscal."
           trailing={(
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="nx-closeout-controls">
               <Dropdown
                 value={competence}
                 options={competenceOptions}
                 onChange={(event) => setCompetence(event.value || '')}
                 placeholder="Competência"
                 disabled={loading}
+                className="nx-closeout-competence"
               />
               <Button
                 icon={refreshing ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'}
@@ -226,18 +269,49 @@ export function FinancialCloseoutPage() {
                 outlined
                 disabled={!competence || refreshing}
                 onClick={() => void refresh()}
+                className="nx-closeout-refresh"
               />
             </div>
           )}
         />
 
         {summary && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: '10px', marginBottom: '16px' }}>
-            <Message severity="info" text={`${summary.fornecedores} fornecedor(es)`} />
-            <Message severity="info" text={`${summary.solicitacoes} solicitação(ões)`} />
-            <Message severity={summary.pendentes ? 'warn' : 'success'} text={`${summary.pendentes} pendente(s)`} />
-            <Message severity="success" text={money.format(summary.valorReal)} />
-            <Message severity="warn" text={`${summary.aguardandoNf} aguardando NF`} />
+          <div className="ui-summary-metrics nx-closeout-metrics">
+            <SummaryMetric
+              icon="pi pi-building"
+              label="Fornecedores"
+              value={String(summary.fornecedores)}
+              detail="na competência"
+              tone="neutral"
+            />
+            <SummaryMetric
+              icon="pi pi-receipt"
+              label="Solicitações"
+              value={String(summary.solicitacoes)}
+              detail={`${summary.prontas} prontas`}
+              tone="info"
+            />
+            <SummaryMetric
+              icon={summary.pendentes ? 'pi pi-exclamation-triangle' : 'pi pi-check'}
+              label="Pendências"
+              value={String(summary.pendentes)}
+              detail={summary.pendentes ? 'exigem tratamento' : 'competência em dia'}
+              tone={summary.pendentes ? 'warning' : 'success'}
+            />
+            <SummaryMetric
+              icon="pi pi-wallet"
+              label="Valor realizado"
+              value={money.format(summary.valorReal)}
+              detail="acumulado no controle"
+              tone="success"
+            />
+            <SummaryMetric
+              icon="pi pi-file"
+              label="Aguardando NF"
+              value={String(summary.aguardandoNf)}
+              detail="fornecedor(es) fechado(s)"
+              tone={summary.aguardandoNf ? 'warning' : 'neutral'}
+            />
           </div>
         )}
 
@@ -252,17 +326,17 @@ export function FinancialCloseoutPage() {
           <DataTable
             value={data.grupos}
             dataKey="fornecedor"
-            stripedRows
             rowHover
             responsiveLayout="scroll"
-            tableStyle={{ minWidth: '72rem' }}
+            size="small"
+            className="nx-prime-table nx-closeout-table"
           >
-            <Column header="Fornecedor" body={providerBody} style={{ width: '18rem' }} />
-            <Column header="Status" body={statusBody} style={{ width: '12rem' }} />
-            <Column header="Acompanhamento" body={progressBody} style={{ width: '20rem' }} />
-            <Column header="Valor acumulado" body={(group: FinancialCloseoutGroup) => money.format(group.valorRealAcumulado)} style={{ width: '11rem' }} />
-            <Column header="Fechado" body={closeoutBody} style={{ width: '13rem' }} />
-            <Column header="Ação" body={actionBody} style={{ width: '16rem' }} />
+            <Column header="Fornecedor" body={providerBody} />
+            <Column header="Status" body={statusBody} />
+            <Column header="Acompanhamento" body={progressBody} />
+            <Column header="Valor acumulado" body={(group: FinancialCloseoutGroup) => <strong className="nx-closeout-money">{money.format(group.valorRealAcumulado)}</strong>} />
+            <Column header="Fechado" body={closeoutBody} />
+            <Column header="Ação" body={actionBody} />
           </DataTable>
         )}
       </Panel>
@@ -289,9 +363,17 @@ export function FinancialCloseoutPage() {
         )}
       >
         {target && (
-          <div style={{ display: 'grid', gap: '10px' }}>
-            <Message severity="info" text={`${target.totalSolicitacoes} solicitação(ões) serão congeladas neste fechamento.`} />
-            <Message severity="success" text={`Valor do controle: ${money.format(target.valorRealAcumulado)}`} />
+          <div className="nx-closeout-confirm-summary">
+            <div>
+              <span>Solicitações</span>
+              <strong>{target.totalSolicitacoes}</strong>
+              <small>registros serão congelados</small>
+            </div>
+            <div>
+              <span>Valor do controle</span>
+              <strong>{money.format(target.valorRealAcumulado)}</strong>
+              <small>base para conciliação da NF</small>
+            </div>
           </div>
         )}
       </Modal>
