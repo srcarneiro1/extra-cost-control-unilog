@@ -161,6 +161,8 @@ export function App() {
     return <LoginPage onAuthenticated={setUser} />
   }
 
+  const canAdministerSolicitations = user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
+
   return (
     <AppShell section={section} onNavigate={handleNavigate} user={user} onLogout={() => void handleLogout()}>
       <div hidden={section !== 'dashboard'}>
@@ -169,7 +171,7 @@ export function App() {
 
       {mountedSections.has('solicitacoes') && (
         <div hidden={section !== 'solicitacoes'}>
-          <AdminSolicitationsPageCurrentPeriod />
+          <AdminSolicitationsPageCurrentPeriod canAdminister={canAdministerSolicitations} />
         </div>
       )}
 
