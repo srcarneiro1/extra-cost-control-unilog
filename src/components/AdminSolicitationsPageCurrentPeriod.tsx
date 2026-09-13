@@ -241,7 +241,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     setWorkflowOpen(true)
     setCorrectionOpen(false)
     try {
-      const loaded = await requestDetail(idSolicitacao)
+      const loaded = await requestDetail(idSolicitacao, true)
       if (requestId !== activeDetailRequestRef.current) return
       setDetail(loaded)
     } catch (error) {
@@ -263,7 +263,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     setCorrectionOpen(true)
     setWorkflowOpen(false)
     try {
-      const loaded = await requestDetail(idSolicitacao)
+      const loaded = await requestDetail(idSolicitacao, true)
       if (requestId !== activeDetailRequestRef.current) return
       setDetail(loaded)
     } catch (error) {
