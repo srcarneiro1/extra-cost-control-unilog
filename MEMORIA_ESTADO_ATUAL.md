@@ -41,18 +41,43 @@ Homologação concluída:
 - Cloudflare Preview: SUCCESS;
 - PR #65 mergeado com autorização explícita do usuário.
 
+## Regra financeira confirmada para NF — 13/09/2026
+
+A NF do fornecedor é emitida pela competência e deve ser consolidada por fornecedor.
+
+Chave de faturamento/NF:
+
+`COMPETENCIA + FORNECEDOR`
+
+Regras confirmadas:
+- para cada competência, cada fornecedor emite uma única NF consolidada;
+- todas as solicitações elegíveis daquele fornecedor e daquela competência compõem a mesma NF;
+- `RESPONSAVEL_CUSTO` (`CLIENTE` ou `UNILOG`) NÃO separa NF;
+- a Unilog paga o fornecedor e o eventual repasse ao cliente é tratado internamente depois;
+- portanto, `RESPONSAVEL_CUSTO` continua sendo dimensão analítica/rateio, mas não integra a chave de faturamento;
+- não criar uma NF por solicitação;
+- não permitir que uma solicitação individual seja a unidade conceitual de fechamento da NF.
+
+Implicação arquitetural:
+- a Fase 2B deve revisitar a semântica de `AGUARDANDO_NF` criada na Fase 2A;
+- `ATENDIDA` continua individual por solicitação;
+- o avanço financeiro deve ocorrer por fechamento da competência/fornecedor, não por clique isolado em uma solicitação;
+- os botões individuais `Enviar para aguardando NF` da Fase 2A devem ser revistos/removidos na Fase 2B quando a fila consolidada por competência estiver implementada.
+
 ## Próximo passo — Fase 2B
 
-Construir a entidade real de NF e o fluxo financeiro restante.
+Construir a entidade real de NF e revisar o fechamento financeiro com base na competência.
 
 Escopo a definir/implementar:
-1. entidade real de NF;
-2. agrupamento principal por competência + fornecedor;
-3. vínculo de múltiplas solicitações a uma NF;
-4. regras/campos da NF a validar antes de implementar;
-5. liberar `AGUARDANDO_NF → CONFERIDA` somente com vínculo/validação de NF;
-6. depois liberar `CONFERIDA → ENCERRADA` conforme regra final;
-7. não implementar split complexo de itens entre múltiplas NFs sem decisão explícita.
+1. criar visão de fechamento por competência;
+2. agrupar por `COMPETENCIA + FORNECEDOR`;
+3. consolidar todas as solicitações elegíveis do grupo;
+4. criar entidade de faturamento/NF para o grupo, com uma única NF por fornecedor em cada competência;
+5. manter vínculo explícito entre NF e solicitações incluídas;
+6. revisar/remover a transição individual para `AGUARDANDO_NF` quando o fechamento consolidado estiver ativo;
+7. liberar `AGUARDANDO_NF → CONFERIDA` somente com NF registrada/validada;
+8. depois liberar `CONFERIDA → ENCERRADA` conforme regra final;
+9. definir antes do código como tratar solicitação tardia de uma competência cuja NF já foi emitida, pois não deve surgir silenciosamente uma segunda NF para o mesmo fornecedor/competência.
 
 ## Regras de continuidade
 
@@ -68,4 +93,4 @@ Fase 3: hardening, permissões finais, regressões, documentação e consolidaç
 
 ## Comando de retomada
 
-`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. PRs #63, #64 e #65 já estão mergeados. Nunca execute migrateSolicitationStatuses() novamente. O próximo passo é iniciar a Fase 2B: modelar a entidade real de NF e o agrupamento por competência + fornecedor, preservando todas as otimizações e regras já homologadas. Nunca faça merge sem minha autorização explícita.`
+`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. PRs #63, #64 e #65 já estão mergeados. Nunca execute migrateSolicitationStatuses() novamente. A NF é emitida por competência e consolidada por fornecedor: a chave de faturamento é COMPETENCIA + FORNECEDOR, sem separar CLIENTE/UNILOG. O próximo passo é revisitar AGUARDANDO_NF e implementar a Fase 2B com fechamento consolidado por competência/fornecedor. Nunca faça merge sem minha autorização explícita.`
