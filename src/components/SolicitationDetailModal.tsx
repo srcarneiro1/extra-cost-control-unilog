@@ -558,21 +558,6 @@ export function SolicitationDetailModal({
             </section>
           )}
 
-          {canAdminister && detail.status === 'ATENDIDA' && (
-            <section className="workflow-action-box">
-              <SectionHeading icon="pi pi-file" title="Fechamento financeiro" detail="Envie a solicitação concluída para a fila de nota fiscal" />
-              <div className="nx-workflow-actions">
-                <Button
-                  label={actionLoading ? 'Salvando…' : 'Enviar para aguardando NF'}
-                  icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'}
-                  onClick={() => void handleStatus('AGUARDANDO_NF', 'Solicitação enviada para a fila de aguardando NF.')}
-                  disabled={actionLoading}
-                  className="nx-primary-button"
-                />
-              </div>
-            </section>
-          )}
-
           {detail.tipoSolicitacao === 'MAO_DE_OBRA' && detail.realizadoRegistrado && (
             <section className="workflow-action-box partial-shift-box">
               <SectionHeading icon="pi pi-clock" title="Jornada parcial" detail={`Diária padrão de ${detail.jornadaPadraoHoras || 9}h · registre somente quem saiu antes.`} />
