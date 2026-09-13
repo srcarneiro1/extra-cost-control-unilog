@@ -1,8 +1,8 @@
 # ESTADO ATUAL — EXTRA COST CONTROL UNILOG
 
-Atualizado em 13/09/2026.
+Atualizado em 14/09/2026.
 
-Leia este arquivo junto com `MEMORIA_PROJETO.md`, `MEMORIA_QA.md`, `MEMORIA_FASE2B_HOMOLOGACAO.md` e `MEMORIA_FASE2C_DESENHO.md` antes de alterar o projeto.
+Leia este arquivo junto com `MEMORIA_PROJETO.md`, `MEMORIA_QA.md`, `MEMORIA_FASE2B_HOMOLOGACAO.md`, `MEMORIA_FASE2C_DESENHO.md` e `MEMORIA_FASE3_HARDENING.md` antes de alterar o projeto.
 
 ## Estado consolidado
 
@@ -10,9 +10,11 @@ Leia este arquivo junto com `MEMORIA_PROJETO.md`, `MEMORIA_QA.md`, `MEMORIA_FASE
 - PR #64 mergeado: ações sem releitura bloqueante, retry de login, chunk mensal 1000 e tabela sem layout shift.
 - PR #65 mergeado: Fase 2A financeira inicial.
 - PR #66 mergeado: Fase 2B com fechamento consolidado por competência + fornecedor, NF, conciliação e encerramento.
-- Merge commit do PR #66: `ee40c14dd9c8eebf2984801c197a0cfb679754c3`.
-- Apps Script publicado e alinhado com o PR #66.
-- Migração histórica de status já concluída. Nunca executar novamente `migrateSolicitationStatuses()`.
+- PR #67 mergeado: Fase 2C com exceções financeiras pós-fechamento.
+- Merge commit do PR #67: `a1f2fc694aebe80cdc0c71f0b0866dafbdd8d1c1`.
+- Fase 2B homologada ponta a ponta.
+- Fase 2C concluída e mergeada.
+- Migração histórica de status já concluída e, na Fase 3, a função executável de migração foi removida do código da branch de hardening.
 
 ## Workflow vigente
 
@@ -66,9 +68,11 @@ Fluxo real homologado em 13/09/2026 com MULT / 08/2026:
 
 `NOTAS_FISCAIS`: NF, valores, datas, resultado da conciliação e auditoria.
 
+`DESTINOS_FINANCEIROS_SOLICITACOES`: decisões auditáveis para solicitações tardias.
+
 As abas são criadas automaticamente pelo Apps Script quando necessárias.
 
-## Exceção pendente — solicitação tardia
+## Exceção de solicitação tardia — implementada
 
 Se surgir uma solicitação depois que o fechamento daquele fornecedor/competência já tiver sido criado, conciliado ou encerrado:
 - não reabrir automaticamente o fechamento anterior;
@@ -76,30 +80,27 @@ Se surgir uma solicitação depois que o fechamento daquele fornecedor/competên
 - não sobrescrever a `COMPETENCIA` operacional original;
 - a solicitação precisa receber um destino financeiro explícito.
 
-Destinos confirmados:
-1. reclassificar para próxima `COMPETENCIA_FATURAMENTO`;
-2. `ABSORVIDA_NAO_FATURADA`, quando o custo deve ser absorvido internamente.
+Destinos permitidos:
+1. reclassificar para próxima `COMPETENCIA_FATURAMENTO` ainda aberta para o fornecedor;
+2. `ABSORVIDA_NAO_FATURADA`.
 
-Toda decisão deve registrar motivo, usuário e data.
+Toda decisão registra motivo, usuário e data.
 
-O backend já detecta esse cenário por meio de `novasAposFechamento`, comparando as solicitações atuais da competência com o snapshot de `FECHAMENTO_SOLICITACOES`.
+Reclassificadas compõem o fechamento futuro; absorvidas ficam fora de NF futura.
 
-## Fase atual — PR #67 / Fase 2C
+## Fase atual — PR #68 / Fase 3
 
-Branch: `feature/financial-exceptions-phase2c`.
+Branch: `feature/v1-hardening-final`.
 
-Objetivo: transformar a detecção de solicitação tardia em um fluxo administrativo explícito e auditável.
+Objetivo: hardening e consolidação final da V1, sem novos módulos.
 
-Desenho vigente em `MEMORIA_FASE2C_DESENHO.md`.
+Primeiros achados corrigidos na branch:
+- exclusão de solicitação agora é bloqueada quando o ID já pertence a `FECHAMENTO_SOLICITACOES`;
+- exclusão também é bloqueada quando existe decisão em `DESTINOS_FINANCEIROS_SOLICITACOES`;
+- `migrateSolicitationStatuses()` deixou de existir como função global executável;
+- `migrateExistingStatuses` deixou de ser exportada; permanece apenas o preview histórico somente leitura.
 
-Ordem planejada:
-1. persistência da decisão financeira tardia;
-2. leitura de solicitações tardias sem destino;
-3. ações backend de reclassificação e absorção;
-4. gateway Cloudflare sem retry de mutação;
-5. modal administrativo de exceções;
-6. homologação com casos controlados;
-7. atualização das memórias e checks finais.
+Essas alterações de Apps Script ainda precisam ser publicadas manualmente antes de a Fase 3 ser considerada alinhada.
 
 ## Regras de continuidade
 
@@ -109,13 +110,18 @@ Ordem planejada:
 - Preservar edge cache, sessão própria, ações não bloqueantes e tabela sem layout shift.
 - Não esconder funcionalidade obsoleta com CSS quando ela puder ser removida com segurança.
 - Antes de qualquer merge, validar GitHub Actions e Cloudflare no mesmo head exato.
-- Nunca executar `migrateSolicitationStatuses()` novamente.
+- A migração histórica de status não possui mais função executável e não deve ser reintroduzida.
 - Nunca fazer merge sem autorização explícita do usuário.
 
-## Próxima fase posterior
+## Encerramento planejado da V1
 
-Fase 3: hardening, permissões finais, regressões, documentação e consolidação da V1.
+1. publicar os arquivos Apps Script alterados da Fase 3;
+2. concluir diagnóstico de código morto, responsividade e regressões;
+3. executar GitHub Actions + Cloudflare no head final;
+4. smoke test final;
+5. atualizar memórias finais;
+6. merge do PR #68 somente com autorização explícita.
 
 ## Comando de retomada
 
-`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md, MEMORIA_QA.md, MEMORIA_FASE2B_HOMOLOGACAO.md e MEMORIA_FASE2C_DESENHO.md antes de alterar qualquer coisa. PR #66 já foi mergeado e a Fase 2B está homologada ponta a ponta. A solicitação individual termina em ATENDIDA; AGUARDANDO_NF, CONFERIDA e ENCERRADA pertencem ao fechamento consolidado. Nunca execute migrateSolicitationStatuses() novamente. O PR #67 trata solicitações tardias pós-fechamento: reclassificar para próxima COMPETENCIA_FATURAMENTO ou ABSORVIDA_NAO_FATURADA, sem sobrescrever a COMPETENCIA original, sem reabrir fechamento automaticamente e sem criar segunda NF silenciosa. Nunca faça merge sem minha autorização explícita.`
+`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md, MEMORIA_QA.md, MEMORIA_FASE2B_HOMOLOGACAO.md, MEMORIA_FASE2C_DESENHO.md e MEMORIA_FASE3_HARDENING.md antes de alterar qualquer coisa. PR #67 já foi mergeado em a1f2fc694aebe80cdc0c71f0b0866dafbdd8d1c1. A solicitação individual termina em ATENDIDA; estados financeiros pertencem ao fechamento consolidado. Exceções tardias são reclassificadas para COMPETENCIA_FATURAMENTO futura ou ABSORVIDA_NAO_FATURADA. A Fase 3 está em hardening final da V1. Não reintroduza migrateSolicitationStatuses(). Nunca faça merge sem minha autorização explícita.`
