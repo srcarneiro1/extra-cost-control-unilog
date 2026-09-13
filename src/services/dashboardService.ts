@@ -112,14 +112,17 @@ function waitBeforeRetry(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, READ_RETRY_DELAY_MS))
 }
 
-async function requestDashboard(key: string): Promise<DashboardResponse> {
+async function requestDashboard(key: string, bypassEdgeCache = false): Promise<DashboardResponse> {
   let lastError: unknown
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const response = await fetch(key, {
         method: 'GET',
-        headers: { accept: 'application/json' },
+        headers: {
+          accept: 'application/json',
+          ...(bypassEdgeCache ? { 'cache-control': 'no-cache' } : {}),
+        },
       })
       const value = await parseApiResponse<DashboardResponse>(response, 'Não foi possível carregar o dashboard.')
       const now = Date.now()
@@ -205,6 +208,10 @@ export function fetchDashboard(
       void requestForKey(key).catch(() => undefined)
     }
     return Promise.resolve(snapshot.value)
+  }
+
+  if (options?.force) {
+    return withAbortSignal(requestDashboard(key, true), signal)
   }
 
   return withAbortSignal(requestForKey(key), signal)

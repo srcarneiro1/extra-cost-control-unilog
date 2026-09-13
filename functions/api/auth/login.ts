@@ -28,6 +28,8 @@ interface AppsScriptFailure {
   };
 }
 
+const FAILED_LOGIN_COOLDOWN_SECONDS = 10;
+
 function jsonResponse(payload: unknown, status = 200, headers?: HeadersInit): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -39,7 +41,58 @@ function jsonResponse(payload: unknown, status = 200, headers?: HeadersInit): Re
   });
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+function edgeCache_(): Cache | null {
+  if (typeof caches === 'undefined') return null;
+  return (caches as unknown as { default?: Cache }).default || null;
+}
+
+function clientIp_(request: Request): string {
+  return String(request.headers.get('cf-connecting-ip') || 'unknown').trim();
+}
+
+function loginCooldownKey_(request: Request, email: string): Request {
+  const url = new URL(request.url);
+  url.searchParams.set('_login_ip', clientIp_(request));
+  url.searchParams.set('_login_email', email);
+  return new Request(url.toString(), { method: 'GET' });
+}
+
+async function hasLoginCooldown_(request: Request, email: string): Promise<boolean> {
+  const cache = edgeCache_();
+  if (!cache) return false;
+
+  try {
+    return Boolean(await cache.match(loginCooldownKey_(request, email)));
+  } catch {
+    return false;
+  }
+}
+
+function registerLoginCooldown_(
+  context: EventContext<Env, string, unknown>,
+  request: Request,
+  email: string,
+): void {
+  const cache = edgeCache_();
+  if (!cache) return;
+
+  const response = new Response('1', {
+    headers: {
+      'cache-control': `public, max-age=${FAILED_LOGIN_COOLDOWN_SECONDS}`,
+    },
+  });
+
+  try {
+    context.waitUntil(
+      cache.put(loginCooldownKey_(request, email), response).catch(() => undefined),
+    );
+  } catch {
+    // Proteção adicional não pode indisponibilizar o login.
+  }
+}
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
   let body: { email?: unknown; password?: unknown };
 
   try {
@@ -53,6 +106,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   if (!email || !password) {
     return jsonResponse({ ok: false, error: { code: 'INVALID_CREDENTIALS', message: 'Informe e-mail e senha.' } }, 400);
+  }
+
+  if (await hasLoginCooldown_(request, email)) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: {
+          code: 'LOGIN_RATE_LIMITED',
+          message: 'Aguarde alguns segundos antes de tentar novamente.',
+        },
+      },
+      429,
+      { 'retry-after': String(FAILED_LOGIN_COOLDOWN_SECONDS) },
+    );
   }
 
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
@@ -87,6 +154,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   if (!upstreamResponse.ok || !upstream.ok) {
+    registerLoginCooldown_(context, request, email);
     return jsonResponse(
       {
         ok: false,

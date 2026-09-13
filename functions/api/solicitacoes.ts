@@ -1,7 +1,10 @@
 import {
   authorizeGatewayRequest,
   identityEmail,
+  identityProfile,
+  operationScope,
   type GatewayAuthEnv,
+  type GatewayIdentity,
 } from '../_auth';
 import {
   enforceCreationScope,
@@ -14,6 +17,9 @@ interface Env extends GatewayAuthEnv {
   APPS_SCRIPT_GATEWAY_TOKEN: string;
 }
 
+const LIST_EDGE_CACHE_SECONDS = 30;
+const METADATA_EDGE_CACHE_SECONDS = 300;
+
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -22,6 +28,69 @@ function jsonResponse(payload: unknown, status = 200): Response {
       'cache-control': 'no-store',
     },
   });
+}
+
+function edgeCache_(): Cache | null {
+  if (typeof caches === 'undefined') return null;
+  return (caches as unknown as { default?: Cache }).default || null;
+}
+
+function scopedCacheKey_(request: Request, identity: GatewayIdentity): Request {
+  const cacheUrl = new URL(request.url);
+  cacheUrl.searchParams.set('_profile', identityProfile(identity));
+  cacheUrl.searchParams.set('_scope', operationScope(identity) || 'TODOS');
+  return new Request(cacheUrl.toString(), { method: 'GET' });
+}
+
+function clientResponse_(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', 'no-store');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function matchEdgeCache_(request: Request, identity: GatewayIdentity): Promise<Response | null> {
+  const cache = edgeCache_();
+  if (!cache) return null;
+
+  try {
+    const cached = await cache.match(scopedCacheKey_(request, identity));
+    return cached ? clientResponse_(cached) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheSuccessfulResponse_(
+  context: EventContext<Env, string, unknown>,
+  request: Request,
+  identity: GatewayIdentity,
+  response: Response,
+  ttlSeconds: number,
+): void {
+  if (ttlSeconds <= 0 || response.status !== 200) return;
+
+  const cache = edgeCache_();
+  if (!cache) return;
+
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', `public, max-age=${ttlSeconds}`);
+  const cachedResponse = new Response(response.clone().body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+
+  try {
+    context.waitUntil(
+      cache.put(scopedCacheKey_(request, identity), cachedResponse).catch(() => undefined),
+    );
+  } catch {
+    // Cache de borda é apenas otimização e nunca pode bloquear a leitura.
+  }
 }
 
 async function proxyToAppsScript(
@@ -71,7 +140,8 @@ function optionalParam(url: URL, name: string): string {
   return String(url.searchParams.get(name) || '').trim();
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
   const identity = await authorizeGatewayRequest(request, env);
 
   if (!identity) {
@@ -87,6 +157,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const url = new URL(request.url);
   const idSolicitacao = optionalParam(url, 'id');
   const metadata = optionalParam(url, 'metadata');
+  const edgeTtl = idSolicitacao
+    ? 0
+    : metadata === '1'
+      ? METADATA_EDGE_CACHE_SECONDS
+      : LIST_EDGE_CACHE_SECONDS;
+
+  if (edgeTtl > 0) {
+    const cached = await matchEdgeCache_(request, identity);
+    if (cached) return cached;
+  }
 
   let payload: Record<string, unknown>;
 
@@ -117,7 +197,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     };
   }
 
-  return proxyToAppsScript(env, 'solicitacoes_admin', enforceOperationScope(identity, payload));
+  const response = await proxyToAppsScript(
+    env,
+    'solicitacoes_admin',
+    enforceOperationScope(identity, payload),
+  );
+
+  if (edgeTtl > 0) {
+    cacheSuccessfulResponse_(context, request, identity, response, edgeTtl);
+  }
+
+  return response;
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {

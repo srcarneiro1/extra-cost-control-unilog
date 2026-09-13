@@ -1,10 +1,18 @@
-import { authorizeGatewayRequest, type GatewayAuthEnv } from '../_auth';
+import {
+  authorizeGatewayRequest,
+  identityProfile,
+  operationScope,
+  type GatewayAuthEnv,
+  type GatewayIdentity,
+} from '../_auth';
 import { validateAreaAccess } from '../_access-control';
 
 interface Env extends GatewayAuthEnv {
   APPS_SCRIPT_URL: string;
   APPS_SCRIPT_GATEWAY_TOKEN: string;
 }
+
+const EDGE_CACHE_SECONDS = 300;
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -16,26 +24,68 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
-async function proxyCatalogRequest(
+function edgeCache_(): Cache | null {
+  if (typeof caches === 'undefined') return null;
+  return (caches as unknown as { default?: Cache }).default || null;
+}
+
+function scopedCacheKey_(request: Request, identity: GatewayIdentity): Request {
+  const cacheUrl = new URL(request.url);
+  cacheUrl.searchParams.set('_profile', identityProfile(identity));
+  cacheUrl.searchParams.set('_scope', operationScope(identity) || 'TODOS');
+  return new Request(cacheUrl.toString(), { method: 'GET' });
+}
+
+function clientResponse_(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', 'no-store');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function matchEdgeCache_(request: Request, identity: GatewayIdentity): Promise<Response | null> {
+  const cache = edgeCache_();
+  if (!cache) return null;
+  try {
+    const cached = await cache.match(scopedCacheKey_(request, identity));
+    return cached ? clientResponse_(cached) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheSuccessfulResponse_(
+  context: EventContext<Env, string, unknown>,
   request: Request,
+  identity: GatewayIdentity,
+  response: Response,
+): void {
+  if (response.status !== 200) return;
+  const cache = edgeCache_();
+  if (!cache) return;
+
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', `public, max-age=${EDGE_CACHE_SECONDS}`);
+  const cachedResponse = new Response(response.clone().body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+
+  try {
+    context.waitUntil(cache.put(scopedCacheKey_(request, identity), cachedResponse).catch(() => undefined));
+  } catch {
+    // Cache de borda é apenas otimização.
+  }
+}
+
+async function proxyCatalogRequest(
   env: Env,
   servicePayload: Record<string, unknown>,
-  administrative: boolean,
 ): Promise<Response> {
-  const identity = await authorizeGatewayRequest(request, env);
-
-  if (!identity) {
-    return jsonResponse(
-      { ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } },
-      401,
-    );
-  }
-
-  if (administrative) {
-    const denied = validateAreaAccess(identity, 'CADASTROS');
-    if (denied) return denied;
-  }
-
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
       { ok: false, error: { code: 'GATEWAY_CONFIG_ERROR', message: 'Gateway não configurado no ambiente Cloudflare.' } },
@@ -82,29 +132,46 @@ function optionalParam(url: URL, name: string): string {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const url = new URL(context.request.url);
+  const { request, env } = context;
+  const identity = await authorizeGatewayRequest(request, env);
+
+  if (!identity) {
+    return jsonResponse(
+      { ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } },
+      401,
+    );
+  }
+
+  const url = new URL(request.url);
   const adminMode = url.searchParams.get('mode') === 'admin';
+  if (adminMode) {
+    const denied = validateAreaAccess(identity, 'CADASTROS');
+    if (denied) return denied;
+  }
+
+  const cached = await matchEdgeCache_(request, identity);
+  if (cached) return cached;
+
   const scope = optionalParam(url, 'scope').toUpperCase();
   const pagina = optionalParam(url, 'pagina');
   const tamanhoPagina = optionalParam(url, 'tamanhoPagina');
   const busca = optionalParam(url, 'busca');
 
-  return proxyCatalogRequest(
-    context.request,
-    context.env,
-    adminMode
-      ? scope
-        ? {
-            modo: 'ADMIN_SCOPE',
-            escopo: scope,
-            ...(pagina ? { pagina } : {}),
-            ...(tamanhoPagina ? { tamanhoPagina } : {}),
-            ...(busca ? { busca } : {}),
-          }
-        : { modo: 'ADMIN' }
-      : {},
-    adminMode,
-  );
+  const payload = adminMode
+    ? scope
+      ? {
+          modo: 'ADMIN_SCOPE',
+          escopo: scope,
+          ...(pagina ? { pagina } : {}),
+          ...(tamanhoPagina ? { tamanhoPagina } : {}),
+          ...(busca ? { busca } : {}),
+        }
+      : { modo: 'ADMIN' }
+    : {};
+
+  const response = await proxyCatalogRequest(env, payload);
+  cacheSuccessfulResponse_(context, request, identity, response);
+  return response;
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -120,5 +187,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  return proxyCatalogRequest(context.request, context.env, payload, true);
+  const identity = await authorizeGatewayRequest(context.request, context.env);
+  if (!identity) {
+    return jsonResponse(
+      { ok: false, error: { code: 'UNAUTHORIZED', message: 'Sessão da plataforma não autenticada.' } },
+      401,
+    );
+  }
+
+  const denied = validateAreaAccess(identity, 'CADASTROS');
+  if (denied) return denied;
+
+  return proxyCatalogRequest(context.env, payload);
 };
