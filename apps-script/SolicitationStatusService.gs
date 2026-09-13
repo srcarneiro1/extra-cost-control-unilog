@@ -461,9 +461,13 @@ const SolicitationStatusService = (() => {
 })();
 
 function previewSolicitationStatusMigration() {
-  return SolicitationStatusService.previewExistingStatuses();
+  const result = SolicitationStatusService.previewExistingStatuses();
+  console.log(JSON.stringify(result, null, 2));
+  return result;
 }
 
 function migrateSolicitationStatuses() {
-  return SolicitationStatusService.migrateExistingStatuses();
+  const result = SolicitationStatusService.migrateExistingStatuses();
+  console.log(JSON.stringify(result, null, 2));
+  return result;
 }
