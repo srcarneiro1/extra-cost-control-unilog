@@ -32,6 +32,7 @@ function edgeCache_(): Cache | null {
 
 function scopedCacheKey_(request: Request, identity: GatewayIdentity): Request {
   const url = new URL(request.url);
+  url.searchParams.delete('fresh');
   url.searchParams.set('_financial', '1');
   url.searchParams.set('_subject', identityEmail(identity));
   return new Request(url.toString(), { method: 'GET' });
@@ -137,10 +138,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { identity, denied } = await authorizeAdministrative_(request, env);
   if (denied || !identity) return denied!;
 
-  const cached = await matchEdgeCache_(request, identity);
-  if (cached) return cached;
-
   const url = new URL(request.url);
+  const fresh = String(url.searchParams.get('fresh') || '').trim() === '1';
+
+  if (!fresh) {
+    const cached = await matchEdgeCache_(request, identity);
+    if (cached) return cached;
+  }
+
   const competencia = String(url.searchParams.get('competencia') || '').trim();
   const metadata = String(url.searchParams.get('metadata') || '').trim() === '1';
   const exceptions = String(url.searchParams.get('excecoes') || '').trim() === '1';
@@ -156,7 +161,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ? { acao: 'METADADOS' }
       : { acao: 'LISTAR', competencia });
 
-  cacheSuccessful_(context, request, identity, response);
+  if (!fresh) cacheSuccessful_(context, request, identity, response);
   return response;
 };
 
