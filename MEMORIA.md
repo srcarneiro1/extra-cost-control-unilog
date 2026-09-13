@@ -55,17 +55,21 @@ Hardening já aplicado:
 - hacks antigos de `.p-button-label` e ações obsoletas escondidas por CSS confirmados ausentes;
 - `SolicitationDeletionService.gs` e `SolicitationStatusService.gs` já publicados manualmente e alinhados ao GitHub.
 
-GitHub Actions e Cloudflare ficaram verdes no head funcional `be9b1025956db27830b12103e598d8383cefed5f`. Antes de merge, validar novamente no head exato final.
+O fallback legado de teste permanece no código, mas foi confirmado inativo em produção.
 
-`GATEWAY_TEST_TOKEN` foi confirmado ausente em produção. O fallback legado ainda existe em `_auth.ts`, mas está inerte em produção.
+## Login — correção aplicada
 
-## Bloqueio atual
+O preview apresentou `AUTH_INVALID_RESPONSE` no login.
 
-No preview, o login retorna `AUTH_INVALID_RESPONSE` / “O serviço de autenticação retornou uma resposta inválida”.
+A correção foi aplicada em `src/services/authService.ts` no commit `a616e558c9f70694f234faf5e54ad7c2cdc324f9`.
 
-Diagnóstico: `functions/api/auth/login.ts` repete somente falha de rede. Se o upstream responder HTTP com corpo não JSON, falha imediatamente. `functions/api/dashboard.ts` já usa uma segunda tentativa controlada para resposta upstream inválida.
+Comportamento vigente:
+- primeira tentativa normal de login;
+- uma única segunda tentativa após 200 ms apenas quando a resposta da autenticação é inválida;
+- erros normais de autenticação e rate limit não são repetidos;
+- nenhuma mutação operacional ou financeira recebeu retry.
 
-Correção proposta: aplicar esse mesmo padrão somente ao login. A tentativa de gravar essa correção foi bloqueada antes de qualquer commit; portanto ainda não está aplicada.
+A correção ainda precisa ser homologada no preview depois de GitHub Actions e Cloudflare concluírem no head exato.
 
 ## Regras permanentes
 
@@ -81,13 +85,13 @@ Correção proposta: aplicar esse mesmo padrão somente ao login. A tentativa de
 
 ## Próximos passos
 
-1. corrigir o login;
-2. validar Actions + Cloudflare no novo head;
-3. repetir o login e concluir o smoke final;
+1. validar GitHub Actions + Cloudflare no head que contém a correção de login;
+2. repetir o login no preview;
+3. concluir o smoke final;
 4. revisar pendências reais;
 5. somente então tirar o PR de Draft;
 6. pedir autorização antes do merge.
 
 ## Retomada
 
-`Leia apenas MEMORIA.md. Não crie memórias separadas; atualize este arquivo. PR #68 está Draft. O smoke final está bloqueado por AUTH_INVALID_RESPONSE no login. Nunca execute migrateSolicitationStatuses() e nunca faça merge sem autorização explícita.`
+`Leia apenas MEMORIA.md. Não crie memórias separadas; atualize este arquivo. PR #68 está Draft. A correção de login está no commit a616e558c9f70694f234faf5e54ad7c2cdc324f9 e ainda precisa ser homologada no preview. Nunca execute migrateSolicitationStatuses() e nunca faça merge sem autorização explícita.`
