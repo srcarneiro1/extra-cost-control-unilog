@@ -129,7 +129,12 @@ export function FinancialCloseoutPage() {
     if (!competence || refreshing) return
     setRefreshing(true)
     try {
-      setData(await fetchFinancialCloseout(competence, undefined, true))
+      const [loadedData, loadedMetadata] = await Promise.all([
+        fetchFinancialCloseout(competence, undefined, true),
+        fetchFinancialCloseoutMetadata(undefined, true),
+      ])
+      setData(loadedData)
+      setMetadata(loadedMetadata)
     } catch (error) {
       setNotice({ tone: 'error', message: error instanceof Error ? error.message : 'Não foi possível atualizar o fechamento.' })
     } finally {
