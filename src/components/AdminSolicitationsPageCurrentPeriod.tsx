@@ -43,6 +43,8 @@ import type {
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const quantity = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
 const BACKGROUND_REVALIDATION_MS = 90 * 1000
+const DETAIL_CACHE_FRESH_MS = 30 * 1000
+const DETAIL_PREFETCH_DELAY_MS = 120
 
 const monthLabels = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -182,6 +184,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [quickLoading, setQuickLoading] = useState<string | null>(null)
+  const [quickActionKey, setQuickActionKey] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdministrativeSolicitationListItem | null>(null)
   const [deleteReason, setDeleteReason] = useState('')
@@ -191,7 +194,9 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const [correctionOpen, setCorrectionOpen] = useState(false)
 
   const detailCacheRef = useRef(new Map<string, AdministrativeSolicitationDetail>())
+  const detailCacheTimeRef = useRef(new Map<string, number>())
   const detailRequestsRef = useRef(new Map<string, Promise<AdministrativeSolicitationDetail>>())
+  const detailIntentTimerRef = useRef<number | null>(null)
   const activeDetailRequestRef = useRef(0)
   const catalogRequestRef = useRef<Promise<CatalogosDto> | null>(null)
   const listRequestRef = useRef(0)
@@ -239,18 +244,49 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     void requestCatalogs().catch(() => undefined)
   }
 
+  function freshCachedDetail(idSolicitacao: string) {
+    const cached = detailCacheRef.current.get(idSolicitacao) || null
+    const cachedAt = detailCacheTimeRef.current.get(idSolicitacao) || 0
+    if (!cached || Date.now() - cachedAt > DETAIL_CACHE_FRESH_MS) return null
+    return cached
+  }
+
+  function invalidateDetailCache(idSolicitacao: string) {
+    detailCacheRef.current.delete(idSolicitacao)
+    detailCacheTimeRef.current.delete(idSolicitacao)
+  }
+
   function requestDetail(idSolicitacao: string, force = false) {
     if (!force) {
-      const cached = detailCacheRef.current.get(idSolicitacao)
+      const cached = freshCachedDetail(idSolicitacao)
       if (cached) return Promise.resolve(cached)
       const running = detailRequestsRef.current.get(idSolicitacao)
       if (running) return running
     }
     const request = fetchAdministrativeSolicitationDetail(idSolicitacao)
-      .then((loaded) => { detailCacheRef.current.set(idSolicitacao, loaded); return loaded })
+      .then((loaded) => {
+        detailCacheRef.current.set(idSolicitacao, loaded)
+        detailCacheTimeRef.current.set(idSolicitacao, Date.now())
+        return loaded
+      })
       .finally(() => { detailRequestsRef.current.delete(idSolicitacao) })
     detailRequestsRef.current.set(idSolicitacao, request)
     return request
+  }
+
+  function cancelDetailPrefetch() {
+    if (detailIntentTimerRef.current == null) return
+    window.clearTimeout(detailIntentTimerRef.current)
+    detailIntentTimerRef.current = null
+  }
+
+  function scheduleDetailPrefetch(idSolicitacao: string, delay = DETAIL_PREFETCH_DELAY_MS) {
+    if (freshCachedDetail(idSolicitacao) || detailRequestsRef.current.has(idSolicitacao)) return
+    cancelDetailPrefetch()
+    detailIntentTimerRef.current = window.setTimeout(() => {
+      detailIntentTimerRef.current = null
+      void requestDetail(idSolicitacao).catch(() => undefined)
+    }, delay)
   }
 
   async function refreshDetail(idSolicitacao: string) {
@@ -261,14 +297,15 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
 
   async function openDetail(idSolicitacao: string) {
     const requestId = ++activeDetailRequestRef.current
-    const cached = detailCacheRef.current.get(idSolicitacao) || null
+    const cached = freshCachedDetail(idSolicitacao)
+    cancelDetailPrefetch()
     ensureCatalogsForAction()
     setDetail(cached)
     setDetailLoading(!cached)
     setWorkflowOpen(true)
     setCorrectionOpen(false)
     try {
-      const loaded = await requestDetail(idSolicitacao, true)
+      const loaded = await requestDetail(idSolicitacao)
       if (requestId !== activeDetailRequestRef.current) return
       setDetail(loaded)
     } catch (error) {
@@ -283,14 +320,15 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   async function openCorrection(idSolicitacao: string) {
     if (!canAdminister) return
     const requestId = ++activeDetailRequestRef.current
-    const cached = detailCacheRef.current.get(idSolicitacao) || null
+    const cached = freshCachedDetail(idSolicitacao)
+    cancelDetailPrefetch()
     ensureCatalogsForAction()
     setDetail(cached)
     setDetailLoading(!cached)
     setCorrectionOpen(true)
     setWorkflowOpen(false)
     try {
-      const loaded = await requestDetail(idSolicitacao, true)
+      const loaded = await requestDetail(idSolicitacao)
       if (requestId !== activeDetailRequestRef.current) return
       setDetail(loaded)
     } catch (error) {
@@ -317,22 +355,25 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   async function handleQuickStatus(item: AdministrativeSolicitationListItem, status: OperationalSolicitationStatus, message: string) {
     if (!canAdminister || quickLoading) return
     setQuickLoading(item.idSolicitacao)
+    setQuickActionKey(`status:${status}`)
     try {
       await updateAdministrativeSolicitationStatus({ idSolicitacao: item.idSolicitacao, status })
       setItems((current) => current.map((row) => row.idSolicitacao === item.idSolicitacao ? { ...row, status } : row))
-      detailCacheRef.current.delete(item.idSolicitacao)
+      invalidateDetailCache(item.idSolicitacao)
       notify('success', message)
       void refreshItems().catch(() => undefined)
     } catch (error) {
       notify('error', error instanceof Error ? error.message : 'Não foi possível atualizar o status.')
     } finally {
       setQuickLoading(null)
+      setQuickActionKey(null)
     }
   }
 
   async function handleCopySummary(item: AdministrativeSolicitationListItem) {
     if (quickLoading) return
     setQuickLoading(item.idSolicitacao)
+    setQuickActionKey('copy')
     try {
       const loaded = await requestDetail(item.idSolicitacao)
       await navigator.clipboard.writeText(buildSupplierSummary(loaded))
@@ -341,12 +382,14 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
       notify('error', error instanceof Error ? error.message : 'Não foi possível copiar o resumo.')
     } finally {
       setQuickLoading(null)
+      setQuickActionKey(null)
     }
   }
 
   async function handleOpenSupplier(item: AdministrativeSolicitationListItem) {
     if (quickLoading) return
     setQuickLoading(item.idSolicitacao)
+    setQuickActionKey('supplier')
     try {
       const [loaded, loadedCatalogs] = await Promise.all([requestDetail(item.idSolicitacao), requestCatalogs()])
       const message = buildSupplierSummary(loaded)
@@ -364,17 +407,28 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
       notify('error', error instanceof Error ? error.message : 'Não foi possível abrir o contato do fornecedor.')
     } finally {
       setQuickLoading(null)
+      setQuickActionKey(null)
     }
   }
 
   async function handleWorkflowChanged(idSolicitacao: string, message: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao)])
     notify('success', message)
+    try {
+      await refreshDetail(idSolicitacao)
+    } catch {
+      notify('error', 'A ação foi salva, mas os detalhes não puderam ser atualizados agora.')
+    }
+    void refreshItems().catch(() => undefined)
   }
 
   async function handleCorrectionSaved(idSolicitacao: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao)])
     notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
+    try {
+      await refreshDetail(idSolicitacao)
+    } catch {
+      notify('error', 'A correção foi salva, mas os detalhes não puderam ser atualizados agora.')
+    }
+    void refreshItems().catch(() => undefined)
   }
 
   function openDelete(item: AdministrativeSolicitationListItem) {
@@ -409,7 +463,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     setDeleteError('')
     try {
       await deleteAdministrativeSolicitation({ idSolicitacao: item.idSolicitacao, motivoExclusao: deleteReason.trim() })
-      detailCacheRef.current.delete(item.idSolicitacao)
+      invalidateDetailCache(item.idSolicitacao)
       detailRequestsRef.current.delete(item.idSolicitacao)
       await Promise.all([refreshItems(), refreshMetadata()])
       setDeleteTarget(null)
@@ -476,6 +530,10 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     const timeout = window.setTimeout(() => setNotice(null), notice.tone === 'success' ? 4500 : 8000)
     return () => window.clearTimeout(timeout)
   }, [notice])
+
+  useEffect(() => () => {
+    if (detailIntentTimerRef.current != null) window.clearTimeout(detailIntentTimerRef.current)
+  }, [])
 
   const registrationYears = useMemo(() => {
     const years = new Set((metadata?.datasRegistro || []).map((date) => date.slice(0, 4)).filter(Boolean))
@@ -554,15 +612,22 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
 
   const actionsBody = (item: AdministrativeSolicitationListItem) => {
     const busy = Boolean(deleteLoading) || quickLoading === item.idSolicitacao
+    const activeAction = quickLoading === item.idSolicitacao ? quickActionKey : null
+    const actionIcon = (key: string, icon: string) => activeAction === key ? 'pi pi-spin pi-spinner' : icon
     const canShare = canAdminister && item.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status)
     return (
-      <div className="nx-modern-actions nx-solicitation-row-actions">
-        {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon="pi pi-undo" aria-label="Aguardando ajuste" title="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
-        {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon="pi pi-send" aria-label="Confirmar envio ao fornecedor" title="Confirmar envio ao fornecedor" size="small" disabled={busy} onClick={() => void handleQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
-        {canShare && <Button icon="pi pi-copy" aria-label="Copiar resumo" title="Copiar resumo" size="small" text disabled={busy} onClick={() => void handleCopySummary(item)} />}
-        {canShare && <Button icon="pi pi-whatsapp" aria-label="Abrir fornecedor" title="Abrir fornecedor" size="small" text disabled={busy} onClick={() => void handleOpenSupplier(item)} />}
-        {canAdminister && item.status === 'ENVIADA_AO_FORNECEDOR' && <Button icon="pi pi-play" aria-label="Marcar em atendimento" title="Marcar em atendimento" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} />}
-        {canAdminister && item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status) && <Button icon="pi pi-check" aria-label="Marcar atendida" title="Marcar atendida" size="small" severity="success" disabled={busy} onClick={() => void handleQuickStatus(item, 'ATENDIDA', 'Solicitação marcada como atendida.')} />}
+      <div
+        className="nx-modern-actions nx-solicitation-row-actions"
+        onMouseEnter={() => scheduleDetailPrefetch(item.idSolicitacao)}
+        onMouseLeave={cancelDetailPrefetch}
+        onFocusCapture={() => scheduleDetailPrefetch(item.idSolicitacao, 0)}
+      >
+        {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon={actionIcon('status:AGUARDANDO_AJUSTE', 'pi pi-undo')} aria-label="Aguardando ajuste" title="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
+        {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon={actionIcon('status:ENVIADA_AO_FORNECEDOR', 'pi pi-send')} aria-label="Confirmar envio ao fornecedor" title="Confirmar envio ao fornecedor" size="small" disabled={busy} onClick={() => void handleQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
+        {canShare && <Button icon={actionIcon('copy', 'pi pi-copy')} aria-label="Copiar resumo" title="Copiar resumo" size="small" text disabled={busy} onClick={() => void handleCopySummary(item)} />}
+        {canShare && <Button icon={actionIcon('supplier', 'pi pi-whatsapp')} aria-label="Abrir fornecedor" title="Abrir fornecedor" size="small" text disabled={busy} onMouseEnter={ensureCatalogsForAction} onFocus={ensureCatalogsForAction} onClick={() => void handleOpenSupplier(item)} />}
+        {canAdminister && item.status === 'ENVIADA_AO_FORNECEDOR' && <Button icon={actionIcon('status:EM_ATENDIMENTO', 'pi pi-play')} aria-label="Marcar em atendimento" title="Marcar em atendimento" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} />}
+        {canAdminister && item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status) && <Button icon={actionIcon('status:ATENDIDA', 'pi pi-check')} aria-label="Marcar atendida" title="Marcar atendida" size="small" severity="success" disabled={busy} onClick={() => void handleQuickStatus(item, 'ATENDIDA', 'Solicitação marcada como atendida.')} />}
         <Button icon="pi pi-external-link" aria-label="Abrir detalhes" title="Abrir detalhes" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={busy || detailLoading} className="nx-primary-button" />
         {canAdminister && <Button icon="pi pi-pencil" aria-label="Editar solicitação" title="Editar solicitação" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={busy || detailLoading} />}
         {canAdminister && <Button icon="pi pi-trash" aria-label="Excluir solicitação" title="Excluir solicitação" size="small" severity="danger" text onClick={() => openDelete(item)} disabled={busy || detailLoading} />}
