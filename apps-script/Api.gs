@@ -92,10 +92,10 @@ const Api = (() => {
         const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
         if (action === FinancialExceptionService.ACTIONS.DECIDE) {
           return JsonResponse.ok(writeAndInvalidate_(function () {
-            return FinancialExceptionService.execute(servicePayload);
+            return FinancialExceptionPhase2CService.execute(servicePayload);
           }));
         }
-        return JsonResponse.ok(FinancialExceptionService.execute(servicePayload));
+        return JsonResponse.ok(FinancialExceptionPhase2CService.execute(servicePayload));
       }
 
       if (route === 'dashboard') {
