@@ -9,6 +9,7 @@ import { Tag } from 'primereact/tag'
 import { AdminSolicitationsPageCurrentPeriod } from '@/components/AdminSolicitationsPageCurrentPeriod'
 import { CadastrosPagePaginated } from '@/components/CadastrosPagePaginated'
 import { DashboardPage } from '@/components/DashboardPage'
+import { FinancialCloseoutPage } from '@/components/FinancialCloseoutPage'
 import { UsersPage } from '@/components/UsersPage'
 import {
   fetchCatalogoAdminScope,
@@ -27,7 +28,7 @@ import {
   fetchAdministrativeSolicitations,
 } from '@/services/solicitationService'
 
-type Section = 'dashboard' | 'solicitacoes' | 'cadastros' | 'usuarios'
+type Section = 'dashboard' | 'solicitacoes' | 'fechamentos' | 'cadastros' | 'usuarios'
 
 type NavItem = {
   key: Section
@@ -40,6 +41,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Visão geral', icon: 'pi pi-chart-bar' },
   { key: 'solicitacoes', label: 'Solicitações', icon: 'pi pi-receipt' },
+  { key: 'fechamentos', label: 'Fechamentos', icon: 'pi pi-wallet', administrative: true },
   { key: 'cadastros', label: 'Cadastros', icon: 'pi pi-sliders-h', administrative: true },
   { key: 'usuarios', label: 'Usuários', icon: 'pi pi-users', administrative: true, ownerOnly: true },
 ]
@@ -47,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
 const SECTION_COPY: Record<Section, { title: string; scope: string }> = {
   dashboard: { title: 'Visão geral', scope: 'Executivo · Custos extras' },
   solicitacoes: { title: 'Solicitações', scope: 'Custos extras' },
+  fechamentos: { title: 'Fechamentos', scope: 'Administrativo · Financeiro' },
   cadastros: { title: 'Cadastros', scope: 'Administrativo · Catálogos' },
   usuarios: { title: 'Usuários', scope: 'Owner · Gestão de acessos' },
 }
@@ -395,6 +398,12 @@ function FunctionalShell({ user, onExit }: { user: AuthUser; onExit: () => Promi
           {mountedSections.has('solicitacoes') && (
             <div hidden={section !== 'solicitacoes'}>
               <AdminSolicitationsPageCurrentPeriod canAdminister={canAdministerSolicitations} />
+            </div>
+          )}
+
+          {mountedSections.has('fechamentos') && canNavigate(user, 'fechamentos') && (
+            <div hidden={section !== 'fechamentos'}>
+              <FinancialCloseoutPage />
             </div>
           )}
 
