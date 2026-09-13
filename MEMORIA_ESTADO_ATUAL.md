@@ -64,6 +64,22 @@ Implicação arquitetural:
 - o avanço financeiro deve ocorrer por fechamento da competência/fornecedor, não por clique isolado em uma solicitação;
 - os botões individuais `Enviar para aguardando NF` da Fase 2A devem ser revistos/removidos na Fase 2B quando a fila consolidada por competência estiver implementada.
 
+## Exceção confirmada — solicitação tardia após NF emitida
+
+Se surgir uma solicitação depois que a NF daquele `COMPETENCIA + FORNECEDOR` já tiver sido emitida, o fechamento anterior não deve ser reaberto automaticamente e não deve ser criada silenciosamente uma segunda NF da mesma competência.
+
+Destinos permitidos:
+- reclassificar a solicitação para a próxima competência de faturamento; ou
+- absorver o custo internamente e não faturar, quando a perda decorrer de erro operacional/administrativo da própria Unilog.
+
+Regra de histórico:
+- a `COMPETENCIA` original da solicitação, derivada da `DATA_OPERACIONAL`, nunca deve ser sobrescrita;
+- quando houver reclassificação, registrar separadamente uma `COMPETENCIA_FATURAMENTO` no vínculo financeiro/fechamento;
+- registrar motivo e usuário da reclassificação ou da decisão de não faturar;
+- uma solicitação tardia não deve desaparecer da fila sem uma destinação financeira explícita.
+
+Essa exceção ainda não ocorreu na operação, mas deve ser prevista no modelo para evitar inconsistência futura.
+
 ## Próximo passo — Fase 2B
 
 Construir a entidade real de NF e revisar o fechamento financeiro com base na competência.
@@ -74,10 +90,11 @@ Escopo a definir/implementar:
 3. consolidar todas as solicitações elegíveis do grupo;
 4. criar entidade de faturamento/NF para o grupo, com uma única NF por fornecedor em cada competência;
 5. manter vínculo explícito entre NF e solicitações incluídas;
-6. revisar/remover a transição individual para `AGUARDANDO_NF` quando o fechamento consolidado estiver ativo;
-7. liberar `AGUARDANDO_NF → CONFERIDA` somente com NF registrada/validada;
-8. depois liberar `CONFERIDA → ENCERRADA` conforme regra final;
-9. definir antes do código como tratar solicitação tardia de uma competência cuja NF já foi emitida, pois não deve surgir silenciosamente uma segunda NF para o mesmo fornecedor/competência.
+6. prever `COMPETENCIA_FATURAMENTO` separada da competência operacional somente para exceções/reclassificações;
+7. prever destinação `ABSORVIDA_NAO_FATURADA` ou equivalente para erro interno;
+8. revisar/remover a transição individual para `AGUARDANDO_NF` quando o fechamento consolidado estiver ativo;
+9. liberar `AGUARDANDO_NF → CONFERIDA` somente com NF registrada/validada;
+10. depois liberar `CONFERIDA → ENCERRADA` conforme regra final.
 
 ## Regras de continuidade
 
@@ -93,4 +110,4 @@ Fase 3: hardening, permissões finais, regressões, documentação e consolidaç
 
 ## Comando de retomada
 
-`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. PRs #63, #64 e #65 já estão mergeados. Nunca execute migrateSolicitationStatuses() novamente. A NF é emitida por competência e consolidada por fornecedor: a chave de faturamento é COMPETENCIA + FORNECEDOR, sem separar CLIENTE/UNILOG. O próximo passo é revisitar AGUARDANDO_NF e implementar a Fase 2B com fechamento consolidado por competência/fornecedor. Nunca faça merge sem minha autorização explícita.`
+`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. PRs #63, #64 e #65 já estão mergeados. Nunca execute migrateSolicitationStatuses() novamente. A NF é emitida por competência e consolidada por fornecedor: a chave de faturamento é COMPETENCIA + FORNECEDOR, sem separar CLIENTE/UNILOG. Solicitação tardia após NF emitida não reabre o fechamento: deve ser explicitamente reclassificada para próxima COMPETENCIA_FATURAMENTO ou marcada como custo absorvido/não faturado, sem sobrescrever a COMPETENCIA operacional original. O próximo passo é revisitar AGUARDANDO_NF e implementar a Fase 2B com fechamento consolidado por competência/fornecedor. Nunca faça merge sem minha autorização explícita.`
