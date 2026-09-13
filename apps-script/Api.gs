@@ -67,7 +67,7 @@ const Api = (() => {
         const servicePayload = authorizeGateway_(payload);
         return JsonResponse.ok(writeAndInvalidate_(function () {
           return SolicitationService.create(servicePayload);
-        }));
+        }, { metadata: true }));
       }
 
       if (route === 'solicitacoes_admin') {
@@ -92,6 +92,11 @@ const Api = (() => {
         return JsonResponse.ok(writeAndInvalidate_(function () { return AttendanceService.register(servicePayload); }));
       }
 
+      if (route === 'status_solicitacao') {
+        const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        return JsonResponse.ok(writeAndInvalidate_(function () { return SolicitationStatusService.transition(servicePayload); }));
+      }
+
       if (route === 'jornada_parcial') {
         const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
         return JsonResponse.ok(writeAndInvalidate_(function () { return PartialShiftService.register(servicePayload); }));
@@ -104,7 +109,9 @@ const Api = (() => {
 
       if (route === 'exclusao_solicitacao') {
         const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
-        return JsonResponse.ok(writeAndInvalidate_(function () { return SolicitationDeletionService.remove(servicePayload); }));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return SolicitationDeletionService.remove(servicePayload);
+        }, { metadata: true }));
       }
 
       return JsonResponse.notFound('Rota não encontrada.');
@@ -113,10 +120,10 @@ const Api = (() => {
     }
   }
 
-  function writeAndInvalidate_(operation) {
+  function writeAndInvalidate_(operation, options) {
     const result = operation();
     DashboardCacheService.clear();
-    AdministrativeSolicitationCacheService.clear();
+    AdministrativeSolicitationCacheService.clear(options || {});
     return result;
   }
 

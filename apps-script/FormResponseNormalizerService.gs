@@ -110,6 +110,7 @@ const FormResponseNormalizerService = (() => {
       VALOR_BEBIDA: '',
       VALOR_PREVISTO: '',
       VALOR_REAL: '',
+      STATUS: SolicitationStatusService.STATUS.SENT,
     };
 
     if (type === TYPES.LABOR) {
@@ -134,6 +135,7 @@ const FormResponseNormalizerService = (() => {
         };
       }
 
+      SolicitationStatusService.ensureSchema();
       record.ID_SOLICITACAO = ProtocolService.next(createdAt);
       SheetRepository.appendObject(SHEET_SOLICITACOES, record, {
         textFields: TEXT_FIELDS,
@@ -146,6 +148,7 @@ const FormResponseNormalizerService = (() => {
         idOrigem: responseId,
         tipoSolicitacao: type,
         competencia: record.COMPETENCIA,
+        status: record.STATUS,
       };
     } finally {
       lock.releaseLock();

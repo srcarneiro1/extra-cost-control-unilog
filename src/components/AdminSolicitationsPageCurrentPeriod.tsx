@@ -28,6 +28,7 @@ import {
   fetchAdministrativeSolicitationDetail,
   fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
+  updateAdministrativeSolicitationStatus,
 } from '../services/solicitationService'
 import type { CatalogosDto } from '../types/catalog'
 import type {
@@ -35,34 +36,52 @@ import type {
   AdministrativeSolicitationListItem,
   AdministrativeSolicitationMetadata,
   AdministrativeSolicitationSummary,
+  OperationalSolicitationStatus,
+  SolicitationStatus,
 } from '../types/solicitation'
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const quantity = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
+const BACKGROUND_REVALIDATION_MS = 90 * 1000
+const DETAIL_CACHE_FRESH_MS = 30 * 1000
+const DETAIL_PREFETCH_DELAY_MS = 120
 
 const monthLabels = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
 
-const statusOptions = [
-  'Aguardando triagem',
-  'Aguardando realizado',
-  'Triagem concluída',
-  'Com divergência',
-  'Concluído',
+const statusFilterOptions = [
+  { label: 'Todas as situações', value: 'TODOS' },
+  { label: 'Rascunho', value: 'RASCUNHO' },
+  { label: 'Enviada', value: 'ENVIADA' },
+  { label: 'Em triagem', value: 'EM_TRIAGEM' },
+  { label: 'Aguardando ajuste', value: 'AGUARDANDO_AJUSTE' },
+  { label: 'Enviada ao fornecedor', value: 'ENVIADA_AO_FORNECEDOR' },
+  { label: 'Em atendimento', value: 'EM_ATENDIMENTO' },
+  { label: 'Atendida', value: 'ATENDIDA' },
+  { label: 'Fila: aguardando triagem', value: 'AGUARDANDO_TRIAGEM' },
+  { label: 'Fila: aguardando realizado', value: 'AGUARDANDO_REALIZADO' },
+  { label: 'Com divergência', value: 'COM_DIVERGENCIA' },
 ]
 
-const statusQueryMap: Record<string, string> = {
-  'Aguardando triagem': 'AGUARDANDO_TRIAGEM',
-  'Aguardando realizado': 'AGUARDANDO_REALIZADO',
-  'Triagem concluída': 'TRIAGEM_CONCLUIDA',
-  'Com divergência': 'COM_DIVERGENCIA',
-  Concluído: 'CONCLUIDO',
+const STATUS_LABELS: Record<SolicitationStatus, string> = {
+  RASCUNHO: 'Rascunho',
+  ENVIADA: 'Enviada',
+  EM_TRIAGEM: 'Em triagem',
+  AGUARDANDO_AJUSTE: 'Aguardando ajuste',
+  ENVIADA_AO_FORNECEDOR: 'Enviada ao fornecedor',
+  EM_ATENDIMENTO: 'Em atendimento',
+  ATENDIDA: 'Atendida',
+  AGUARDANDO_NF: 'Aguardando NF',
+  CONFERIDA: 'Conferida',
+  ENCERRADA: 'Encerrada',
 }
 
 const allPageSizeOptions = Array.from({ length: 19 }, (_, index) => 10 + index * 5)
-const BACKGROUND_REVALIDATION_MS = 30 * 1000
+
+type Notice = { tone: 'success' | 'error'; message: string }
+type Props = { canAdminister: boolean }
 
 function currentPeriod() {
   const now = new Date()
@@ -83,6 +102,12 @@ function formatDate(value: string) {
   return year && month && day ? `${day}/${month}/${year}` : value
 }
 
+function formatDateShort(value: string) {
+  if (!value) return '—'
+  const [year, month, day] = value.slice(0, 10).split('-')
+  return year && month && day ? `${day}/${month}/${year.slice(-2)}` : value
+}
+
 function formatDateTime(value: string) {
   if (!value) return '—'
   const date = formatDate(value)
@@ -95,14 +120,12 @@ function typeLabel(value: string) {
 }
 
 function statusInfo(item: AdministrativeSolicitationListItem) {
-  if (!item.triagemConcluida) return { label: 'Aguardando triagem', severity: 'secondary' as const }
-  if (item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA') return { label: 'Triagem concluída', severity: 'success' as const }
-  if (!item.realizadoRegistrado) return { label: 'Aguardando realizado', severity: 'warning' as const }
-  if (item.divergencia) return { label: 'Com divergência', severity: 'danger' as const }
-  return { label: 'Concluído', severity: 'success' as const }
+  if (item.status === 'AGUARDANDO_AJUSTE') return { label: STATUS_LABELS[item.status], severity: 'danger' as const }
+  if (item.status === 'ENVIADA_AO_FORNECEDOR' || item.status === 'EM_ATENDIMENTO') return { label: STATUS_LABELS[item.status], severity: 'warning' as const }
+  if (item.status === 'ATENDIDA' || item.status === 'CONFERIDA' || item.status === 'ENCERRADA') return { label: STATUS_LABELS[item.status], severity: 'success' as const }
+  if (item.status === 'EM_TRIAGEM') return { label: STATUS_LABELS[item.status], severity: 'info' as const }
+  return { label: STATUS_LABELS[item.status], severity: 'secondary' as const }
 }
-
-type Notice = { tone: 'success' | 'error'; message: string }
 
 function snackTotalQuantity(item: AdministrativeSolicitationListItem) {
   if (item.qtdAlimentacao == null && item.qtdBebida == null) return null
@@ -121,7 +144,27 @@ function consideredQuantityBody(item: AdministrativeSolicitationListItem) {
     : formatQuantity(snackTotalQuantity(item))
 }
 
-export function AdminSolicitationsPageCurrentPeriod() {
+function buildSupplierSummary(detail: AdministrativeSolicitationDetail) {
+  const lines: string[] = [`Pedido para ${formatDateShort(detail.dataOperacional)}`]
+  if (detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA') {
+    const products: string[] = []
+    if (detail.produtoAlimentacao && detail.qtdAlimentacao != null) {
+      products.push(`${detail.qtdAlimentacao} ${detail.produtoAlimentacaoAplicado || detail.produtoAlimentacao}`)
+    }
+    if (detail.produtoBebida && detail.qtdBebida != null) {
+      products.push(`${detail.qtdBebida} ${detail.produtoBebidaAplicado || detail.produtoBebida}`)
+    }
+    if (products.length) lines.push(products.join(' + '))
+  } else {
+    if (detail.qtdSolicitada != null && detail.funcao) lines.push(`${detail.qtdSolicitada} ${detail.funcao}`)
+    if (detail.atividade) lines.push(`Atividade: ${detail.atividade}`)
+    if (detail.turno) lines.push(`Turno: ${detail.turno}`)
+  }
+  if (detail.supervisor) lines.push(`Supervisor(a) ${detail.supervisor}`)
+  return lines.join('\n')
+}
+
+export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const initialPeriod = useMemo(currentPeriod, [])
   const [items, setItems] = useState<AdministrativeSolicitationListItem[]>([])
   const [detail, setDetail] = useState<AdministrativeSolicitationDetail | null>(null)
@@ -138,9 +181,10 @@ export function AdminSolicitationsPageCurrentPeriod() {
   const [pageSize, setPageSize] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [quickLoading, setQuickLoading] = useState<string | null>(null)
+  const [quickActionKey, setQuickActionKey] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdministrativeSolicitationListItem | null>(null)
   const [deleteReason, setDeleteReason] = useState('')
@@ -150,7 +194,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
   const [correctionOpen, setCorrectionOpen] = useState(false)
 
   const detailCacheRef = useRef(new Map<string, AdministrativeSolicitationDetail>())
+  const detailCacheTimeRef = useRef(new Map<string, number>())
   const detailRequestsRef = useRef(new Map<string, Promise<AdministrativeSolicitationDetail>>())
+  const detailIntentTimerRef = useRef<number | null>(null)
   const activeDetailRequestRef = useRef(0)
   const catalogRequestRef = useRef<Promise<CatalogosDto> | null>(null)
   const listRequestRef = useRef(0)
@@ -165,7 +211,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
       tamanhoPagina: pageSize,
       busca: debouncedSearch,
       tipo: typeFilter,
-      status: statusFilter === 'TODOS' ? 'TODOS' : statusQueryMap[statusFilter],
+      status: statusFilter,
       anoRegistro: registrationYear,
       mesRegistro: registrationMonth,
       dataRegistro: registrationDate,
@@ -175,7 +221,6 @@ export function AdminSolicitationsPageCurrentPeriod() {
   function applyListResponse(response: Awaited<ReturnType<typeof fetchAdministrativeSolicitations>>) {
     setItems(response.itens)
     setTotal(response.total)
-    setTotalPages(response.totalPaginas)
     if (response.resumo) setPeriodSummary(response.resumo)
   }
 
@@ -195,22 +240,53 @@ export function AdminSolicitationsPageCurrentPeriod() {
   }
 
   function ensureCatalogsForAction() {
-    if (catalogs) return
-    void requestCatalogs().catch((error) => notify('error', error instanceof Error ? error.message : 'Não foi possível carregar os cadastros auxiliares.'))
+    if (!canAdminister || catalogs) return
+    void requestCatalogs().catch(() => undefined)
+  }
+
+  function freshCachedDetail(idSolicitacao: string) {
+    const cached = detailCacheRef.current.get(idSolicitacao) || null
+    const cachedAt = detailCacheTimeRef.current.get(idSolicitacao) || 0
+    if (!cached || Date.now() - cachedAt > DETAIL_CACHE_FRESH_MS) return null
+    return cached
+  }
+
+  function invalidateDetailCache(idSolicitacao: string) {
+    detailCacheRef.current.delete(idSolicitacao)
+    detailCacheTimeRef.current.delete(idSolicitacao)
   }
 
   function requestDetail(idSolicitacao: string, force = false) {
     if (!force) {
-      const cached = detailCacheRef.current.get(idSolicitacao)
+      const cached = freshCachedDetail(idSolicitacao)
       if (cached) return Promise.resolve(cached)
       const running = detailRequestsRef.current.get(idSolicitacao)
       if (running) return running
     }
     const request = fetchAdministrativeSolicitationDetail(idSolicitacao)
-      .then((loaded) => { detailCacheRef.current.set(idSolicitacao, loaded); return loaded })
+      .then((loaded) => {
+        detailCacheRef.current.set(idSolicitacao, loaded)
+        detailCacheTimeRef.current.set(idSolicitacao, Date.now())
+        return loaded
+      })
       .finally(() => { detailRequestsRef.current.delete(idSolicitacao) })
     detailRequestsRef.current.set(idSolicitacao, request)
     return request
+  }
+
+  function cancelDetailPrefetch() {
+    if (detailIntentTimerRef.current == null) return
+    window.clearTimeout(detailIntentTimerRef.current)
+    detailIntentTimerRef.current = null
+  }
+
+  function scheduleDetailPrefetch(idSolicitacao: string, delay = DETAIL_PREFETCH_DELAY_MS) {
+    if (freshCachedDetail(idSolicitacao) || detailRequestsRef.current.has(idSolicitacao)) return
+    cancelDetailPrefetch()
+    detailIntentTimerRef.current = window.setTimeout(() => {
+      detailIntentTimerRef.current = null
+      void requestDetail(idSolicitacao).catch(() => undefined)
+    }, delay)
   }
 
   async function refreshDetail(idSolicitacao: string) {
@@ -221,7 +297,8 @@ export function AdminSolicitationsPageCurrentPeriod() {
 
   async function openDetail(idSolicitacao: string) {
     const requestId = ++activeDetailRequestRef.current
-    const cached = detailCacheRef.current.get(idSolicitacao) || null
+    const cached = freshCachedDetail(idSolicitacao)
+    cancelDetailPrefetch()
     ensureCatalogsForAction()
     setDetail(cached)
     setDetailLoading(!cached)
@@ -241,8 +318,10 @@ export function AdminSolicitationsPageCurrentPeriod() {
   }
 
   async function openCorrection(idSolicitacao: string) {
+    if (!canAdminister) return
     const requestId = ++activeDetailRequestRef.current
-    const cached = detailCacheRef.current.get(idSolicitacao) || null
+    const cached = freshCachedDetail(idSolicitacao)
+    cancelDetailPrefetch()
     ensureCatalogsForAction()
     setDetail(cached)
     setDetailLoading(!cached)
@@ -273,7 +352,87 @@ export function AdminSolicitationsPageCurrentPeriod() {
     setDetailLoading(false)
   }
 
+  async function handleQuickStatus(item: AdministrativeSolicitationListItem, status: OperationalSolicitationStatus, message: string) {
+    if (!canAdminister || quickLoading) return
+    setQuickLoading(item.idSolicitacao)
+    setQuickActionKey(`status:${status}`)
+    try {
+      await updateAdministrativeSolicitationStatus({ idSolicitacao: item.idSolicitacao, status })
+      setItems((current) => current.map((row) => row.idSolicitacao === item.idSolicitacao ? { ...row, status } : row))
+      invalidateDetailCache(item.idSolicitacao)
+      notify('success', message)
+      void refreshItems().catch(() => undefined)
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Não foi possível atualizar o status.')
+    } finally {
+      setQuickLoading(null)
+      setQuickActionKey(null)
+    }
+  }
+
+  async function handleCopySummary(item: AdministrativeSolicitationListItem) {
+    if (quickLoading) return
+    setQuickLoading(item.idSolicitacao)
+    setQuickActionKey('copy')
+    try {
+      const loaded = await requestDetail(item.idSolicitacao)
+      await navigator.clipboard.writeText(buildSupplierSummary(loaded))
+      notify('success', `Resumo da solicitação ${item.idSolicitacao} copiado.`)
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Não foi possível copiar o resumo.')
+    } finally {
+      setQuickLoading(null)
+      setQuickActionKey(null)
+    }
+  }
+
+  async function handleOpenSupplier(item: AdministrativeSolicitationListItem) {
+    if (quickLoading) return
+    setQuickLoading(item.idSolicitacao)
+    setQuickActionKey('supplier')
+    try {
+      const [loaded, loadedCatalogs] = await Promise.all([requestDetail(item.idSolicitacao), requestCatalogs()])
+      const message = buildSupplierSummary(loaded)
+      const provider = loadedCatalogs.fornecedores.find((candidate) => candidate.nome === loaded.fornecedor)
+      if (provider?.whatsappDestino === 'NUMERO' && provider.whatsappNumero) {
+        window.open(`https://wa.me/${provider.whatsappNumero.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+      } else if (provider?.whatsappDestino === 'GRUPO' && provider.whatsappGrupoLink) {
+        await navigator.clipboard.writeText(message).catch(() => undefined)
+        window.open(provider.whatsappGrupoLink, '_blank', 'noopener,noreferrer')
+        notify('success', 'Grupo aberto. O resumo foi copiado para colar no WhatsApp.')
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Não foi possível abrir o contato do fornecedor.')
+    } finally {
+      setQuickLoading(null)
+      setQuickActionKey(null)
+    }
+  }
+
+  async function handleWorkflowChanged(idSolicitacao: string, message: string) {
+    notify('success', message)
+    try {
+      await refreshDetail(idSolicitacao)
+    } catch {
+      notify('error', 'A ação foi salva, mas os detalhes não puderam ser atualizados agora.')
+    }
+    void refreshItems().catch(() => undefined)
+  }
+
+  async function handleCorrectionSaved(idSolicitacao: string) {
+    notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
+    try {
+      await refreshDetail(idSolicitacao)
+    } catch {
+      notify('error', 'A correção foi salva, mas os detalhes não puderam ser atualizados agora.')
+    }
+    void refreshItems().catch(() => undefined)
+  }
+
   function openDelete(item: AdministrativeSolicitationListItem) {
+    if (!canAdminister) return
     setDeleteTarget(item)
     setDeleteReason('')
     setDeleteError('')
@@ -292,19 +451,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
     if (registrationYear === 'TODOS' && registrationMonth === 'TODOS' && registrationDate === 'TODOS') setPeriodSummary(loaded.resumo)
   }
 
-  async function handleWorkflowChanged(idSolicitacao: string, message: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao), refreshMetadata()])
-    notify('success', message)
-  }
-
-  async function handleCorrectionSaved(idSolicitacao: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao), refreshMetadata()])
-    notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
-  }
-
   async function confirmDelete() {
     const item = deleteTarget
-    if (!item) return
+    if (!item || !canAdminister) return
     if (deleteReason.trim().length < 5) {
       setDeleteError('Informe um motivo de exclusão com pelo menos 5 caracteres.')
       return
@@ -314,14 +463,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
     setDeleteError('')
     try {
       await deleteAdministrativeSolicitation({ idSolicitacao: item.idSolicitacao, motivoExclusao: deleteReason.trim() })
-      detailCacheRef.current.delete(item.idSolicitacao)
+      invalidateDetailCache(item.idSolicitacao)
       detailRequestsRef.current.delete(item.idSolicitacao)
-      if (items.length === 1 && currentPage > 1) {
-        setCurrentPage((page) => Math.max(1, page - 1))
-        await refreshMetadata()
-      } else {
-        await Promise.all([refreshItems(), refreshMetadata()])
-      }
+      await Promise.all([refreshItems(), refreshMetadata()])
       setDeleteTarget(null)
       setDeleteReason('')
       notify('success', `Solicitação ${item.idSolicitacao} excluída e registrada na auditoria.`)
@@ -355,7 +499,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
   }, [currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
 
   useEffect(() => {
-    if (loading || workflowOpen || correctionOpen || deleteLoading) return
+    if (loading || workflowOpen || correctionOpen || deleteLoading || quickLoading) return
     let disposed = false
     const revalidate = () => {
       if (disposed || document.visibilityState !== 'visible') return
@@ -365,18 +509,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
         .catch(() => undefined)
     }
     const interval = window.setInterval(revalidate, BACKGROUND_REVALIDATION_MS)
-    const handleVisibility = () => { if (document.visibilityState === 'visible') revalidate() }
-    const handleFocus = () => revalidate()
-    document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', handleFocus)
-    return () => {
-      disposed = true
-      window.clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', handleFocus)
-    }
+    return () => { disposed = true; window.clearInterval(interval) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, workflowOpen, correctionOpen, deleteLoading, currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
+  }, [loading, workflowOpen, correctionOpen, deleteLoading, quickLoading, currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
 
   useEffect(() => {
     if (loading || metadata) return
@@ -386,10 +521,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
         setMetadata(loaded)
         if (!periodSummary && registrationYear === 'TODOS' && registrationMonth === 'TODOS') setPeriodSummary(loaded.resumo)
       })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        notify('error', error instanceof Error ? `Fila carregada. Metadados indisponíveis: ${error.message}` : 'Fila carregada, mas os metadados não puderam ser carregados.')
-      })
+      .catch(() => undefined)
     return () => controller.abort()
   }, [loading, metadata, periodSummary, registrationMonth, registrationYear])
 
@@ -398,6 +530,10 @@ export function AdminSolicitationsPageCurrentPeriod() {
     const timeout = window.setTimeout(() => setNotice(null), notice.tone === 'success' ? 4500 : 8000)
     return () => window.clearTimeout(timeout)
   }, [notice])
+
+  useEffect(() => () => {
+    if (detailIntentTimerRef.current != null) window.clearTimeout(detailIntentTimerRef.current)
+  }, [])
 
   const registrationYears = useMemo(() => {
     const years = new Set((metadata?.datasRegistro || []).map((date) => date.slice(0, 4)).filter(Boolean))
@@ -424,9 +560,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
 
   const summary: SummaryMetricItem[] = [
     { key: 'all', label: 'Total', value: metrics?.total ?? '—', detail: `no período · ${periodDetail}`, icon: 'dataset', active: statusFilter === 'TODOS', onClick: () => setStatusFilter('TODOS') },
-    { key: 'triage', label: 'Aguardando triagem', value: metrics?.aguardandoTriagem ?? '—', detail: `no período · ${periodDetail}`, icon: 'pending_actions', tone: 'info', active: statusFilter === 'Aguardando triagem', onClick: () => setStatusFilter('Aguardando triagem') },
-    { key: 'actual', label: 'Aguardando realizado', value: metrics?.aguardandoRealizado ?? '—', detail: `no período · ${periodDetail}`, icon: 'groups', tone: 'warning', active: statusFilter === 'Aguardando realizado', onClick: () => setStatusFilter('Aguardando realizado') },
-    { key: 'div', label: 'Com divergência', value: metrics?.divergencias ?? '—', detail: `no período · ${periodDetail}`, icon: 'error', tone: 'danger', active: statusFilter === 'Com divergência', onClick: () => setStatusFilter('Com divergência') },
+    { key: 'triage', label: 'Aguardando triagem', value: metrics?.aguardandoTriagem ?? '—', detail: `no período · ${periodDetail}`, icon: 'pending_actions', tone: 'info', active: statusFilter === 'AGUARDANDO_TRIAGEM', onClick: () => setStatusFilter('AGUARDANDO_TRIAGEM') },
+    { key: 'actual', label: 'Aguardando realizado', value: metrics?.aguardandoRealizado ?? '—', detail: `no período · ${periodDetail}`, icon: 'groups', tone: 'warning', active: statusFilter === 'AGUARDANDO_REALIZADO', onClick: () => setStatusFilter('AGUARDANDO_REALIZADO') },
+    { key: 'div', label: 'Com divergência', value: metrics?.divergencias ?? '—', detail: `no período · ${periodDetail}`, icon: 'error', tone: 'danger', active: statusFilter === 'COM_DIVERGENCIA', onClick: () => setStatusFilter('COM_DIVERGENCIA') },
   ]
 
   const hasActiveFilters = Boolean(search.trim()) || typeFilter !== 'TODOS' || statusFilter !== 'TODOS' || registrationYear !== 'TODOS' || registrationMonth !== 'TODOS' || registrationDate !== 'TODOS'
@@ -464,7 +600,6 @@ export function AdminSolicitationsPageCurrentPeriod() {
     { label: 'Mão de obra', value: 'MAO_DE_OBRA' },
     { label: 'Alimentação / Bebida', value: 'ALIMENTACAO_BEBIDA' },
   ]
-  const statusFilterOptions = [{ label: 'Todas as situações', value: 'TODOS' }, ...statusOptions.map((value) => ({ label: value, value }))]
 
   const solicitationBody = (item: AdministrativeSolicitationListItem) => (
     <div className="nx-user-cell"><strong>{item.idSolicitacao}</strong><small>{item.supervisor || 'Sem supervisor'}</small></div>
@@ -474,13 +609,28 @@ export function AdminSolicitationsPageCurrentPeriod() {
     const status = statusInfo(item)
     return <Tag value={status.label} severity={status.severity} rounded />
   }
+
   const actionsBody = (item: AdministrativeSolicitationListItem) => {
-    const rowBusy = detailLoading || Boolean(deleteLoading)
+    const busy = Boolean(deleteLoading) || quickLoading === item.idSolicitacao
+    const activeAction = quickLoading === item.idSolicitacao ? quickActionKey : null
+    const actionIcon = (key: string, icon: string) => activeAction === key ? 'pi pi-spin pi-spinner' : icon
+    const canShare = canAdminister && item.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status)
     return (
-      <div className="nx-modern-actions">
-        <Button icon="pi pi-pencil" label="Editar" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={rowBusy} />
-        <Button icon="pi pi-external-link" label="Abrir" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={rowBusy} className="nx-primary-button" />
-        <Button icon={deleteLoading === item.idSolicitacao ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} label={deleteLoading === item.idSolicitacao ? 'Excluindo…' : 'Excluir'} size="small" severity="danger" text onClick={() => openDelete(item)} disabled={rowBusy} />
+      <div
+        className="nx-modern-actions nx-solicitation-row-actions"
+        onMouseEnter={() => scheduleDetailPrefetch(item.idSolicitacao)}
+        onMouseLeave={cancelDetailPrefetch}
+        onFocusCapture={() => scheduleDetailPrefetch(item.idSolicitacao, 0)}
+      >
+        {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon={actionIcon('status:AGUARDANDO_AJUSTE', 'pi pi-undo')} aria-label="Aguardando ajuste" title="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
+        {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon={actionIcon('status:ENVIADA_AO_FORNECEDOR', 'pi pi-send')} aria-label="Confirmar envio ao fornecedor" title="Confirmar envio ao fornecedor" size="small" disabled={busy} onClick={() => void handleQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
+        {canShare && <Button icon={actionIcon('copy', 'pi pi-copy')} aria-label="Copiar resumo" title="Copiar resumo" size="small" text disabled={busy} onClick={() => void handleCopySummary(item)} />}
+        {canShare && <Button icon={actionIcon('supplier', 'pi pi-whatsapp')} aria-label="Abrir fornecedor" title="Abrir fornecedor" size="small" text disabled={busy} onMouseEnter={ensureCatalogsForAction} onFocus={ensureCatalogsForAction} onClick={() => void handleOpenSupplier(item)} />}
+        {canAdminister && item.status === 'ENVIADA_AO_FORNECEDOR' && <Button icon={actionIcon('status:EM_ATENDIMENTO', 'pi pi-play')} aria-label="Marcar em atendimento" title="Marcar em atendimento" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} />}
+        {canAdminister && item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status) && <Button icon={actionIcon('status:ATENDIDA', 'pi pi-check')} aria-label="Marcar atendida" title="Marcar atendida" size="small" severity="success" disabled={busy} onClick={() => void handleQuickStatus(item, 'ATENDIDA', 'Solicitação marcada como atendida.')} />}
+        <Button icon="pi pi-external-link" aria-label="Abrir detalhes" title="Abrir detalhes" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={busy || detailLoading} className="nx-primary-button" />
+        {canAdminister && <Button icon="pi pi-pencil" aria-label="Editar solicitação" title="Editar solicitação" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={busy || detailLoading} />}
+        {canAdminister && <Button icon="pi pi-trash" aria-label="Excluir solicitação" title="Excluir solicitação" size="small" severity="danger" text onClick={() => openDelete(item)} disabled={busy || detailLoading} />}
       </div>
     )
   }
@@ -534,7 +684,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
             <Column header="Qtd. considerada" body={consideredQuantityBody} />
             <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
             <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-            <Column header="Ações" body={actionsBody} style={{ minWidth: '19rem' }} />
+            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '15rem' : '4rem' }} />
           </DataTable>
         )}
 
@@ -544,10 +694,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
             rows={pageSize}
             totalRecords={total}
             rowsPerPageOptions={pageSizeOptions}
-            onPageChange={(event) => {
-              setCurrentPage(event.page + 1)
-              setPageSize(event.rows)
-            }}
+            onPageChange={(event) => { setCurrentPage(event.page + 1); setPageSize(event.rows) }}
             template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
             currentPageReportTemplate="{first}–{last} de {totalRecords}"
             className="nx-prime-paginator"
@@ -555,10 +702,10 @@ export function AdminSolicitationsPageCurrentPeriod() {
         )}
       </Panel>
 
-      <SolicitationDetailModal open={workflowOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeWorkflow} onChanged={handleWorkflowChanged} onNotify={notify} />
-      <SolicitationCorrectionModal open={correctionOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeCorrection} onSaved={handleCorrectionSaved} />
+      <SolicitationDetailModal open={workflowOpen} loading={detailLoading} detail={detail} catalogs={catalogs} canAdminister={canAdminister} onClose={closeWorkflow} onChanged={handleWorkflowChanged} onNotify={notify} />
+      {canAdminister && <SolicitationCorrectionModal open={correctionOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeCorrection} onSaved={handleCorrectionSaved} />}
 
-      <Modal
+      {canAdminister && <Modal
         open={Boolean(deleteTarget)}
         titleId="delete-solicitation-title"
         eyebrow="EXCLUSÃO ADMINISTRATIVA"
@@ -568,35 +715,18 @@ export function AdminSolicitationsPageCurrentPeriod() {
         busy={Boolean(deleteLoading)}
         width="medium"
         bodyClassName="nx-delete-dialog"
-        footer={
-          <>
-            <Button label="Cancelar" text onClick={closeDelete} disabled={Boolean(deleteLoading)} />
-            <Button
-              label={deleteLoading ? 'Excluindo…' : 'Excluir solicitação'}
-              icon={deleteLoading ? 'pi pi-spin pi-spinner' : 'pi pi-trash'}
-              severity="danger"
-              onClick={() => void confirmDelete()}
-              disabled={Boolean(deleteLoading) || deleteReason.trim().length < 5}
-            />
-          </>
-        }
+        footer={<><Button label="Cancelar" text onClick={closeDelete} disabled={Boolean(deleteLoading)} /><Button label={deleteLoading ? 'Excluindo…' : 'Excluir solicitação'} icon={deleteLoading ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} severity="danger" onClick={() => void confirmDelete()} disabled={Boolean(deleteLoading) || deleteReason.trim().length < 5} /></>}
       >
         <div className="nx-delete-dialog-body">
           <Message severity="warn" text="Esta ação é definitiva na base operacional e ficará registrada na auditoria." />
           {deleteError && <Message severity="error" text={deleteError} />}
           <label className="nx-workflow-field">
             <span>Motivo da exclusão</span>
-            <InputTextarea
-              value={deleteReason}
-              onChange={(event) => setDeleteReason(event.target.value)}
-              rows={4}
-              autoResize
-              placeholder="Descreva o motivo com pelo menos 5 caracteres."
-            />
+            <InputTextarea value={deleteReason} onChange={(event) => setDeleteReason(event.target.value)} rows={4} autoResize placeholder="Descreva o motivo com pelo menos 5 caracteres." />
             <small>{deleteReason.trim().length}/5 caracteres mínimos</small>
           </label>
         </div>
-      </Modal>
+      </Modal>}
     </section>
   )
 }

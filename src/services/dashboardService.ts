@@ -27,8 +27,17 @@ export interface DashboardExportResponse {
   total: number
 }
 
-const DASHBOARD_CACHE_MS = 5 * 60 * 1000
-const dashboardCache = new Map<string, { value: DashboardResponse; expiresAt: number }>()
+const DASHBOARD_FRESH_MS = 5 * 60 * 1000
+const DASHBOARD_STALE_MS = 15 * 60 * 1000
+const READ_RETRY_DELAY_MS = 250
+
+type DashboardCacheEntry = {
+  value: DashboardResponse
+  freshUntil: number
+  staleUntil: number
+}
+
+const dashboardCache = new Map<string, DashboardCacheEntry>()
 const dashboardRequests = new Map<string, Promise<DashboardResponse>>()
 
 export class DashboardServiceError extends Error {
@@ -87,21 +96,55 @@ async function parseApiResponse<T>(response: Response, fallbackMessage: string):
   return payload.data
 }
 
-async function requestDashboard(key: string): Promise<DashboardResponse> {
-  let response: Response
+function isRetriableDashboardRead(error: unknown): boolean {
+  if (!(error instanceof DashboardServiceError)) return true
+  return [
+    'DASHBOARD_REQUEST_FAILED',
+    'UPSTREAM_INVALID_RESPONSE',
+    'INVALID_DASHBOARD_RESPONSE',
+    'HTTP_502',
+    'HTTP_503',
+    'HTTP_504',
+  ].includes(error.code)
+}
 
-  try {
-    response = await fetch(key, {
-      method: 'GET',
-      headers: { accept: 'application/json' },
-    })
-  } catch {
-    throw new DashboardServiceError('Não foi possível conectar ao serviço do dashboard.')
+function waitBeforeRetry(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, READ_RETRY_DELAY_MS))
+}
+
+async function requestDashboard(key: string): Promise<DashboardResponse> {
+  let lastError: unknown
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(key, {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+      })
+      const value = await parseApiResponse<DashboardResponse>(response, 'Não foi possível carregar o dashboard.')
+      const now = Date.now()
+      dashboardCache.set(key, {
+        value,
+        freshUntil: now + DASHBOARD_FRESH_MS,
+        staleUntil: now + DASHBOARD_STALE_MS,
+      })
+      return value
+    } catch (error) {
+      lastError = error instanceof Error
+        ? error
+        : new DashboardServiceError('Não foi possível conectar ao serviço do dashboard.')
+
+      if (attempt === 0 && isRetriableDashboardRead(lastError)) {
+        await waitBeforeRetry()
+        continue
+      }
+      throw lastError
+    }
   }
 
-  const value = await parseApiResponse<DashboardResponse>(response, 'Não foi possível carregar o dashboard.')
-  dashboardCache.set(key, { value, expiresAt: Date.now() + DASHBOARD_CACHE_MS })
-  return value
+  throw lastError instanceof Error
+    ? lastError
+    : new DashboardServiceError('Não foi possível conectar ao serviço do dashboard.')
 }
 
 function requestForKey(key: string): Promise<DashboardResponse> {
@@ -113,14 +156,20 @@ function requestForKey(key: string): Promise<DashboardResponse> {
   return request
 }
 
-function cachedDashboard(key: string): DashboardResponse | null {
+function dashboardSnapshot(key: string): { value: DashboardResponse; isFresh: boolean } | null {
   const cached = dashboardCache.get(key)
   if (!cached) return null
-  if (cached.expiresAt <= Date.now()) {
+
+  const now = Date.now()
+  if (cached.staleUntil <= now) {
     dashboardCache.delete(key)
     return null
   }
-  return cached.value
+
+  return {
+    value: cached.value,
+    isFresh: cached.freshUntil > now,
+  }
 }
 
 function withAbortSignal(request: Promise<DashboardResponse>, signal?: AbortSignal): Promise<DashboardResponse> {
@@ -136,7 +185,9 @@ function withAbortSignal(request: Promise<DashboardResponse>, signal?: AbortSign
 }
 
 export function invalidateDashboardCache(): void {
-  dashboardCache.clear()
+  dashboardCache.forEach((entry) => {
+    entry.freshUntil = 0
+  })
 }
 
 export function fetchDashboard(
@@ -147,20 +198,24 @@ export function fetchDashboard(
   if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
 
   const key = buildDashboardUrl(query)
-  const cached = cachedDashboard(key)
-  if (!options?.force && cached) return Promise.resolve(cached)
+  const snapshot = dashboardSnapshot(key)
+
+  if (!options?.force && snapshot) {
+    if (!snapshot.isFresh && !dashboardRequests.has(key)) {
+      void requestForKey(key).catch(() => undefined)
+    }
+    return Promise.resolve(snapshot.value)
+  }
 
   return withAbortSignal(requestForKey(key), signal)
 }
 
 export function revalidateDashboard(query: DashboardQuery, signal?: AbortSignal): Promise<DashboardResponse> {
-  return fetchDashboard(query, signal, { force: true })
+  return fetchDashboard(query, signal)
 }
 
-export function prefetchDashboard(query: DashboardQuery): void {
-  const key = buildDashboardUrl(query)
-  if (cachedDashboard(key) || dashboardRequests.has(key)) return
-  void requestForKey(key).catch(() => undefined)
+export function prefetchDashboard(_query: DashboardQuery): void {
+  // Dashboard é uma leitura pesada no Apps Script. Carregar somente quando a tela solicitar.
 }
 
 export async function fetchDashboardExport(query: DashboardQuery, type: DashboardExportType): Promise<DashboardExportResponse> {

@@ -1,7 +1,7 @@
 const DashboardCacheService = (() => {
   const VERSION_KEY = 'dashboard_cache_version_v1';
   const CACHE_PREFIX = 'dashboard_response_v1_';
-  const CACHE_SECONDS = 45;
+  const CACHE_SECONDS = 120;
 
   function get(payload) {
     const input = payload || {};

@@ -4,6 +4,28 @@
 .nx-delete-dialog-body .p-inputtextarea{width:100%;min-height:100px}
 .nx-delete-dialog-body small{font-size:9px;color:#858b94}
 
+.admin-page>.nx-prime-notice{
+  position:fixed!important;
+  z-index:10050!important;
+  top:calc(env(safe-area-inset-top,0px) + 14px)!important;
+  left:50%!important;
+  width:min(520px,calc(100vw - 24px))!important;
+  max-width:calc(100vw - 24px)!important;
+  margin:0!important;
+  transform:translateX(-50%)!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  padding:12px 14px!important;
+  border-radius:12px!important;
+  box-shadow:0 16px 40px rgba(24,26,31,.24)!important;
+  pointer-events:auto!important;
+}
+.admin-page>.nx-prime-notice>span{min-width:0;flex:1 1 auto;line-height:1.35}
+.admin-page>.nx-prime-notice.is-success{border:1px solid #b9d9c3!important;background:#eef8f1!important;color:#23603c!important}
+.admin-page>.nx-prime-notice.is-error{border:1px solid #efb9be!important;background:#fff0f1!important;color:#9b1119!important}
+.admin-page>.nx-prime-notice .p-button{flex:0 0 auto;color:currentColor!important}
+
 .admin-page .nx-prime-data-panel.p-card{min-width:0;overflow:hidden}
 .admin-page .nx-prime-table{min-width:0}
 .admin-page .nx-prime-table .p-datatable-wrapper{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
@@ -12,6 +34,22 @@
 .admin-page .nx-prime-table .p-datatable-tbody>tr>td{white-space:nowrap}
 .admin-page .nx-prime-table .nx-user-cell{min-width:120px}
 .admin-page .nx-prime-table .nx-modern-actions{flex-wrap:nowrap;white-space:nowrap}
+.admin-page .nx-prime-table .nx-solicitation-row-actions{display:flex;align-items:center;justify-content:flex-start;gap:5px;white-space:nowrap}
+.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button{
+  width:34px;
+  min-width:34px;
+  height:34px;
+  min-height:34px;
+  padding:0!important;
+  justify-content:center;
+  border-radius:9px;
+  transition:background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .14s ease;
+}
+.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:hover:not(:disabled){transform:translateY(-1px)}
+.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:focus-visible{box-shadow:0 0 0 3px rgba(218,0,18,.14)}
+.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button .p-button-icon{margin:0!important;font-size:12px}
+.admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:15rem!important;width:15rem!important}
 .admin-page .nx-prime-filter-row{grid-template-columns:repeat(3,minmax(0,1fr))}
 .admin-page .nx-prime-filter-row>.p-button{min-height:42px}
 
@@ -20,8 +58,11 @@
 }
 
 @media(max-width:760px){
+  .admin-page>.nx-prime-notice{top:calc(env(safe-area-inset-top,0px) + 10px)!important;width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important}
   .admin-page .nx-prime-filter-row{grid-template-columns:1fr}
   .admin-page .nx-prime-table table{min-width:1120px}
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{min-width:15rem!important;width:15rem!important}
   .admin-page .nx-prime-paginator.p-paginator{gap:2px}
   .admin-page .nx-prime-paginator .p-paginator-first,
   .admin-page .nx-prime-paginator .p-paginator-last{display:none}

@@ -3,14 +3,9 @@ const AttendanceService = (() => {
 
   function register(payload) {
     const input = payload || {};
-    const solicitationId = ValidationService.requiredText(
-      input.idSolicitacao,
-      'ID da solicitação'
-    );
-    const attendedQuantity = ValidationService.nonNegativeInteger(
-      input.qtdComparecida,
-      'Quantidade comparecida'
-    );
+    const solicitationId = ValidationService.requiredText(input.idSolicitacao, 'ID da solicitação');
+    const administrativeUser = ValidationService.requiredText(input.usuarioAdministrativo, 'Usuário administrativo');
+    const attendedQuantity = ValidationService.nonNegativeInteger(input.qtdComparecida, 'Quantidade comparecida');
 
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) {
@@ -18,19 +13,22 @@ const AttendanceService = (() => {
     }
 
     try {
-      const found = SheetRepository.findRowByField(
-        SHEET_SOLICITACOES,
-        'ID_SOLICITACAO',
-        solicitationId
-      );
-
-      if (!found) {
-        ValidationService.fail('Solicitação não encontrada: ' + solicitationId + '.');
-      }
+      SolicitationStatusService.ensureSchema();
+      const found = SheetRepository.findRowByField(SHEET_SOLICITACOES, 'ID_SOLICITACAO', solicitationId);
+      if (!found) ValidationService.fail('Solicitação não encontrada: ' + solicitationId + '.');
 
       const record = found.record;
       if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== 'MAO_DE_OBRA') {
         ValidationService.fail('Quantidade comparecida só pode ser registrada para solicitação de mão de obra.');
+      }
+
+      const status = SolicitationStatusService.resolve(record);
+      if (
+        status !== SolicitationStatusService.STATUS.SUPPLIER_SENT &&
+        status !== SolicitationStatusService.STATUS.IN_SERVICE &&
+        status !== SolicitationStatusService.STATUS.ATTENDED
+      ) {
+        ValidationService.fail('A solicitação precisa estar enviada ao fornecedor antes de registrar o comparecimento.');
       }
 
       const unitPrice = toMoneyNumber_(record.PRECO_UNITARIO_APLICADO);
@@ -40,35 +38,28 @@ const AttendanceService = (() => {
 
       const existingAttendance = toIntegerOrNull_(record.QTD_COMPARECIDA);
       if (existingAttendance != null && existingAttendance !== attendedQuantity) {
-        ValidationService.fail(
-          'Comparecimento já registrado com quantidade ' + existingAttendance + '. Correção exige fluxo de auditoria.'
-        );
+        ValidationService.fail('Comparecimento já registrado com quantidade ' + existingAttendance + '. Correção exige fluxo de auditoria.');
       }
 
-      const realValue = PartialShiftService.calculateRealValue(
-        solicitationId,
-        attendedQuantity,
-        unitPrice
-      );
+      const realValue = PartialShiftService.calculateRealValue(solicitationId, attendedQuantity, unitPrice);
+      const updates = {};
 
-      if (existingAttendance == null) {
-        SheetRepository.updateFields(
-          SHEET_SOLICITACOES,
-          found.rowNumber,
-          {
-            QTD_COMPARECIDA: attendedQuantity,
-            VALOR_REAL: realValue,
-          }
-        );
-      } else {
-        const existingRealValue = toMoneyNumber_(record.VALOR_REAL);
-        if (existingRealValue == null || existingRealValue !== realValue) {
-          SheetRepository.updateFields(
-            SHEET_SOLICITACOES,
-            found.rowNumber,
-            { VALOR_REAL: realValue }
-          );
+      if (existingAttendance == null) updates.QTD_COMPARECIDA = attendedQuantity;
+      const existingRealValue = toMoneyNumber_(record.VALOR_REAL);
+      if (existingRealValue == null || existingRealValue !== realValue) updates.VALOR_REAL = realValue;
+
+      if (status === SolicitationStatusService.STATUS.ATTENDED) {
+        if (Object.keys(updates).length) {
+          SheetRepository.updateFields(SHEET_SOLICITACOES, found.rowNumber, updates);
         }
+      } else {
+        SolicitationStatusService.applyWithinLock({
+          found: found,
+          target: SolicitationStatusService.STATUS.ATTENDED,
+          usuarioAdministrativo: administrativeUser,
+          motivo: 'COMPARECIMENTO_REGISTRADO',
+          updates: updates,
+        });
       }
 
       return response_(record, attendedQuantity, unitPrice, realValue);
@@ -85,6 +76,7 @@ const AttendanceService = (() => {
       precoUnitarioAplicado: unitPrice,
       valorReal: realValue,
       divergencia: Number(record.QTD_SOLICITADA) !== attendedQuantity,
+      status: SolicitationStatusService.STATUS.ATTENDED,
     };
   }
 
@@ -96,13 +88,10 @@ const AttendanceService = (() => {
 
   function toMoneyNumber_(value) {
     if (value === '' || value == null) return null;
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : null;
-    }
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
 
     const text = String(value).trim();
     let normalized = text;
-
     if (text.indexOf(',') >= 0 && text.indexOf('.') >= 0) {
       normalized = text.lastIndexOf(',') > text.lastIndexOf('.')
         ? text.replace(/\./g, '').replace(',', '.')
@@ -115,7 +104,5 @@ const AttendanceService = (() => {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  return {
-    register,
-  };
+  return { register };
 })();

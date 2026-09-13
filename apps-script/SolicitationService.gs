@@ -23,6 +23,7 @@ const SolicitationService = (() => {
     record.TIPO_SOLICITACAO = type;
     record.DATA_CRIACAO = new Date();
     record.COMPETENCIA = DateService.competence(common.operationalDate);
+    record.STATUS = SolicitationStatusService.STATUS.SENT;
 
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) {
@@ -30,6 +31,7 @@ const SolicitationService = (() => {
     }
 
     try {
+      SolicitationStatusService.ensureSchema();
       record.ID_SOLICITACAO = ProtocolService.next(record.DATA_CRIACAO);
       SheetRepository.appendObject(SHEET_SOLICITACOES, record, {
         textFields: TEXT_FIELDS,
@@ -40,6 +42,7 @@ const SolicitationService = (() => {
         tipoSolicitacao: type,
         competencia: record.COMPETENCIA,
         valorPrevisto: record.VALOR_PREVISTO,
+        status: record.STATUS,
       };
     } finally {
       lock.releaseLock();

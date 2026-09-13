@@ -1,5 +1,20 @@
 export type SolicitationType = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
 
+export type OperationalSolicitationStatus =
+  | 'RASCUNHO'
+  | 'ENVIADA'
+  | 'EM_TRIAGEM'
+  | 'AGUARDANDO_AJUSTE'
+  | 'ENVIADA_AO_FORNECEDOR'
+  | 'EM_ATENDIMENTO'
+  | 'ATENDIDA'
+
+export type SolicitationStatus =
+  | OperationalSolicitationStatus
+  | 'AGUARDANDO_NF'
+  | 'CONFERIDA'
+  | 'ENCERRADA'
+
 export interface PartialShiftException {
   idExcecao: string
   nomeColaborador: string
@@ -33,6 +48,7 @@ export interface AdministrativeSolicitationListItem {
   qtdBebida: number | null
   valorPrevisto: number | null
   valorReal: number | null
+  status: SolicitationStatus
   triagemConcluida: boolean
   realizadoRegistrado: boolean | null
   divergencia: boolean | null
@@ -108,6 +124,7 @@ export interface AdministrativeSolicitationDetail {
   produtoAlimentacaoAplicado: string
   produtoBebidaAplicado: string
   motivoAjusteProduto: string
+  status: SolicitationStatus
   triagemConcluida: boolean
   realizadoRegistrado: boolean | null
   divergencia: boolean | null
