@@ -85,8 +85,6 @@
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir detalhes"]{grid-column:7}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Editar solicitação"]{grid-column:8}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Excluir solicitação"]{grid-column:9}
-.admin-page .nx-prime-table .nx-solicitation-row-actions .p-button[aria-label="Enviar para aguardando NF"]{display:none!important}
-.nx-prime-workflow .workflow-action-box:has(.nx-workflow-section-heading .pi-file){display:none}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:hover:not(:disabled){transform:translateY(-1px)}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:focus-visible{box-shadow:0 0 0 3px rgba(218,0,18,.14)}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button .p-button-icon{margin:0!important;font-size:12px}
