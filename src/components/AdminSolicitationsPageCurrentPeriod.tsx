@@ -256,6 +256,32 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     detailCacheTimeRef.current.delete(idSolicitacao)
   }
 
+  function applyDetailPatch(idSolicitacao: string, patch: Partial<AdministrativeSolicitationDetail>) {
+    const cached = detailCacheRef.current.get(idSolicitacao)
+    const visible = detail?.idSolicitacao === idSolicitacao ? detail : null
+    const current = visible || cached
+    if (!current) return
+
+    const next = { ...current, ...patch }
+    detailCacheRef.current.set(idSolicitacao, next)
+    detailCacheTimeRef.current.set(idSolicitacao, Date.now())
+    setDetail((currentDetail) => currentDetail?.idSolicitacao === idSolicitacao ? { ...currentDetail, ...patch } : currentDetail)
+    setItems((currentItems) => currentItems.map((item) => {
+      if (item.idSolicitacao !== idSolicitacao) return item
+      return {
+        ...item,
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.fornecedor !== undefined ? { fornecedor: patch.fornecedor } : {}),
+        ...(patch.qtdComparecida !== undefined ? { qtdComparecida: patch.qtdComparecida } : {}),
+        ...(patch.valorPrevisto !== undefined ? { valorPrevisto: patch.valorPrevisto } : {}),
+        ...(patch.valorReal !== undefined ? { valorReal: patch.valorReal } : {}),
+        ...(patch.triagemConcluida !== undefined ? { triagemConcluida: patch.triagemConcluida } : {}),
+        ...(patch.realizadoRegistrado !== undefined ? { realizadoRegistrado: patch.realizadoRegistrado } : {}),
+        ...(patch.divergencia !== undefined ? { divergencia: patch.divergencia } : {}),
+      }
+    }))
+  }
+
   function requestDetail(idSolicitacao: string, force = false) {
     if (!force) {
       const cached = freshCachedDetail(idSolicitacao)
@@ -291,7 +317,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
 
   async function refreshDetail(idSolicitacao: string) {
     const loaded = await requestDetail(idSolicitacao, true)
-    setDetail(loaded)
+    setDetail((currentDetail) => currentDetail?.idSolicitacao === idSolicitacao ? loaded : currentDetail)
     return loaded
   }
 
@@ -411,23 +437,20 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     }
   }
 
-  async function handleWorkflowChanged(idSolicitacao: string, message: string) {
+  function handleWorkflowChanged(
+    idSolicitacao: string,
+    message: string,
+    patch: Partial<AdministrativeSolicitationDetail>,
+  ) {
+    applyDetailPatch(idSolicitacao, patch)
     notify('success', message)
-    try {
-      await refreshDetail(idSolicitacao)
-    } catch {
-      notify('error', 'A ação foi salva, mas os detalhes não puderam ser atualizados agora.')
-    }
+    void refreshDetail(idSolicitacao).catch(() => undefined)
     void refreshItems().catch(() => undefined)
   }
 
-  async function handleCorrectionSaved(idSolicitacao: string) {
+  function handleCorrectionSaved(idSolicitacao: string) {
     notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
-    try {
-      await refreshDetail(idSolicitacao)
-    } catch {
-      notify('error', 'A correção foi salva, mas os detalhes não puderam ser atualizados agora.')
-    }
+    void refreshDetail(idSolicitacao).catch(() => undefined)
     void refreshItems().catch(() => undefined)
   }
 
