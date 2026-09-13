@@ -81,8 +81,7 @@
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Copiar resumo"]{grid-column:3}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir fornecedor"]{grid-column:4}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar em atendimento"]{grid-column:5}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar atendida"],
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Enviar para aguardando NF"]{grid-column:6}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar atendida"]{grid-column:6}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir detalhes"]{grid-column:7}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Editar solicitação"]{grid-column:8}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Excluir solicitação"]{grid-column:9}
