@@ -1,6 +1,6 @@
 export type SolicitationType = 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'
 
-export type SolicitationStatus =
+export type OperationalSolicitationStatus =
   | 'RASCUNHO'
   | 'ENVIADA'
   | 'EM_TRIAGEM'
@@ -8,6 +8,9 @@ export type SolicitationStatus =
   | 'ENVIADA_AO_FORNECEDOR'
   | 'EM_ATENDIMENTO'
   | 'ATENDIDA'
+
+export type SolicitationStatus =
+  | OperationalSolicitationStatus
   | 'AGUARDANDO_NF'
   | 'CONFERIDA'
   | 'ENCERRADA'
