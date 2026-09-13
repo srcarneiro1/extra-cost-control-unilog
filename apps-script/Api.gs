@@ -81,10 +81,10 @@ const Api = (() => {
         const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
         if (action === FinancialCloseoutService.ACTIONS.CLOSE) {
           return JsonResponse.ok(writeAndInvalidate_(function () {
-            return FinancialCloseoutService.execute(servicePayload);
+            return FinancialCloseoutPhase2CService.execute(servicePayload);
           }));
         }
-        return JsonResponse.ok(FinancialCloseoutService.execute(servicePayload));
+        return JsonResponse.ok(FinancialCloseoutPhase2CService.execute(servicePayload));
       }
 
       if (route === 'excecoes_financeiras') {
