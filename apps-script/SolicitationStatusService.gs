@@ -99,11 +99,27 @@ const SolicitationStatusService = (() => {
         ValidationService.fail('Solicitação não encontrada: ' + solicitationId + '.');
       }
 
+      const updates = {};
+
+      if (
+        target === STATUS.ATTENDED &&
+        ValidationService.normalizeUpper(found.record.TIPO_SOLICITACAO) === 'ALIMENTACAO_BEBIDA'
+      ) {
+        if (!hasValue_(found.record.VALOR_PREVISTO)) {
+          ValidationService.fail(
+            'Valor previsto não encontrado para concluir a solicitação de alimentação/bebida.'
+          );
+        }
+
+        updates.VALOR_REAL = found.record.VALOR_PREVISTO;
+      }
+
       return applyWithinLock({
         found: found,
         target: target,
         usuarioAdministrativo: administrativeUser,
         motivo: ValidationService.normalizeText(input.motivo || ''),
+        updates: updates,
       });
     } finally {
       lock.releaseLock();
