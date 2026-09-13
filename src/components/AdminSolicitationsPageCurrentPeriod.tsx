@@ -557,15 +557,15 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     const canShare = canAdminister && item.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status)
     return (
       <div className="nx-modern-actions nx-solicitation-row-actions">
-        {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon="pi pi-undo" label="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
-        {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon="pi pi-send" label="Confirmar envio" size="small" disabled={busy} onClick={() => void handleQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
-        {canShare && <Button icon="pi pi-copy" label="Copiar resumo" size="small" text disabled={busy} onClick={() => void handleCopySummary(item)} />}
-        {canShare && <Button icon="pi pi-whatsapp" label="Abrir fornecedor" size="small" text disabled={busy} onClick={() => void handleOpenSupplier(item)} />}
-        {canAdminister && item.status === 'ENVIADA_AO_FORNECEDOR' && <Button icon="pi pi-play" label="Em atendimento" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} />}
-        {canAdminister && item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status) && <Button icon="pi pi-check" label="Atendida" size="small" severity="success" disabled={busy} onClick={() => void handleQuickStatus(item, 'ATENDIDA', 'Solicitação marcada como atendida.')} />}
-        <Button icon="pi pi-external-link" label="Abrir" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={busy || detailLoading} className="nx-primary-button" />
-        {canAdminister && <Button icon="pi pi-pencil" label="Editar" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={busy || detailLoading} />}
-        {canAdminister && <Button icon="pi pi-trash" aria-label={`Excluir ${item.idSolicitacao}`} tooltip="Excluir" size="small" severity="danger" text onClick={() => openDelete(item)} disabled={busy || detailLoading} />}
+        {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon="pi pi-undo" aria-label="Aguardando ajuste" title="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
+        {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon="pi pi-send" aria-label="Confirmar envio ao fornecedor" title="Confirmar envio ao fornecedor" size="small" disabled={busy} onClick={() => void handleQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
+        {canShare && <Button icon="pi pi-copy" aria-label="Copiar resumo" title="Copiar resumo" size="small" text disabled={busy} onClick={() => void handleCopySummary(item)} />}
+        {canShare && <Button icon="pi pi-whatsapp" aria-label="Abrir fornecedor" title="Abrir fornecedor" size="small" text disabled={busy} onClick={() => void handleOpenSupplier(item)} />}
+        {canAdminister && item.status === 'ENVIADA_AO_FORNECEDOR' && <Button icon="pi pi-play" aria-label="Marcar em atendimento" title="Marcar em atendimento" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} />}
+        {canAdminister && item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status) && <Button icon="pi pi-check" aria-label="Marcar atendida" title="Marcar atendida" size="small" severity="success" disabled={busy} onClick={() => void handleQuickStatus(item, 'ATENDIDA', 'Solicitação marcada como atendida.')} />}
+        <Button icon="pi pi-external-link" aria-label="Abrir detalhes" title="Abrir detalhes" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={busy || detailLoading} className="nx-primary-button" />
+        {canAdminister && <Button icon="pi pi-pencil" aria-label="Editar solicitação" title="Editar solicitação" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={busy || detailLoading} />}
+        {canAdminister && <Button icon="pi pi-trash" aria-label="Excluir solicitação" title="Excluir solicitação" size="small" severity="danger" text onClick={() => openDelete(item)} disabled={busy || detailLoading} />}
       </div>
     )
   }
@@ -619,7 +619,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
             <Column header="Qtd. considerada" body={consideredQuantityBody} />
             <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
             <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '34rem' : '7rem' }} />
+            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '15rem' : '4rem' }} />
           </DataTable>
         )}
 
