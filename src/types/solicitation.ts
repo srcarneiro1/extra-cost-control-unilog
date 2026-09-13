@@ -14,9 +14,7 @@ export type FinancialSolicitationStatus =
   | 'CONFERIDA'
   | 'ENCERRADA'
 
-export type AdministrativeTransitionStatus =
-  | OperationalSolicitationStatus
-  | 'AGUARDANDO_NF'
+export type AdministrativeTransitionStatus = OperationalSolicitationStatus
 
 export type SolicitationStatus =
   | OperationalSolicitationStatus
