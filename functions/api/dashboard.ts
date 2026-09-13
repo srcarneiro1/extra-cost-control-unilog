@@ -20,6 +20,34 @@ function optionalParam(url: URL, name: string): string {
   return String(url.searchParams.get(name) || '').trim()
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchAppsScript(
+  targetUrl: URL,
+  payload: Record<string, unknown>,
+  gatewayToken: string,
+): Promise<{ response: Response; payload: unknown } | null> {
+  try {
+    const response = await fetch(targetUrl.toString(), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...payload, _gatewayToken: gatewayToken }),
+      redirect: 'follow',
+    })
+
+    const text = await response.text()
+    try {
+      return { response, payload: JSON.parse(text) as unknown }
+    } catch {
+      return null
+    }
+  } catch {
+    return null
+  }
+}
+
 async function proxyToAppsScript(
   env: Env,
   payload: Record<string, unknown>,
@@ -34,19 +62,16 @@ async function proxyToAppsScript(
   const targetUrl = new URL(env.APPS_SCRIPT_URL)
   targetUrl.searchParams.set('route', 'dashboard')
 
-  const upstreamResponse = await fetch(targetUrl.toString(), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN }),
-    redirect: 'follow',
-  })
+  let upstream = await fetchAppsScript(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
 
-  const upstreamText = await upstreamResponse.text()
-  let upstreamPayload: unknown
+  // Dashboard é somente leitura. Uma repetição curta é segura e absorve respostas
+  // transitórias do endpoint publicado do Apps Script sem duplicar qualquer escrita.
+  if (!upstream) {
+    await delay(200)
+    upstream = await fetchAppsScript(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
+  }
 
-  try {
-    upstreamPayload = JSON.parse(upstreamText)
-  } catch {
+  if (!upstream) {
     return jsonResponse(
       { ok: false, error: { code: 'UPSTREAM_INVALID_RESPONSE', message: 'Apps Script retornou uma resposta inválida.' } },
       502,
@@ -54,12 +79,15 @@ async function proxyToAppsScript(
   }
 
   const apiSucceeded =
-    typeof upstreamPayload === 'object' &&
-    upstreamPayload !== null &&
-    'ok' in upstreamPayload &&
-    (upstreamPayload as { ok?: unknown }).ok === true
+    typeof upstream.payload === 'object' &&
+    upstream.payload !== null &&
+    'ok' in upstream.payload &&
+    (upstream.payload as { ok?: unknown }).ok === true
 
-  return jsonResponse(upstreamPayload, apiSucceeded ? 200 : upstreamResponse.ok ? 400 : 502)
+  return jsonResponse(
+    upstream.payload,
+    apiSucceeded ? 200 : upstream.response.ok ? 400 : 502,
+  )
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
