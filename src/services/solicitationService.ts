@@ -114,6 +114,11 @@ function invalidateAdministrativeListCache() {
   metadataCache = null
 }
 
+function invalidateMutationCaches() {
+  invalidateAdministrativeListCache()
+  invalidateDashboardCache()
+}
+
 async function postRequest<T>(url: string, body: Record<string, unknown>): Promise<T> {
   let response: Response
 
@@ -131,9 +136,36 @@ async function postRequest<T>(url: string, body: Record<string, unknown>): Promi
   }
 
   const result = await parseResponse<T>(response)
-  invalidateAdministrativeListCache()
-  invalidateDashboardCache()
+  invalidateMutationCaches()
   return result
+}
+
+function isAmbiguousMutationResponse(error: unknown): error is SolicitationServiceError {
+  return error instanceof SolicitationServiceError && (
+    error.code === 'UPSTREAM_INVALID_RESPONSE' ||
+    error.code === 'INVALID_SOLICITATION_RESPONSE'
+  )
+}
+
+async function reconcileAmbiguousMutation<T>(
+  error: unknown,
+  idSolicitacao: string,
+  persisted: (detail: AdministrativeSolicitationDetail) => boolean,
+  result: (detail: AdministrativeSolicitationDetail) => T,
+): Promise<T> {
+  if (!isAmbiguousMutationResponse(error)) throw error
+
+  try {
+    const detail = await fetchAdministrativeSolicitationDetail(idSolicitacao)
+    if (persisted(detail)) {
+      invalidateMutationCaches()
+      return result(detail)
+    }
+  } catch {
+    // Se a leitura de confirmação também falhar, preserva o erro original da mutação.
+  }
+
+  throw error
 }
 
 function buildAdministrativeListUrl(query: AdministrativeSolicitationListQuery): string {
@@ -301,14 +333,23 @@ export function applyAdministrativeTriage(input: {
   return postRequest('/api/triagem', input)
 }
 
-export function registerAdministrativeAttendance(input: {
+export async function registerAdministrativeAttendance(input: {
   idSolicitacao: string
   qtdComparecida: number
 }): Promise<unknown> {
-  return postRequest('/api/comparecimento', input)
+  try {
+    return await postRequest('/api/comparecimento', input)
+  } catch (error) {
+    return reconcileAmbiguousMutation(
+      error,
+      input.idSolicitacao,
+      (detail) => detail.status === 'ATENDIDA' && detail.qtdComparecida === input.qtdComparecida,
+      (detail) => detail,
+    )
+  }
 }
 
-export function updateAdministrativeSolicitationStatus(input: {
+export async function updateAdministrativeSolicitationStatus(input: {
   idSolicitacao: string
   status: OperationalSolicitationStatus
   motivo?: string
@@ -318,7 +359,21 @@ export function updateAdministrativeSolicitationStatus(input: {
   status: SolicitationStatus
   alterado: boolean
 }> {
-  return postRequest('/api/status-solicitacao', input)
+  try {
+    return await postRequest('/api/status-solicitacao', input)
+  } catch (error) {
+    return reconcileAmbiguousMutation(
+      error,
+      input.idSolicitacao,
+      (detail) => detail.status === input.status,
+      (detail) => ({
+        idSolicitacao: detail.idSolicitacao,
+        statusAnterior: detail.status,
+        status: detail.status,
+        alterado: false,
+      }),
+    )
+  }
 }
 
 export interface PartialShiftEntryInput {
