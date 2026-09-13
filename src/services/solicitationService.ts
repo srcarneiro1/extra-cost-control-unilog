@@ -108,21 +108,24 @@ function waitBeforeRetry(signal?: AbortSignal): Promise<void> {
   })
 }
 
+function edgeBypassUrl(url: string): string {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}_fresh=${Date.now()}`
+}
+
 async function getRequest<T>(
   url: string,
   signal?: AbortSignal,
   options?: { bypassEdgeCache?: boolean },
 ): Promise<T> {
   let lastError: unknown
+  const requestUrl = options?.bypassEdgeCache ? edgeBypassUrl(url) : url
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await fetch(url, {
+      const response = await fetch(requestUrl, {
         method: 'GET',
-        headers: {
-          accept: 'application/json',
-          ...(options?.bypassEdgeCache ? { 'cache-control': 'no-cache' } : {}),
-        },
+        headers: { accept: 'application/json' },
         signal,
       })
       return await parseResponse<T>(response)
