@@ -41,6 +41,10 @@ function jsonResponse(payload: unknown, status = 200, headers?: HeadersInit): Re
   });
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function edgeCache_(): Cache | null {
   if (typeof caches === 'undefined') return null;
   return (caches as unknown as { default?: Cache }).default || null;
@@ -91,6 +95,29 @@ function registerLoginCooldown_(
   }
 }
 
+async function fetchAuthUpstream_(
+  targetUrl: URL,
+  email: string,
+  password: string,
+  gatewayToken: string,
+): Promise<Response | null> {
+  try {
+    return await fetch(targetUrl.toString(), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        acao: 'LOGIN',
+        email,
+        password,
+        _gatewayToken: gatewayToken,
+      }),
+      redirect: 'follow',
+    });
+  } catch {
+    return null;
+  }
+}
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   let body: { email?: unknown; password?: unknown };
@@ -129,20 +156,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const targetUrl = new URL(env.APPS_SCRIPT_URL);
   targetUrl.searchParams.set('route', 'auth');
 
-  let upstreamResponse: Response;
-  try {
-    upstreamResponse = await fetch(targetUrl.toString(), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        acao: 'LOGIN',
-        email,
-        password,
-        _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
-      }),
-      redirect: 'follow',
-    });
-  } catch {
+  let upstreamResponse = await fetchAuthUpstream_(
+    targetUrl,
+    email,
+    password,
+    env.APPS_SCRIPT_GATEWAY_TOKEN,
+  );
+
+  if (!upstreamResponse) {
+    await delay(200);
+    upstreamResponse = await fetchAuthUpstream_(
+      targetUrl,
+      email,
+      password,
+      env.APPS_SCRIPT_GATEWAY_TOKEN,
+    );
+  }
+
+  if (!upstreamResponse) {
     return jsonResponse({ ok: false, error: { code: 'AUTH_UPSTREAM_UNAVAILABLE', message: 'Não foi possível validar o acesso.' } }, 502);
   }
 
