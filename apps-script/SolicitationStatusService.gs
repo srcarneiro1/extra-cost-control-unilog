@@ -88,7 +88,6 @@ const SolicitationStatusService = (() => {
 
     try {
       ensureSchema();
-      ensureAuditSheet_();
 
       const found = SheetRepository.findRowByField(
         SHEET_SOLICITACOES,
@@ -100,18 +99,44 @@ const SolicitationStatusService = (() => {
         ValidationService.fail('Solicitação não encontrada: ' + solicitationId + '.');
       }
 
-      const record = found.record;
-      const current = resolve(record);
+      return applyWithinLock({
+        found: found,
+        target: target,
+        usuarioAdministrativo: administrativeUser,
+        motivo: ValidationService.normalizeText(input.motivo || ''),
+      });
+    } finally {
+      lock.releaseLock();
+    }
+  }
 
-      if (current === target) {
-        return {
-          idSolicitacao: solicitationId,
-          statusAnterior: current,
-          status: target,
-          alterado: false,
-        };
-      }
+  function applyWithinLock(options) {
+    const input = options || {};
+    const found = input.found;
+    if (!found || !found.record || !found.rowNumber) {
+      throw new Error('Registro da solicitação não informado para alteração de status.');
+    }
 
+    const record = found.record;
+    const solicitationId = ValidationService.requiredText(
+      record.ID_SOLICITACAO,
+      'ID da solicitação'
+    );
+    const administrativeUser = ValidationService.requiredText(
+      input.usuarioAdministrativo,
+      'Usuário administrativo'
+    );
+    const target = ValidationService.enumValue(
+      input.target,
+      'Status',
+      ACTIVE_OPERATIONAL_STATUSES
+    );
+    const current = resolve(record);
+    const updates = Object.assign({}, input.updates || {});
+    delete updates.STATUS;
+
+    const statusChanged = current !== target;
+    if (statusChanged) {
       const allowed = TRANSITIONS[current] || [];
       if (allowed.indexOf(target) < 0) {
         ValidationService.fail(
@@ -119,31 +144,89 @@ const SolicitationStatusService = (() => {
         );
       }
 
-      validateTarget_(record, target);
+      const projectedRecord = Object.assign({}, record, updates, { STATUS: target });
+      validateTarget_(projectedRecord, target);
+      ensureAuditSheet_();
+      updates.STATUS = target;
+    }
 
-      SheetRepository.updateFields(
-        SHEET_SOLICITACOES,
-        found.rowNumber,
-        { STATUS: target }
-      );
-
-      appendAudit_(
-        solicitationId,
-        administrativeUser,
-        current,
-        target,
-        ValidationService.normalizeText(input.motivo || '')
-      );
-
+    const fields = Object.keys(updates);
+    if (!fields.length) {
       return {
         idSolicitacao: solicitationId,
         statusAnterior: current,
         status: target,
-        alterado: true,
+        alterado: false,
       };
-    } finally {
-      lock.releaseLock();
     }
+
+    const rollback = {};
+    fields.forEach(function (fieldName) {
+      rollback[fieldName] = record[fieldName] == null ? '' : record[fieldName];
+    });
+
+    SheetRepository.updateFields(
+      SHEET_SOLICITACOES,
+      found.rowNumber,
+      updates
+    );
+
+    if (statusChanged) {
+      try {
+        appendAudit_(
+          solicitationId,
+          administrativeUser,
+          current,
+          target,
+          ValidationService.normalizeText(input.motivo || '')
+        );
+      } catch (auditError) {
+        try {
+          SheetRepository.updateFields(
+            SHEET_SOLICITACOES,
+            found.rowNumber,
+            rollback
+          );
+        } catch (rollbackError) {
+          throw new Error(
+            'Falha ao registrar auditoria de status e também ao restaurar a solicitação: ' +
+            String(auditError && auditError.message ? auditError.message : auditError) +
+            ' | rollback: ' +
+            String(rollbackError && rollbackError.message ? rollbackError.message : rollbackError)
+          );
+        }
+        throw auditError;
+      }
+    }
+
+    return {
+      idSolicitacao: solicitationId,
+      statusAnterior: current,
+      status: target,
+      alterado: statusChanged,
+    };
+  }
+
+  function previewExistingStatuses() {
+    const analysis = analyzeMigration_(readMigrationDataset_());
+    return {
+      simulacao: true,
+      alterouPlanilha: false,
+      colunaStatusExiste: analysis.statusColumnExists,
+      total: analysis.total,
+      existentesValidos: analysis.existingValid,
+      pendentes: analysis.pending,
+      invalidos: {
+        quantidade: analysis.invalidCount,
+        exemplos: analysis.invalidExamples,
+      },
+      porStatus: analysis.counts,
+      criterio: {
+        semTriagem: STATUS.SENT,
+        triagemComFornecedorEPreco: STATUS.TRIAGE,
+        maoDeObraComComparecimento: STATUS.ATTENDED,
+      },
+    };
   }
 
   function migrateExistingStatuses() {
@@ -153,65 +236,132 @@ const SolicitationStatusService = (() => {
     }
 
     try {
-      ensureSchema();
-      const spreadsheet = SheetRepository.getSpreadsheet();
-      const sheet = spreadsheet.getSheetByName(SHEET_SOLICITACOES);
-      if (!sheet) throw new Error('Aba não encontrada: ' + SHEET_SOLICITACOES);
-
-      const lastRow = sheet.getLastRow();
-      const lastColumn = sheet.getLastColumn();
-      if (lastRow <= 1) {
-        return { migrado: true, atualizados: 0, total: 0, porStatus: {} };
+      const initialAnalysis = analyzeMigration_(readMigrationDataset_());
+      if (initialAnalysis.invalidCount > 0) {
+        ValidationService.fail(
+          'Migração bloqueada: existem ' +
+          initialAnalysis.invalidCount +
+          ' valor(es) de STATUS inválido(s). Execute previewSolicitationStatusMigration() e revise os exemplos antes de migrar.'
+        );
       }
 
-      const headers = sheet
-        .getRange(1, 1, 1, lastColumn)
-        .getDisplayValues()[0]
-        .map(function (value) { return String(value || '').trim(); });
-      const statusIndex = headers.indexOf('STATUS');
-      if (statusIndex < 0) throw new Error('Coluna STATUS não foi criada corretamente.');
+      ensureSchema();
 
-      const rows = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
-      let updated = 0;
-      const counts = {};
-      const statusValues = rows.map(function (row) {
-        const record = rowToObject_(headers, row);
+      const dataset = readMigrationDataset_();
+      const analysis = analyzeMigration_(dataset);
+      if (analysis.invalidCount > 0) {
+        ValidationService.fail(
+          'Migração bloqueada: a coluna STATUS contém valor(es) inválido(s). Execute previewSolicitationStatusMigration() antes de tentar novamente.'
+        );
+      }
+
+      if (dataset.rows.length === 0) {
+        return {
+          migrado: true,
+          atualizados: 0,
+          preservados: 0,
+          total: 0,
+          porStatus: {},
+        };
+      }
+
+      const statusValues = dataset.rows.map(function (row) {
+        const record = rowToObject_(dataset.headers, row);
         const current = normalizeStatus_(record.STATUS);
-        const status = current || inferLegacy_(record);
-        if (!current) updated += 1;
-        counts[status] = (counts[status] || 0) + 1;
-        return [status];
+        return [current ? row[dataset.statusIndex] : inferLegacy_(record)];
       });
 
-      sheet.getRange(2, statusIndex + 1, statusValues.length, 1).setValues(statusValues);
+      dataset.sheet
+        .getRange(2, dataset.statusIndex + 1, statusValues.length, 1)
+        .setValues(statusValues);
 
       return {
         migrado: true,
-        atualizados: updated,
-        total: statusValues.length,
-        porStatus: counts,
+        atualizados: analysis.pending,
+        preservados: analysis.existingValid,
+        total: analysis.total,
+        porStatus: analysis.counts,
       };
     } finally {
       lock.releaseLock();
     }
   }
 
+  function readMigrationDataset_() {
+    const spreadsheet = SheetRepository.getSpreadsheet();
+    const sheet = spreadsheet.getSheetByName(SHEET_SOLICITACOES);
+    if (!sheet) throw new Error('Aba não encontrada: ' + SHEET_SOLICITACOES);
+
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    const headers = lastColumn > 0
+      ? sheet
+          .getRange(1, 1, 1, lastColumn)
+          .getDisplayValues()[0]
+          .map(function (value) { return String(value || '').trim(); })
+      : [];
+    const rows = lastRow > 1 && lastColumn > 0
+      ? sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues()
+      : [];
+
+    return {
+      sheet: sheet,
+      headers: headers,
+      rows: rows,
+      statusIndex: headers.indexOf('STATUS'),
+    };
+  }
+
+  function analyzeMigration_(dataset) {
+    let existingValid = 0;
+    let pending = 0;
+    let invalidCount = 0;
+    const invalidExamples = [];
+    const counts = {};
+
+    dataset.rows.forEach(function (row) {
+      const record = rowToObject_(dataset.headers, row);
+      const rawStatus = dataset.statusIndex >= 0 ? record.STATUS : '';
+      const rawText = ValidationService.normalizeText(rawStatus || '');
+      const current = normalizeStatus_(rawStatus);
+
+      if (rawText && !current) {
+        invalidCount += 1;
+        if (invalidExamples.length < 20) {
+          invalidExamples.push({
+            idSolicitacao: ValidationService.normalizeText(record.ID_SOLICITACAO || ''),
+            status: rawText,
+          });
+        }
+        return;
+      }
+
+      const status = current || inferLegacy_(record);
+      if (current) existingValid += 1;
+      else pending += 1;
+      counts[status] = (counts[status] || 0) + 1;
+    });
+
+    return {
+      statusColumnExists: dataset.statusIndex >= 0,
+      total: dataset.rows.length,
+      existingValid: existingValid,
+      pending: pending,
+      invalidCount: invalidCount,
+      invalidExamples: invalidExamples,
+      counts: counts,
+    };
+  }
+
   function inferLegacy_(record) {
     const type = ValidationService.normalizeUpper(record.TIPO_SOLICITACAO);
-    const triageCompleted = hasValue_(record.FORNECEDOR) && (
-      hasValue_(record.PRECO_UNITARIO_APLICADO) ||
-      hasValue_(record.PRECO_ALIMENTACAO_APLICADO) ||
-      hasValue_(record.PRECO_BEBIDA_APLICADO)
-    );
 
-    if (type === 'MAO_DE_OBRA') {
-      if (hasValue_(record.QTD_COMPARECIDA)) return STATUS.ATTENDED;
-      if (triageCompleted) return STATUS.SUPPLIER_SENT;
-      return STATUS.SENT;
+    if (type === 'MAO_DE_OBRA' && hasValue_(record.QTD_COMPARECIDA)) {
+      return STATUS.ATTENDED;
     }
 
-    if (type === 'ALIMENTACAO_BEBIDA') {
-      return triageCompleted ? STATUS.ATTENDED : STATUS.SENT;
+    if (triageCompleted_(record)) {
+      return STATUS.TRIAGE;
     }
 
     return STATUS.SENT;
@@ -262,7 +412,10 @@ const SolicitationStatusService = (() => {
     let sheet = spreadsheet.getSheetByName(SHEET_AUDITORIA);
     if (!sheet) {
       sheet = spreadsheet.insertSheet(SHEET_AUDITORIA);
-      sheet.getRange(1, 1, 1, AUDIT_HEADERS.length).setValues([AUDIT_HEADERS]).setFontWeight('bold');
+      sheet
+        .getRange(1, 1, 1, AUDIT_HEADERS.length)
+        .setValues([AUDIT_HEADERS])
+        .setFontWeight('bold');
       sheet.setFrozenRows(1);
       return sheet;
     }
@@ -272,7 +425,12 @@ const SolicitationStatusService = (() => {
 
   function appendAudit_(solicitationId, user, beforeStatus, afterStatus, reason) {
     const now = new Date();
-    const id = 'STATUS-' + Utilities.formatDate(now, DateService.TIMEZONE, 'yyyyMMddHHmmss') + '-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+    const id =
+      'STATUS-' +
+      Utilities.formatDate(now, DateService.TIMEZONE, 'yyyyMMddHHmmss') +
+      '-' +
+      Utilities.getUuid().slice(0, 8).toUpperCase();
+
     SheetRepository.appendObject(
       SHEET_AUDITORIA,
       {
@@ -296,9 +454,15 @@ const SolicitationStatusService = (() => {
     afterTriage,
     attended,
     transition,
+    applyWithinLock,
+    previewExistingStatuses,
     migrateExistingStatuses,
   };
 })();
+
+function previewSolicitationStatusMigration() {
+  return SolicitationStatusService.previewExistingStatuses();
+}
 
 function migrateSolicitationStatuses() {
   return SolicitationStatusService.migrateExistingStatuses();
