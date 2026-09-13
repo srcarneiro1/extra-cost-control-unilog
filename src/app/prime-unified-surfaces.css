@@ -1,0 +1,378 @@
+/* Canonical surface layer for cards and tabular data.
+   Loaded after all migration/polish styles so the application has one final
+   geometry, semantic palette and density across dashboard and admin screens. */
+
+/* --------------------------------------------------------------------------
+   METRIC / FEEDBACK CARDS
+   -------------------------------------------------------------------------- */
+.ui-summary-metric.nx-prime-metric,
+.nx-dashboard-metric-card.p-card,
+.nx-dashboard-economy-card.p-card{
+  --metric-bg:#fff;
+  --metric-border:var(--unilog-border);
+  --metric-accent:transparent;
+  --metric-label:var(--unilog-muted);
+  --metric-value:var(--unilog-ink-2);
+  --metric-detail:var(--unilog-graphite-2);
+  position:relative!important;
+  min-height:108px!important;
+  overflow:hidden!important;
+  border:1px solid var(--metric-border)!important;
+  border-left-width:1px!important;
+  border-radius:var(--unilog-radius)!important;
+  background:var(--metric-bg)!important;
+  box-shadow:var(--unilog-shadow)!important;
+  transform:none!important;
+}
+
+/* Same internal rhythm for Prime Card and clickable metric buttons. */
+.nx-dashboard-metric-card.p-card>.p-card-body,
+.nx-dashboard-economy-card.p-card>.p-card-body,
+.ui-summary-metric.nx-prime-metric.p-card>.p-card-body{
+  height:100%!important;
+  padding:0!important;
+}
+.nx-dashboard-metric-card.p-card>.p-card-body>.p-card-content,
+.nx-dashboard-economy-card.p-card>.p-card-body>.p-card-content{
+  min-height:108px!important;
+  display:grid!important;
+  align-content:center!important;
+  gap:6px!important;
+  padding:16px 18px!important;
+}
+.ui-summary-metric.nx-prime-metric.p-card>.p-card-body>.p-card-content{
+  min-height:108px!important;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:12px!important;
+  padding:16px 18px!important;
+}
+button.ui-summary-metric.nx-prime-metric{
+  min-height:108px!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:12px!important;
+  padding:16px 18px!important;
+  text-align:left!important;
+}
+button.ui-summary-metric.nx-prime-metric>.p-button-label{
+  display:contents!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+
+/* Shared typography. */
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>span,
+.nx-dashboard-metric-card .p-card-content>span,
+.nx-dashboard-economy-card .dashboard-economy-label>span{
+  color:var(--metric-label)!important;
+  font-size:9px!important;
+  line-height:1.25!important;
+  font-weight:800!important;
+  letter-spacing:.065em!important;
+  text-transform:uppercase!important;
+}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>strong,
+.nx-dashboard-metric-card .p-card-content>strong,
+.nx-dashboard-economy-card .p-card-content>strong{
+  color:var(--metric-value)!important;
+  font-size:22px!important;
+  line-height:1.08!important;
+  font-weight:800!important;
+  letter-spacing:-.025em!important;
+  font-variant-numeric:tabular-nums;
+}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>small,
+.nx-dashboard-metric-card .p-card-content>small,
+.nx-dashboard-economy-card .p-card-content>small{
+  color:var(--metric-detail)!important;
+  font-size:10px!important;
+  line-height:1.35!important;
+}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy{gap:3px!important}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-icon{
+  width:38px!important;
+  height:38px!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid color-mix(in srgb,var(--metric-border) 75%,#fff)!important;
+  border-radius:11px!important;
+  background:rgba(255,255,255,.64)!important;
+  color:var(--metric-value)!important;
+  font-size:16px!important;
+}
+
+/* Prime dashboard informational cards are descriptive, not feedback. */
+.nx-dashboard-metric-card.dashboard-metric-info{
+  --metric-bg:#fff;
+  --metric-border:var(--unilog-border);
+  --metric-label:var(--unilog-muted);
+  --metric-value:var(--unilog-ink-2);
+  --metric-detail:var(--unilog-graphite-2);
+}
+
+/* Shared semantic surfaces. */
+.ui-summary-metric-success.nx-prime-metric,
+.nx-dashboard-metric-card.dashboard-metric-success,
+.nx-dashboard-economy-card.is-saving{
+  --metric-bg:#edf8f2;
+  --metric-border:#cce6d6;
+  --metric-accent:#63a77f;
+  --metric-label:#317552;
+  --metric-value:#2f7650;
+  --metric-detail:#5d7f6c;
+  border-left:5px solid var(--metric-accent)!important;
+}
+.ui-summary-metric-warning.nx-prime-metric,
+.nx-dashboard-metric-card.dashboard-metric-warning{
+  --metric-bg:#fff7e8;
+  --metric-border:#f1ddae;
+  --metric-accent:#d09a19;
+  --metric-label:#9b6500;
+  --metric-value:#a46a00;
+  --metric-detail:#8d7447;
+  border-left:5px solid var(--metric-accent)!important;
+}
+.ui-summary-metric-danger.nx-prime-metric,
+.nx-dashboard-metric-card.dashboard-metric-danger,
+.nx-dashboard-economy-card.is-increase{
+  --metric-bg:#fff0f1;
+  --metric-border:#efc9cc;
+  --metric-accent:#cf3e47;
+  --metric-label:#ad1b23;
+  --metric-value:#b51b24;
+  --metric-detail:#956166;
+  border-left:5px solid var(--metric-accent)!important;
+}
+.ui-summary-metric-info.nx-prime-metric{
+  --metric-bg:#eef5ff;
+  --metric-border:#cfe0f7;
+  --metric-accent:#4d82c4;
+  --metric-label:#2f67b1;
+  --metric-value:#2f67b1;
+  --metric-detail:#5a7599;
+  border-left:5px solid var(--metric-accent)!important;
+}
+.ui-summary-metric-neutral.nx-prime-metric,
+.nx-dashboard-economy-card.is-neutral{
+  --metric-bg:#fff;
+  --metric-border:var(--unilog-border);
+  --metric-label:var(--unilog-muted);
+  --metric-value:var(--unilog-ink-2);
+  --metric-detail:var(--unilog-graphite-2);
+}
+
+/* Remove old decorative status dot/gradient now that all metric families share
+   the same semantic surface. */
+.nx-dashboard-metric-card.p-card::after{content:none!important}
+.nx-dashboard-metric-card.dashboard-metric-success,
+.nx-dashboard-metric-card.dashboard-metric-warning,
+.nx-dashboard-metric-card.dashboard-metric-danger{background:var(--metric-bg)!important}
+
+/* Comparison cards preserve the directional arrow, but follow the same card
+   geometry and typography as every other metric. */
+.nx-dashboard-economy-card .dashboard-economy-label{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  color:var(--metric-label)!important;
+}
+.nx-dashboard-economy-card .dashboard-economy-label>i{
+  color:var(--metric-value)!important;
+  font-size:19px!important;
+}
+.nx-dashboard-economy-card.is-featured{min-height:108px!important}
+
+/* Filter metrics keep their interaction, but selection is expressed as a
+   neutral focus ring instead of changing the anatomy. */
+button.ui-summary-metric.nx-prime-metric:hover:not(:disabled){
+  filter:brightness(.987)!important;
+  box-shadow:0 8px 22px rgba(18,24,34,.07)!important;
+}
+button.ui-summary-metric.nx-prime-metric.is-active{
+  box-shadow:inset 0 0 0 2px rgba(23,27,36,.2),var(--unilog-shadow)!important;
+  border-color:rgba(23,27,36,.32)!important;
+}
+
+/* Meta alert is a callout, not a KPI, but uses the same semantic palette. */
+.nx-dashboard-alert-card.p-card{
+  border-radius:var(--unilog-radius)!important;
+  box-shadow:var(--unilog-shadow)!important;
+}
+.dashboard-meta-alert-dentro_da_meta{background:#edf8f2!important;border-color:#cce6d6!important;border-left:5px solid #63a77f!important}
+.dashboard-meta-alert-no_limite_da_meta{background:#fff7e8!important;border-color:#f1ddae!important;border-left:5px solid #d09a19!important}
+.dashboard-meta-alert-fora_da_meta{background:#fff0f1!important;border-color:#efc9cc!important;border-left:5px solid #cf3e47!important}
+
+/* --------------------------------------------------------------------------
+   CANONICAL DATA TABLE
+   -------------------------------------------------------------------------- */
+.nx-prime-table.p-datatable,
+.nx-catalog-table.p-datatable{
+  border:0!important;
+  border-radius:0!important;
+  background:#fff!important;
+  font-variant-numeric:tabular-nums;
+}
+.nx-prime-table .p-datatable-wrapper,
+.nx-catalog-table .p-datatable-wrapper{
+  max-width:100%!important;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.nx-prime-table .p-datatable-thead>tr>th,
+.nx-catalog-table .p-datatable-thead>tr>th{
+  min-height:42px!important;
+  padding:12px 14px!important;
+  border-width:0 0 1px!important;
+  border-color:var(--unilog-border-soft)!important;
+  background:#f8f9fb!important;
+  color:#59616c!important;
+  font-size:9px!important;
+  line-height:1.25!important;
+  font-weight:800!important;
+  letter-spacing:.055em!important;
+  text-transform:uppercase!important;
+  vertical-align:middle!important;
+}
+.nx-prime-table .p-datatable-tbody>tr,
+.nx-catalog-table .p-datatable-tbody>tr{
+  background:#fff!important;
+  transition:background-color .12s ease!important;
+}
+.nx-prime-table.p-datatable-striped .p-datatable-tbody>tr.p-row-odd,
+.nx-catalog-table.p-datatable-striped .p-datatable-tbody>tr.p-row-odd{
+  background:#fff!important;
+}
+.nx-prime-table .p-datatable-tbody>tr>td,
+.nx-catalog-table .p-datatable-tbody>tr>td{
+  min-height:46px!important;
+  padding:12px 14px!important;
+  border-width:0 0 1px!important;
+  border-color:var(--unilog-border-soft)!important;
+  background:inherit!important;
+  color:#444b55!important;
+  font-size:11px!important;
+  line-height:1.4!important;
+  vertical-align:middle!important;
+}
+.nx-prime-table .p-datatable-tbody>tr:hover>td,
+.nx-catalog-table .p-datatable-tbody>tr:hover>td{
+  background:#fbfcfd!important;
+}
+.nx-prime-table .p-datatable-tbody>tr:last-child>td,
+.nx-catalog-table .p-datatable-tbody>tr:last-child>td{border-bottom:0!important}
+
+/* Standard tags inside tables. */
+.nx-prime-table .p-tag,
+.nx-catalog-table .p-tag{
+  min-height:24px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:4px 8px!important;
+  border-radius:999px!important;
+  font-size:9px!important;
+  font-weight:750!important;
+  line-height:1.2!important;
+}
+
+/* Paginators and toolbars use the same frame in every administrative table. */
+.nx-prime-table .p-paginator,
+.nx-catalog-table .p-paginator,
+.nx-prime-paginator.p-paginator,
+.nx-catalog-paginator.p-paginator{
+  min-height:48px!important;
+  padding:8px 12px!important;
+  border:0!important;
+  border-top:1px solid var(--unilog-border-soft)!important;
+  border-radius:0!important;
+  background:#fff!important;
+}
+.nx-table-toolbar,
+.nx-catalog-toolbar,
+.catalog-list-toolbar{
+  min-height:54px!important;
+  padding:10px 14px!important;
+  border-color:var(--unilog-border-soft)!important;
+  background:#fbfcfd!important;
+}
+
+/* Dashboard comparison is div-based rather than Prime DataTable, so mirror the
+   canonical table rhythm explicitly. */
+.dashboard-comparison-table{
+  overflow:hidden!important;
+  border:1px solid var(--unilog-border-soft)!important;
+  border-radius:12px!important;
+  background:#fff!important;
+}
+.dashboard-comparison-row{
+  min-height:44px!important;
+  padding:11px 14px!important;
+  border-bottom:1px solid var(--unilog-border-soft)!important;
+  background:#fff!important;
+  color:#444b55!important;
+  font-size:10px!important;
+  line-height:1.35!important;
+}
+.dashboard-comparison-row:last-child{border-bottom:0!important}
+.dashboard-comparison-row.dashboard-comparison-head{
+  background:#f8f9fb!important;
+  color:#59616c!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  letter-spacing:.05em!important;
+  text-transform:uppercase!important;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE CONSISTENCY
+   -------------------------------------------------------------------------- */
+@media(max-width:900px){
+  .ui-summary-metric.nx-prime-metric,
+  .nx-dashboard-metric-card.p-card,
+  .nx-dashboard-economy-card.p-card{min-height:96px!important}
+  .nx-dashboard-metric-card.p-card>.p-card-body>.p-card-content,
+  .nx-dashboard-economy-card.p-card>.p-card-body>.p-card-content,
+  .ui-summary-metric.nx-prime-metric.p-card>.p-card-body>.p-card-content,
+  button.ui-summary-metric.nx-prime-metric{min-height:96px!important;padding:14px 15px!important}
+  .ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>strong,
+  .nx-dashboard-metric-card .p-card-content>strong,
+  .nx-dashboard-economy-card .p-card-content>strong{font-size:20px!important}
+}
+
+@media(max-width:820px){
+  /* When administrative tables become record cards, preserve the same surface
+     geometry rather than the desktop row geometry. */
+  .admin-page .nx-prime-table .p-datatable-tbody>tr,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr{
+    border:1px solid var(--unilog-border)!important;
+    border-radius:var(--unilog-radius)!important;
+    background:#fff!important;
+    box-shadow:var(--unilog-shadow)!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td,
+  .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td{
+    padding:0!important;
+    border:0!important;
+    background:transparent!important;
+  }
+}
+
+@media(max-width:600px){
+  .ui-summary-metric.nx-prime-metric,
+  .nx-dashboard-metric-card.p-card,
+  .nx-dashboard-economy-card.p-card{min-height:88px!important}
+  .nx-dashboard-metric-card.p-card>.p-card-body>.p-card-content,
+  .nx-dashboard-economy-card.p-card>.p-card-body>.p-card-content,
+  .ui-summary-metric.nx-prime-metric.p-card>.p-card-body>.p-card-content,
+  button.ui-summary-metric.nx-prime-metric{min-height:88px!important;padding:12px!important}
+  .ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>strong,
+  .nx-dashboard-metric-card .p-card-content>strong,
+  .nx-dashboard-economy-card .p-card-content>strong{font-size:18px!important}
+  .ui-summary-metric.nx-prime-metric .ui-summary-metric-icon{width:34px!important;height:34px!important;font-size:14px!important}
+  .nx-prime-table .p-datatable-thead>tr>th,
+  .nx-catalog-table .p-datatable-thead>tr>th{padding:10px 12px!important}
+  .nx-prime-table .p-datatable-tbody>tr>td,
+  .nx-catalog-table .p-datatable-tbody>tr>td{font-size:10px!important}
+}
