@@ -37,6 +37,8 @@ const adminListCache = new Map<string, {
 const adminListRequests = new Map<string, Promise<AdministrativeSolicitationListResponse>>()
 let metadataCache: { value: AdministrativeSolicitationMetadata; expiresAt: number } | null = null
 let metadataRequest: Promise<AdministrativeSolicitationMetadata> | null = null
+let bypassNextAdminListEdgeCache = false
+let bypassNextMetadataEdgeCache = false
 
 export class SolicitationServiceError extends Error {
   readonly code: string
@@ -106,45 +108,21 @@ function waitBeforeRetry(signal?: AbortSignal): Promise<void> {
   })
 }
 
-async function getRequest<T>(url: string, signal?: AbortSignal): Promise<T> {
+async function getRequest<T>(
+  url: string,
+  signal?: AbortSignal,
+  options?: { bypassEdgeCache?: boolean },
+): Promise<T> {
   let lastError: unknown
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const response = await fetch(url, {
         method: 'GET',
-        headers: { accept: 'application/json' },
-        signal,
-      })
-      return await parseResponse<T>(response)
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') throw error
-      lastError = error instanceof SolicitationServiceError
-        ? error
-        : new SolicitationServiceError('Não foi possível conectar ao serviço de solicitações.')
-      if (attempt === 0 && isRetriableReadError(lastError)) {
-        await waitBeforeRetry(signal)
-        continue
-      }
-      throw normalizeReadError(lastError)
-    }
-  }
-
-  throw normalizeReadError(lastError)
-}
-
-async function postReadRequest<T>(url: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
-  let lastError: unknown
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
         headers: {
           accept: 'application/json',
-          'content-type': 'application/json',
+          ...(options?.bypassEdgeCache ? { 'cache-control': 'no-cache' } : {}),
         },
-        body: JSON.stringify(body),
         signal,
       })
       return await parseResponse<T>(response)
@@ -166,10 +144,12 @@ async function postReadRequest<T>(url: string, body: Record<string, unknown>, si
 
 function invalidateAdministrativeListCache() {
   adminListCache.clear()
+  bypassNextAdminListEdgeCache = true
 }
 
 function invalidateAdministrativeMetadataCache() {
   metadataCache = null
+  bypassNextMetadataEdgeCache = true
 }
 
 function invalidateMutationCaches() {
@@ -252,8 +232,13 @@ function normalizeAdministrativeListQuery(
 function requestAdministrativeSolicitations(
   key: string,
   query: AdministrativeSolicitationListQuery,
+  bypassEdgeCache = false,
 ): Promise<AdministrativeSolicitationListResponse> {
-  const request = getRequest<AdministrativeSolicitationListResponse>(buildAdministrativeListUrl(query))
+  const request = getRequest<AdministrativeSolicitationListResponse>(
+    buildAdministrativeListUrl(query),
+    undefined,
+    { bypassEdgeCache },
+  )
     .then((value) => {
       const now = Date.now()
       adminListCache.set(key, {
@@ -301,6 +286,7 @@ export function fetchAdministrativeSolicitations(
   const query = normalizeAdministrativeListQuery(queryOrLimit)
   const key = buildAdministrativeListUrl(query)
   const snapshot = getAdministrativeSolicitationsSnapshot(query)
+  const bypassEdgeCache = Boolean(options?.force || bypassNextAdminListEdgeCache)
 
   if (!options?.force && snapshot) {
     if (!snapshot.isFresh && !adminListRequests.has(key)) {
@@ -309,7 +295,11 @@ export function fetchAdministrativeSolicitations(
     return Promise.resolve(snapshot.value)
   }
 
-  const sharedRequest = adminListRequests.get(key) || requestAdministrativeSolicitations(key, query)
+  if (bypassEdgeCache) bypassNextAdminListEdgeCache = false
+  const sharedRequest = bypassEdgeCache
+    ? requestAdministrativeSolicitations(key, query, true)
+    : adminListRequests.get(key) || requestAdministrativeSolicitations(key, query)
+
   if (!signal) return sharedRequest
 
   return Promise.race([
@@ -334,10 +324,12 @@ export function fetchAdministrativeSolicitationMetadata(
   }
 
   if (!metadataRequest) {
-    metadataRequest = postReadRequest<AdministrativeSolicitationMetadata>(
-      '/api/solicitacoes?admin=1',
-      { acao: 'METADADOS' },
+    const bypassEdgeCache = bypassNextMetadataEdgeCache
+    bypassNextMetadataEdgeCache = false
+    metadataRequest = getRequest<AdministrativeSolicitationMetadata>(
+      '/api/solicitacoes?metadata=1',
       signal,
+      { bypassEdgeCache },
     )
       .then((value) => {
         metadataCache = {
