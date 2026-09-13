@@ -2,107 +2,115 @@
 
 Atualizado em 13/09/2026.
 
-Leia este arquivo junto com `MEMORIA_PROJETO.md` e `MEMORIA_QA.md` antes de alterar o projeto.
+Leia este arquivo junto com `MEMORIA_PROJETO.md`, `MEMORIA_QA.md`, `MEMORIA_FASE2B_HOMOLOGACAO.md` e `MEMORIA_FASE2C_DESENHO.md` antes de alterar o projeto.
 
 ## Estado consolidado
 
 - PR #63 mergeado: edge cache + sessão própria.
 - PR #64 mergeado: ações sem releitura bloqueante, retry de login, chunk mensal 1000 e tabela sem layout shift.
-- PR #65 mergeado: Fase 2A financeira até `AGUARDANDO_NF`.
-- Merge commit do PR #65: `115221b91028d491b6513aa3bf9743d605c0447f`.
-- Apps Script já publicado com `SolicitationStatusService.gs` financeiro e `SheetRepository.gs` com `chunkSize = 1000`.
-- Migração de status já concluída. Nunca executar novamente `migrateSolicitationStatuses()`.
+- PR #65 mergeado: Fase 2A financeira inicial.
+- PR #66 mergeado: Fase 2B com fechamento consolidado por competência + fornecedor, NF, conciliação e encerramento.
+- Merge commit do PR #66: `ee40c14dd9c8eebf2984801c197a0cfb679754c3`.
+- Apps Script publicado e alinhado com o PR #66.
+- Migração histórica de status já concluída. Nunca executar novamente `migrateSolicitationStatuses()`.
 
-## Workflow
+## Workflow vigente
 
-Operacional:
-`RASCUNHO → ENVIADA → EM_TRIAGEM → AGUARDANDO_AJUSTE opcional → EM_TRIAGEM → ENVIADA_AO_FORNECEDOR → EM_ATENDIMENTO opcional → ATENDIDA`.
+Operacional por solicitação:
 
-Financeiro planejado:
-`ATENDIDA → AGUARDANDO_NF → CONFERIDA → ENCERRADA`.
+`RASCUNHO → ENVIADA → EM_TRIAGEM → AGUARDANDO_AJUSTE opcional → EM_TRIAGEM → ENVIADA_AO_FORNECEDOR → EM_ATENDIMENTO opcional → ATENDIDA`
 
-Implementado e homologado:
-- `ATENDIDA → AGUARDANDO_NF` ativo;
-- exige `VALOR_REAL`;
-- `CONFERIDA` e `ENCERRADA` reconhecidos, mas sem transição liberada;
-- filtros `Aguardando NF`, `Conferida` e `Encerrada`;
-- bloco `Fechamento financeiro` no detalhe de solicitação `ATENDIDA`;
-- botão `Enviar para aguardando NF` no detalhe;
-- ação rápida `Enviar para aguardando NF` também na coluna `Ações` para linhas `ATENDIDA`;
-- ação rápida reutiliza o slot visual 6 já usado por `Marcar atendida`, evitando layout shift.
+A solicitação individual termina operacionalmente em `ATENDIDA`.
 
-Homologação concluída:
-- botão do detalhe testado pelo usuário;
-- transição real `ATENDIDA → AGUARDANDO_NF` executada com sucesso;
-- ação rápida da coluna `Ações` testada e funcionando;
-- layout da linha/colunas permaneceu estável;
-- head final homologado do PR #65: `67f0d5fc4f071cf4ee93328335a194cd3a144eb4`;
-- GitHub Actions run #125: SUCCESS;
-- Cloudflare Preview: SUCCESS;
-- PR #65 mergeado com autorização explícita do usuário.
+Financeiro por fechamento consolidado:
 
-## Regra financeira confirmada para NF — 13/09/2026
+`ATENDIDA → fechamento consolidado → AGUARDANDO_NF → NF registrada → CONFERIDA → ENCERRADA`
 
-A NF do fornecedor é emitida pela competência e deve ser consolidada por fornecedor.
+`AGUARDANDO_NF`, `CONFERIDA` e `ENCERRADA` pertencem ao fechamento financeiro, não à solicitação individual.
 
-Chave de faturamento/NF:
+A antiga transição individual `ATENDIDA → AGUARDANDO_NF` foi removida do frontend e do fluxo de transição. Status financeiros antigos continuam reconhecidos somente para leitura/compatibilidade histórica.
 
-`COMPETENCIA + FORNECEDOR`
+## Regra financeira da NF
 
-Regras confirmadas:
-- para cada competência, cada fornecedor emite uma única NF consolidada;
-- todas as solicitações elegíveis daquele fornecedor e daquela competência compõem a mesma NF;
-- `RESPONSAVEL_CUSTO` (`CLIENTE` ou `UNILOG`) NÃO separa NF;
-- a Unilog paga o fornecedor e o eventual repasse ao cliente é tratado internamente depois;
-- portanto, `RESPONSAVEL_CUSTO` continua sendo dimensão analítica/rateio, mas não integra a chave de faturamento;
-- não criar uma NF por solicitação;
-- não permitir que uma solicitação individual seja a unidade conceitual de fechamento da NF.
+Chave financeira:
 
-Implicação arquitetural:
-- a Fase 2B deve revisitar a semântica de `AGUARDANDO_NF` criada na Fase 2A;
-- `ATENDIDA` continua individual por solicitação;
-- o avanço financeiro deve ocorrer por fechamento da competência/fornecedor, não por clique isolado em uma solicitação;
-- os botões individuais `Enviar para aguardando NF` da Fase 2A devem ser revistos/removidos na Fase 2B quando a fila consolidada por competência estiver implementada.
+`COMPETENCIA_FATURAMENTO + FORNECEDOR`
 
-## Exceção confirmada — solicitação tardia após NF emitida
+Na situação normal, `COMPETENCIA_FATURAMENTO = COMPETENCIA` operacional.
 
-Se surgir uma solicitação depois que a NF daquele `COMPETENCIA + FORNECEDOR` já tiver sido emitida, o fechamento anterior não deve ser reaberto automaticamente e não deve ser criada silenciosamente uma segunda NF da mesma competência.
+Regras:
+- uma única NF por fornecedor em cada competência de faturamento;
+- `RESPONSAVEL_CUSTO` não separa NF;
+- o fechamento congela o espelho interno usado para conciliar a NF;
+- o fechamento não cria custos: consolida registros já realizados;
+- resultado de conciliação é separado do status do workflow: `OK | COM_AJUSTE | COM_DIVERGENCIA`;
+- `ENCERRADA` significa fim da etapa financeira, sem depender de pagamento, ERP ou repasse ao cliente.
 
-Destinos permitidos:
-- reclassificar a solicitação para a próxima competência de faturamento; ou
-- absorver o custo internamente e não faturar, quando a perda decorrer de erro operacional/administrativo da própria Unilog.
+## Homologação da Fase 2B
 
-Regra de histórico:
-- a `COMPETENCIA` original da solicitação, derivada da `DATA_OPERACIONAL`, nunca deve ser sobrescrita;
-- quando houver reclassificação, registrar separadamente uma `COMPETENCIA_FATURAMENTO` no vínculo financeiro/fechamento;
-- registrar motivo e usuário da reclassificação ou da decisão de não faturar;
-- uma solicitação tardia não deve desaparecer da fila sem uma destinação financeira explícita.
+Fluxo real homologado em 13/09/2026 com MULT / 08/2026:
+- fechamento `FEC-202608-32DA046D`;
+- 220 solicitações;
+- valor congelado R$ 437.670,00;
+- NF 88878 por R$ 437.670,00;
+- diferença R$ 0,00;
+- conciliação `OK` / exibida como Conferida;
+- fechamento avançou até `ENCERRADA`;
+- NF e resultado permaneceram vinculados.
 
-Essa exceção ainda não ocorreu na operação, mas deve ser prevista no modelo para evitar inconsistência futura.
+## Estrutura financeira atual
 
-## Próximo passo — Fase 2B
+`FECHAMENTOS`: uma linha por competência de faturamento + fornecedor.
 
-Construir a entidade real de NF e revisar o fechamento financeiro com base na competência.
+`FECHAMENTO_SOLICITACOES`: vínculos e snapshots das solicitações incluídas no fechamento.
 
-Escopo a definir/implementar:
-1. criar visão de fechamento por competência;
-2. agrupar por `COMPETENCIA + FORNECEDOR`;
-3. consolidar todas as solicitações elegíveis do grupo;
-4. criar entidade de faturamento/NF para o grupo, com uma única NF por fornecedor em cada competência;
-5. manter vínculo explícito entre NF e solicitações incluídas;
-6. prever `COMPETENCIA_FATURAMENTO` separada da competência operacional somente para exceções/reclassificações;
-7. prever destinação `ABSORVIDA_NAO_FATURADA` ou equivalente para erro interno;
-8. revisar/remover a transição individual para `AGUARDANDO_NF` quando o fechamento consolidado estiver ativo;
-9. liberar `AGUARDANDO_NF → CONFERIDA` somente com NF registrada/validada;
-10. depois liberar `CONFERIDA → ENCERRADA` conforme regra final.
+`NOTAS_FISCAIS`: NF, valores, datas, resultado da conciliação e auditoria.
+
+As abas são criadas automaticamente pelo Apps Script quando necessárias.
+
+## Exceção pendente — solicitação tardia
+
+Se surgir uma solicitação depois que o fechamento daquele fornecedor/competência já tiver sido criado, conciliado ou encerrado:
+- não reabrir automaticamente o fechamento anterior;
+- não criar silenciosamente uma segunda NF da mesma competência/fornecedor;
+- não sobrescrever a `COMPETENCIA` operacional original;
+- a solicitação precisa receber um destino financeiro explícito.
+
+Destinos confirmados:
+1. reclassificar para próxima `COMPETENCIA_FATURAMENTO`;
+2. `ABSORVIDA_NAO_FATURADA`, quando o custo deve ser absorvido internamente.
+
+Toda decisão deve registrar motivo, usuário e data.
+
+O backend já detecta esse cenário por meio de `novasAposFechamento`, comparando as solicitações atuais da competência com o snapshot de `FECHAMENTO_SOLICITACOES`.
+
+## Fase atual — PR #67 / Fase 2C
+
+Branch: `feature/financial-exceptions-phase2c`.
+
+Objetivo: transformar a detecção de solicitação tardia em um fluxo administrativo explícito e auditável.
+
+Desenho vigente em `MEMORIA_FASE2C_DESENHO.md`.
+
+Ordem planejada:
+1. persistência da decisão financeira tardia;
+2. leitura de solicitações tardias sem destino;
+3. ações backend de reclassificação e absorção;
+4. gateway Cloudflare sem retry de mutação;
+5. modal administrativo de exceções;
+6. homologação com casos controlados;
+7. atualização das memórias e checks finais.
 
 ## Regras de continuidade
 
 - GitHub e Apps Script manual devem permanecer sincronizados.
-- Não fazer retry cego em mutações.
+- Não fazer retry automático em mutações.
+- Mutações ambíguas devem ser reconciliadas por leitura.
 - Preservar edge cache, sessão própria, ações não bloqueantes e tabela sem layout shift.
-- Antes de qualquer merge, validar o mesmo head no GitHub Actions e Cloudflare.
+- Não esconder funcionalidade obsoleta com CSS quando ela puder ser removida com segurança.
+- Antes de qualquer merge, validar GitHub Actions e Cloudflare no mesmo head exato.
 - Nunca executar `migrateSolicitationStatuses()` novamente.
+- Nunca fazer merge sem autorização explícita do usuário.
 
 ## Próxima fase posterior
 
@@ -110,4 +118,4 @@ Fase 3: hardening, permissões finais, regressões, documentação e consolidaç
 
 ## Comando de retomada
 
-`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. PRs #63, #64 e #65 já estão mergeados. Nunca execute migrateSolicitationStatuses() novamente. A NF é emitida por competência e consolidada por fornecedor: a chave de faturamento é COMPETENCIA + FORNECEDOR, sem separar CLIENTE/UNILOG. Solicitação tardia após NF emitida não reabre o fechamento: deve ser explicitamente reclassificada para próxima COMPETENCIA_FATURAMENTO ou marcada como custo absorvido/não faturado, sem sobrescrever a COMPETENCIA operacional original. O próximo passo é revisitar AGUARDANDO_NF e implementar a Fase 2B com fechamento consolidado por competência/fornecedor. Nunca faça merge sem minha autorização explícita.`
+`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md, MEMORIA_QA.md, MEMORIA_FASE2B_HOMOLOGACAO.md e MEMORIA_FASE2C_DESENHO.md antes de alterar qualquer coisa. PR #66 já foi mergeado e a Fase 2B está homologada ponta a ponta. A solicitação individual termina em ATENDIDA; AGUARDANDO_NF, CONFERIDA e ENCERRADA pertencem ao fechamento consolidado. Nunca execute migrateSolicitationStatuses() novamente. O PR #67 trata solicitações tardias pós-fechamento: reclassificar para próxima COMPETENCIA_FATURAMENTO ou ABSORVIDA_NAO_FATURADA, sem sobrescrever a COMPETENCIA original, sem reabrir fechamento automaticamente e sem criar segunda NF silenciosa. Nunca faça merge sem minha autorização explícita.`
