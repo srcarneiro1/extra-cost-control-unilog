@@ -40,25 +40,27 @@ Escopo:
 - bloco `Fechamento financeiro` no detalhe de solicitação `ATENDIDA`;
 - botão `Enviar para aguardando NF` no detalhe;
 - ação rápida `Enviar para aguardando NF` também na coluna `Ações` para linhas `ATENDIDA`;
-- a ação rápida reutiliza o slot visual 6 já usado por `Marcar atendida`, porque os dois estados são mutuamente exclusivos;
+- a ação rápida reutiliza o slot visual 6 já usado por `Marcar atendida`, pois os dois estados são mutuamente exclusivos;
 - ainda sem entidade real de NF;
 - sem transições para `CONFERIDA`/`ENCERRADA`.
 
-Homologação já realizada:
+Homologação concluída:
 - botão do detalhe testado pelo usuário;
-- transição real para `AGUARDANDO_NF` executada com sucesso.
+- transição real `ATENDIDA → AGUARDANDO_NF` executada com sucesso;
+- ação rápida da coluna `Ações` testada pelo usuário e funcionando;
+- layout da linha/colunas permaneceu estável;
+- head funcional homologado antes deste commit documental: `ba9f905c6e640ef830d8c6f89e547a4c18fd4d72`;
+- GitHub Actions run #124: SUCCESS nesse head;
+- Cloudflare Preview: SUCCESS nesse head.
 
-Como esta memória altera o head da branch, revalidar checks no novo head antes de mergear.
+Como este commit documental move novamente o head da branch, antes do merge reconsultar o head exato e confirmar os checks desse novo SHA.
 
 ## Próximo passo
 
-No Preview do PR #65:
-1. confirmar que uma linha `ATENDIDA` exibe a ação rápida `Enviar para aguardando NF` na coluna `Ações`;
-2. confirmar que os botões vizinhos não mudam de posição;
-3. opcionalmente validar a ação rápida em uma solicitação apropriada;
-4. validar o filtro `Aguardando NF`;
-5. revalidar head exato + GitHub Actions + Cloudflare;
-6. merge somente com autorização explícita do usuário.
+1. revalidar head exato + GitHub Actions + Cloudflare;
+2. marcar PR #65 como Ready for review;
+3. merge somente com autorização explícita do usuário;
+4. após merge, atualizar esta memória para apontar para a Fase 2B.
 
 ## Regras de continuidade
 
@@ -75,4 +77,4 @@ Fase 3: hardening, permissões finais, regressões, documentação e consolidaç
 
 ## Comando de retomada
 
-`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. Se o PR #65 ainda estiver aberto, continue pela branch feature/financial-closeout-phase2a. Nunca execute migrateSolicitationStatuses() novamente. O botão para ATENDIDA → AGUARDANDO_NF existe no detalhe e na coluna Ações. Nunca faça merge sem minha autorização explícita.`
+`Retome o projeto Extra Cost Control UNILOG. Leia MEMORIA_ESTADO_ATUAL.md, MEMORIA_PROJETO.md e MEMORIA_QA.md antes de alterar qualquer coisa. Se o PR #65 ainda estiver aberto, continue pela branch feature/financial-closeout-phase2a. Nunca execute migrateSolicitationStatuses() novamente. A Fase 2A já foi homologada funcionalmente; falta apenas revalidar o head exato e os checks antes do merge, que só pode ocorrer com minha autorização explícita.`
