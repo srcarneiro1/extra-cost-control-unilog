@@ -246,64 +246,6 @@ const SolicitationStatusService = (() => {
     };
   }
 
-  function migrateExistingStatuses() {
-    const lock = LockService.getScriptLock();
-    if (!lock.tryLock(10000)) {
-      throw new Error('Não foi possível obter bloqueio para migrar os status das solicitações.');
-    }
-
-    try {
-      const initialAnalysis = analyzeMigration_(readMigrationDataset_());
-      if (initialAnalysis.invalidCount > 0) {
-        ValidationService.fail(
-          'Migração bloqueada: existem ' +
-          initialAnalysis.invalidCount +
-          ' valor(es) de STATUS inválido(s). Execute previewSolicitationStatusMigration() e revise os exemplos antes de migrar.'
-        );
-      }
-
-      ensureSchema();
-
-      const dataset = readMigrationDataset_();
-      const analysis = analyzeMigration_(dataset);
-      if (analysis.invalidCount > 0) {
-        ValidationService.fail(
-          'Migração bloqueada: a coluna STATUS contém valor(es) inválido(s). Execute previewSolicitationStatusMigration() antes de tentar novamente.'
-        );
-      }
-
-      if (dataset.rows.length === 0) {
-        return {
-          migrado: true,
-          atualizados: 0,
-          preservados: 0,
-          total: 0,
-          porStatus: {},
-        };
-      }
-
-      const statusValues = dataset.rows.map(function (row) {
-        const record = rowToObject_(dataset.headers, row);
-        const current = normalizeStatus_(record.STATUS);
-        return [current ? row[dataset.statusIndex] : inferLegacy_(record)];
-      });
-
-      dataset.sheet
-        .getRange(2, dataset.statusIndex + 1, statusValues.length, 1)
-        .setValues(statusValues);
-
-      return {
-        migrado: true,
-        atualizados: analysis.pending,
-        preservados: analysis.existingValid,
-        total: analysis.total,
-        porStatus: analysis.counts,
-      };
-    } finally {
-      lock.releaseLock();
-    }
-  }
-
   function readMigrationDataset_() {
     const spreadsheet = SheetRepository.getSpreadsheet();
     const sheet = spreadsheet.getSheetByName(SHEET_SOLICITACOES);
@@ -473,18 +415,11 @@ const SolicitationStatusService = (() => {
     transition,
     applyWithinLock,
     previewExistingStatuses,
-    migrateExistingStatuses,
   };
 })();
 
 function previewSolicitationStatusMigration() {
   const result = SolicitationStatusService.previewExistingStatuses();
-  console.log(JSON.stringify(result, null, 2));
-  return result;
-}
-
-function migrateSolicitationStatuses() {
-  const result = SolicitationStatusService.migrateExistingStatuses();
   console.log(JSON.stringify(result, null, 2));
   return result;
 }
