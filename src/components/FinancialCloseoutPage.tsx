@@ -8,7 +8,14 @@ import { Dropdown } from 'primereact/dropdown'
 import { Tag } from 'primereact/tag'
 import { PageHeader } from './PageHeader'
 import { Modal } from './ui/Modal'
-import { EmptyState, Panel, PanelHeader, Skeleton } from './ui/Primitives'
+import {
+  EmptyState,
+  Panel,
+  PanelHeader,
+  Skeleton,
+  SummaryMetrics,
+  type SummaryMetricItem,
+} from './ui/Primitives'
 import {
   closeFinancialGroup,
   fetchFinancialCloseout,
@@ -56,31 +63,6 @@ function pendingLabel(group: FinancialCloseoutGroup) {
   if (group.pendencias.semValorReal) parts.push(`${group.pendencias.semValorReal} sem valor real`)
   if (group.pendencias.statusNaoConcluido) parts.push(`${group.pendencias.statusNaoConcluido} não concluída(s)`)
   return parts.length ? parts.join(' · ') : 'Sem pendências'
-}
-
-function SummaryMetric({
-  icon,
-  label,
-  value,
-  detail,
-  tone = 'neutral',
-}: {
-  icon: string
-  label: string
-  value: string
-  detail: string
-  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info'
-}) {
-  return (
-    <div className={`ui-summary-metric nx-closeout-metric ui-summary-metric-${tone}`}>
-      <span className="ui-summary-metric-icon" aria-hidden="true"><i className={icon} /></span>
-      <span className="ui-summary-metric-copy">
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{detail}</small>
-      </span>
-    </div>
-  )
 }
 
 export function FinancialCloseoutPage() {
@@ -168,6 +150,47 @@ export function FinancialCloseoutPage() {
   }
 
   const summary = data?.resumo
+  const summaryItems: SummaryMetricItem[] = summary ? [
+    {
+      key: 'providers',
+      label: 'Fornecedores',
+      value: summary.fornecedores,
+      detail: 'na competência',
+      icon: 'local_shipping',
+    },
+    {
+      key: 'requests',
+      label: 'Solicitações',
+      value: summary.solicitacoes,
+      detail: `${summary.prontas} prontas`,
+      icon: 'receipt_long',
+      tone: 'info',
+    },
+    {
+      key: 'pending',
+      label: 'Pendências',
+      value: summary.pendentes,
+      detail: summary.pendentes ? 'exigem tratamento' : 'competência em dia',
+      icon: summary.pendentes ? 'error' : 'verified_user',
+      tone: summary.pendentes ? 'warning' : 'success',
+    },
+    {
+      key: 'realized',
+      label: 'Valor realizado',
+      value: money.format(summary.valorReal),
+      detail: 'acumulado no controle',
+      icon: 'payments',
+      tone: 'success',
+    },
+    {
+      key: 'invoice',
+      label: 'Aguardando NF',
+      value: summary.aguardandoNf,
+      detail: 'fornecedor(es) fechado(s)',
+      icon: 'pending_actions',
+      tone: summary.aguardandoNf ? 'warning' : 'neutral',
+    },
+  ] : []
 
   const providerBody = (group: FinancialCloseoutGroup) => (
     <div className="nx-closeout-cell nx-closeout-provider">
@@ -275,43 +298,9 @@ export function FinancialCloseoutPage() {
           )}
         />
 
-        {summary && (
-          <div className="ui-summary-metrics nx-closeout-metrics">
-            <SummaryMetric
-              icon="pi pi-building"
-              label="Fornecedores"
-              value={String(summary.fornecedores)}
-              detail="na competência"
-              tone="neutral"
-            />
-            <SummaryMetric
-              icon="pi pi-receipt"
-              label="Solicitações"
-              value={String(summary.solicitacoes)}
-              detail={`${summary.prontas} prontas`}
-              tone="info"
-            />
-            <SummaryMetric
-              icon={summary.pendentes ? 'pi pi-exclamation-triangle' : 'pi pi-check'}
-              label="Pendências"
-              value={String(summary.pendentes)}
-              detail={summary.pendentes ? 'exigem tratamento' : 'competência em dia'}
-              tone={summary.pendentes ? 'warning' : 'success'}
-            />
-            <SummaryMetric
-              icon="pi pi-wallet"
-              label="Valor realizado"
-              value={money.format(summary.valorReal)}
-              detail="acumulado no controle"
-              tone="success"
-            />
-            <SummaryMetric
-              icon="pi pi-file"
-              label="Aguardando NF"
-              value={String(summary.aguardandoNf)}
-              detail="fornecedor(es) fechado(s)"
-              tone={summary.aguardandoNf ? 'warning' : 'neutral'}
-            />
+        {summaryItems.length > 0 && (
+          <div className="nx-closeout-summary-shell">
+            <SummaryMetrics items={summaryItems} ariaLabel="Resumo do fechamento da competência" />
           </div>
         )}
 
