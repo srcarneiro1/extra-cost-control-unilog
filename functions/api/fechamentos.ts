@@ -76,6 +76,7 @@ function cacheSuccessful_(
 async function proxyToAppsScript(
   env: Env,
   payload: Record<string, unknown>,
+  route = 'fechamentos',
 ): Promise<Response> {
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
@@ -85,7 +86,7 @@ async function proxyToAppsScript(
   }
 
   const targetUrl = new URL(env.APPS_SCRIPT_URL);
-  targetUrl.searchParams.set('route', 'fechamentos');
+  targetUrl.searchParams.set('route', route);
 
   const upstreamResponse = await fetch(targetUrl.toString(), {
     method: 'POST',
@@ -141,9 +142,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(request.url);
   const competencia = String(url.searchParams.get('competencia') || '').trim();
   const metadata = String(url.searchParams.get('metadata') || '').trim() === '1';
-  const response = await proxyToAppsScript(env, metadata
-    ? { acao: 'METADADOS' }
-    : { acao: 'LISTAR', competencia });
+  const exceptions = String(url.searchParams.get('excecoes') || '').trim() === '1';
+  const fornecedor = String(url.searchParams.get('fornecedor') || '').trim();
+
+  const response = exceptions
+    ? await proxyToAppsScript(env, {
+        acao: 'LISTAR',
+        ...(competencia ? { competencia } : {}),
+        ...(fornecedor ? { fornecedor } : {}),
+      }, 'excecoes_financeiras')
+    : await proxyToAppsScript(env, metadata
+      ? { acao: 'METADADOS' }
+      : { acao: 'LISTAR', competencia });
 
   cacheSuccessful_(context, request, identity, response);
   return response;
