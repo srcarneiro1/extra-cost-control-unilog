@@ -35,6 +35,7 @@ import type {
   AdministrativeSolicitationListItem,
   AdministrativeSolicitationMetadata,
   AdministrativeSolicitationSummary,
+  SolicitationStatus,
 } from '../types/solicitation'
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -45,20 +46,31 @@ const monthLabels = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
 
-const statusOptions = [
-  'Aguardando triagem',
-  'Aguardando realizado',
-  'Triagem concluída',
-  'Com divergência',
-  'Concluído',
+const statusFilterOptions = [
+  { label: 'Todas as situações', value: 'TODOS' },
+  { label: 'Rascunho', value: 'RASCUNHO' },
+  { label: 'Enviada', value: 'ENVIADA' },
+  { label: 'Em triagem', value: 'EM_TRIAGEM' },
+  { label: 'Aguardando ajuste', value: 'AGUARDANDO_AJUSTE' },
+  { label: 'Enviada ao fornecedor', value: 'ENVIADA_AO_FORNECEDOR' },
+  { label: 'Em atendimento', value: 'EM_ATENDIMENTO' },
+  { label: 'Atendida', value: 'ATENDIDA' },
+  { label: 'Fila: aguardando triagem', value: 'AGUARDANDO_TRIAGEM' },
+  { label: 'Fila: aguardando realizado', value: 'AGUARDANDO_REALIZADO' },
+  { label: 'Com divergência', value: 'COM_DIVERGENCIA' },
 ]
 
-const statusQueryMap: Record<string, string> = {
-  'Aguardando triagem': 'AGUARDANDO_TRIAGEM',
-  'Aguardando realizado': 'AGUARDANDO_REALIZADO',
-  'Triagem concluída': 'TRIAGEM_CONCLUIDA',
-  'Com divergência': 'COM_DIVERGENCIA',
-  Concluído: 'CONCLUIDO',
+const STATUS_LABELS: Record<SolicitationStatus, string> = {
+  RASCUNHO: 'Rascunho',
+  ENVIADA: 'Enviada',
+  EM_TRIAGEM: 'Em triagem',
+  AGUARDANDO_AJUSTE: 'Aguardando ajuste',
+  ENVIADA_AO_FORNECEDOR: 'Enviada ao fornecedor',
+  EM_ATENDIMENTO: 'Em atendimento',
+  ATENDIDA: 'Atendida',
+  AGUARDANDO_NF: 'Aguardando NF',
+  CONFERIDA: 'Conferida',
+  ENCERRADA: 'Encerrada',
 }
 
 const allPageSizeOptions = Array.from({ length: 19 }, (_, index) => 10 + index * 5)
@@ -95,14 +107,15 @@ function typeLabel(value: string) {
 }
 
 function statusInfo(item: AdministrativeSolicitationListItem) {
-  if (!item.triagemConcluida) return { label: 'Aguardando triagem', severity: 'secondary' as const }
-  if (item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA') return { label: 'Triagem concluída', severity: 'success' as const }
-  if (!item.realizadoRegistrado) return { label: 'Aguardando realizado', severity: 'warning' as const }
-  if (item.divergencia) return { label: 'Com divergência', severity: 'danger' as const }
-  return { label: 'Concluído', severity: 'success' as const }
+  if (item.status === 'AGUARDANDO_AJUSTE') return { label: STATUS_LABELS[item.status], severity: 'danger' as const }
+  if (item.status === 'ENVIADA_AO_FORNECEDOR' || item.status === 'EM_ATENDIMENTO') return { label: STATUS_LABELS[item.status], severity: 'warning' as const }
+  if (item.status === 'ATENDIDA' || item.status === 'CONFERIDA' || item.status === 'ENCERRADA') return { label: STATUS_LABELS[item.status], severity: 'success' as const }
+  if (item.status === 'EM_TRIAGEM') return { label: STATUS_LABELS[item.status], severity: 'info' as const }
+  return { label: STATUS_LABELS[item.status], severity: 'secondary' as const }
 }
 
 type Notice = { tone: 'success' | 'error'; message: string }
+type Props = { canAdminister: boolean }
 
 function snackTotalQuantity(item: AdministrativeSolicitationListItem) {
   if (item.qtdAlimentacao == null && item.qtdBebida == null) return null
@@ -121,7 +134,7 @@ function consideredQuantityBody(item: AdministrativeSolicitationListItem) {
     : formatQuantity(snackTotalQuantity(item))
 }
 
-export function AdminSolicitationsPageCurrentPeriod() {
+export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const initialPeriod = useMemo(currentPeriod, [])
   const [items, setItems] = useState<AdministrativeSolicitationListItem[]>([])
   const [detail, setDetail] = useState<AdministrativeSolicitationDetail | null>(null)
@@ -165,7 +178,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
       tamanhoPagina: pageSize,
       busca: debouncedSearch,
       tipo: typeFilter,
-      status: statusFilter === 'TODOS' ? 'TODOS' : statusQueryMap[statusFilter],
+      status: statusFilter,
       anoRegistro: registrationYear,
       mesRegistro: registrationMonth,
       dataRegistro: registrationDate,
@@ -195,7 +208,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
   }
 
   function ensureCatalogsForAction() {
-    if (catalogs) return
+    if (!canAdminister || catalogs) return
     void requestCatalogs().catch((error) => notify('error', error instanceof Error ? error.message : 'Não foi possível carregar os cadastros auxiliares.'))
   }
 
@@ -241,6 +254,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
   }
 
   async function openCorrection(idSolicitacao: string) {
+    if (!canAdminister) return
     const requestId = ++activeDetailRequestRef.current
     const cached = detailCacheRef.current.get(idSolicitacao) || null
     ensureCatalogsForAction()
@@ -274,6 +288,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
   }
 
   function openDelete(item: AdministrativeSolicitationListItem) {
+    if (!canAdminister) return
     setDeleteTarget(item)
     setDeleteReason('')
     setDeleteError('')
@@ -304,7 +319,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
 
   async function confirmDelete() {
     const item = deleteTarget
-    if (!item) return
+    if (!item || !canAdminister) return
     if (deleteReason.trim().length < 5) {
       setDeleteError('Informe um motivo de exclusão com pelo menos 5 caracteres.')
       return
@@ -424,9 +439,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
 
   const summary: SummaryMetricItem[] = [
     { key: 'all', label: 'Total', value: metrics?.total ?? '—', detail: `no período · ${periodDetail}`, icon: 'dataset', active: statusFilter === 'TODOS', onClick: () => setStatusFilter('TODOS') },
-    { key: 'triage', label: 'Aguardando triagem', value: metrics?.aguardandoTriagem ?? '—', detail: `no período · ${periodDetail}`, icon: 'pending_actions', tone: 'info', active: statusFilter === 'Aguardando triagem', onClick: () => setStatusFilter('Aguardando triagem') },
-    { key: 'actual', label: 'Aguardando realizado', value: metrics?.aguardandoRealizado ?? '—', detail: `no período · ${periodDetail}`, icon: 'groups', tone: 'warning', active: statusFilter === 'Aguardando realizado', onClick: () => setStatusFilter('Aguardando realizado') },
-    { key: 'div', label: 'Com divergência', value: metrics?.divergencias ?? '—', detail: `no período · ${periodDetail}`, icon: 'error', tone: 'danger', active: statusFilter === 'Com divergência', onClick: () => setStatusFilter('Com divergência') },
+    { key: 'triage', label: 'Aguardando triagem', value: metrics?.aguardandoTriagem ?? '—', detail: `no período · ${periodDetail}`, icon: 'pending_actions', tone: 'info', active: statusFilter === 'AGUARDANDO_TRIAGEM', onClick: () => setStatusFilter('AGUARDANDO_TRIAGEM') },
+    { key: 'actual', label: 'Aguardando realizado', value: metrics?.aguardandoRealizado ?? '—', detail: `no período · ${periodDetail}`, icon: 'groups', tone: 'warning', active: statusFilter === 'AGUARDANDO_REALIZADO', onClick: () => setStatusFilter('AGUARDANDO_REALIZADO') },
+    { key: 'div', label: 'Com divergência', value: metrics?.divergencias ?? '—', detail: `no período · ${periodDetail}`, icon: 'error', tone: 'danger', active: statusFilter === 'COM_DIVERGENCIA', onClick: () => setStatusFilter('COM_DIVERGENCIA') },
   ]
 
   const hasActiveFilters = Boolean(search.trim()) || typeFilter !== 'TODOS' || statusFilter !== 'TODOS' || registrationYear !== 'TODOS' || registrationMonth !== 'TODOS' || registrationDate !== 'TODOS'
@@ -464,7 +479,6 @@ export function AdminSolicitationsPageCurrentPeriod() {
     { label: 'Mão de obra', value: 'MAO_DE_OBRA' },
     { label: 'Alimentação / Bebida', value: 'ALIMENTACAO_BEBIDA' },
   ]
-  const statusFilterOptions = [{ label: 'Todas as situações', value: 'TODOS' }, ...statusOptions.map((value) => ({ label: value, value }))]
 
   const solicitationBody = (item: AdministrativeSolicitationListItem) => (
     <div className="nx-user-cell"><strong>{item.idSolicitacao}</strong><small>{item.supervisor || 'Sem supervisor'}</small></div>
@@ -478,9 +492,9 @@ export function AdminSolicitationsPageCurrentPeriod() {
     const rowBusy = detailLoading || Boolean(deleteLoading)
     return (
       <div className="nx-modern-actions">
-        <Button icon="pi pi-pencil" label="Editar" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={rowBusy} />
+        {canAdminister && <Button icon="pi pi-pencil" label="Editar" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={rowBusy} />}
         <Button icon="pi pi-external-link" label="Abrir" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={rowBusy} className="nx-primary-button" />
-        <Button icon={deleteLoading === item.idSolicitacao ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} label={deleteLoading === item.idSolicitacao ? 'Excluindo…' : 'Excluir'} size="small" severity="danger" text onClick={() => openDelete(item)} disabled={rowBusy} />
+        {canAdminister && <Button icon={deleteLoading === item.idSolicitacao ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} label={deleteLoading === item.idSolicitacao ? 'Excluindo…' : 'Excluir'} size="small" severity="danger" text onClick={() => openDelete(item)} disabled={rowBusy} />}
       </div>
     )
   }
@@ -534,7 +548,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
             <Column header="Qtd. considerada" body={consideredQuantityBody} />
             <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
             <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-            <Column header="Ações" body={actionsBody} style={{ minWidth: '19rem' }} />
+            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '19rem' : '7rem' }} />
           </DataTable>
         )}
 
@@ -555,10 +569,10 @@ export function AdminSolicitationsPageCurrentPeriod() {
         )}
       </Panel>
 
-      <SolicitationDetailModal open={workflowOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeWorkflow} onChanged={handleWorkflowChanged} onNotify={notify} />
-      <SolicitationCorrectionModal open={correctionOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeCorrection} onSaved={handleCorrectionSaved} />
+      <SolicitationDetailModal open={workflowOpen} loading={detailLoading} detail={detail} catalogs={catalogs} canAdminister={canAdminister} onClose={closeWorkflow} onChanged={handleWorkflowChanged} onNotify={notify} />
+      {canAdminister && <SolicitationCorrectionModal open={correctionOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeCorrection} onSaved={handleCorrectionSaved} />}
 
-      <Modal
+      {canAdminister && <Modal
         open={Boolean(deleteTarget)}
         titleId="delete-solicitation-title"
         eyebrow="EXCLUSÃO ADMINISTRATIVA"
@@ -596,7 +610,7 @@ export function AdminSolicitationsPageCurrentPeriod() {
             <small>{deleteReason.trim().length}/5 caracteres mínimos</small>
           </label>
         </div>
-      </Modal>
+      </Modal>}
     </section>
   )
 }
