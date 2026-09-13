@@ -129,7 +129,7 @@ export function FinancialCloseoutPage() {
     if (!competence || refreshing) return
     setRefreshing(true)
     try {
-      setData(await fetchFinancialCloseout(competence))
+      setData(await fetchFinancialCloseout(competence, undefined, true))
     } catch (error) {
       setNotice({ tone: 'error', message: error instanceof Error ? error.message : 'Não foi possível atualizar o fechamento.' })
     } finally {
