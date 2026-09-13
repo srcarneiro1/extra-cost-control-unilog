@@ -12,6 +12,25 @@ export interface FinancialCloseoutPendingBreakdown {
   statusNaoConcluido: number
 }
 
+export interface FinancialInvoice {
+  idNf: string
+  idFechamento: string
+  numeroNf: string
+  dataEmissao: string
+  dataRecebimento: string
+  valorNf: number | null
+  valorControle: number | null
+  diferencaValor: number | null
+  resultadoConciliacao: ReconciliationResult
+  valorAjuste: number | null
+  valorConciliado: number | null
+  observacaoConciliacao: string
+  dataRegistro: string
+  usuarioRegistro: string
+  dataConferencia: string
+  usuarioConferencia: string
+}
+
 export interface FinancialCloseoutGroup {
   competencia: string
   fornecedor: string
@@ -24,7 +43,9 @@ export interface FinancialCloseoutGroup {
   valorFechado: number | null
   qtdFechada: number | null
   dataFechamento: string
+  dataEncerramento: string
   resultadoConciliacao: ReconciliationResult
+  notaFiscal: FinancialInvoice | null
   podeFechar: boolean
   novasAposFechamento: number
   pendencias: FinancialCloseoutPendingBreakdown
@@ -36,6 +57,7 @@ export interface FinancialCloseoutSummary {
   prontas: number
   pendentes: number
   valorReal: number
+  notasRegistradas: number
   aguardandoNf: number
   conferidos: number
   encerrados: number
@@ -60,4 +82,23 @@ export interface FinancialCloseoutMutationResult {
   qtdSolicitacoes: number
   valorControle: number
   dataFechamento: string
+}
+
+export interface FinancialInvoiceMutationResult {
+  idFechamento: string
+  statusFechamento: 'AGUARDANDO_NF'
+  notaFiscal: FinancialInvoice
+}
+
+export interface FinancialReconciliationMutationResult {
+  idFechamento: string
+  statusFechamento: 'CONFERIDA'
+  resultadoConciliacao: Exclude<ReconciliationResult, ''>
+  notaFiscal: FinancialInvoice
+}
+
+export interface FinancialCloseoutCompleteResult {
+  idFechamento: string
+  statusFechamento: 'ENCERRADA'
+  dataEncerramento: string
 }
