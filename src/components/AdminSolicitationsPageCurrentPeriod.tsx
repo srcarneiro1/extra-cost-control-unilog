@@ -28,6 +28,7 @@ import {
   fetchAdministrativeSolicitationDetail,
   fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
+  updateAdministrativeSolicitationStatus,
 } from '../services/solicitationService'
 import type { CatalogosDto } from '../types/catalog'
 import type {
@@ -35,11 +36,13 @@ import type {
   AdministrativeSolicitationListItem,
   AdministrativeSolicitationMetadata,
   AdministrativeSolicitationSummary,
+  OperationalSolicitationStatus,
   SolicitationStatus,
 } from '../types/solicitation'
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const quantity = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
+const BACKGROUND_REVALIDATION_MS = 90 * 1000
 
 const monthLabels = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -74,7 +77,9 @@ const STATUS_LABELS: Record<SolicitationStatus, string> = {
 }
 
 const allPageSizeOptions = Array.from({ length: 19 }, (_, index) => 10 + index * 5)
-const BACKGROUND_REVALIDATION_MS = 30 * 1000
+
+type Notice = { tone: 'success' | 'error'; message: string }
+type Props = { canAdminister: boolean }
 
 function currentPeriod() {
   const now = new Date()
@@ -93,6 +98,12 @@ function formatDate(value: string) {
   if (!value) return '—'
   const [year, month, day] = value.slice(0, 10).split('-')
   return year && month && day ? `${day}/${month}/${year}` : value
+}
+
+function formatDateShort(value: string) {
+  if (!value) return '—'
+  const [year, month, day] = value.slice(0, 10).split('-')
+  return year && month && day ? `${day}/${month}/${year.slice(-2)}` : value
 }
 
 function formatDateTime(value: string) {
@@ -114,9 +125,6 @@ function statusInfo(item: AdministrativeSolicitationListItem) {
   return { label: STATUS_LABELS[item.status], severity: 'secondary' as const }
 }
 
-type Notice = { tone: 'success' | 'error'; message: string }
-type Props = { canAdminister: boolean }
-
 function snackTotalQuantity(item: AdministrativeSolicitationListItem) {
   if (item.qtdAlimentacao == null && item.qtdBebida == null) return null
   return (item.qtdAlimentacao ?? 0) + (item.qtdBebida ?? 0)
@@ -132,6 +140,26 @@ function consideredQuantityBody(item: AdministrativeSolicitationListItem) {
   return item.tipoSolicitacao === 'MAO_DE_OBRA'
     ? formatQuantity(item.qtdComparecida)
     : formatQuantity(snackTotalQuantity(item))
+}
+
+function buildSupplierSummary(detail: AdministrativeSolicitationDetail) {
+  const lines: string[] = [`Pedido para ${formatDateShort(detail.dataOperacional)}`]
+  if (detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA') {
+    const products: string[] = []
+    if (detail.produtoAlimentacao && detail.qtdAlimentacao != null) {
+      products.push(`${detail.qtdAlimentacao} ${detail.produtoAlimentacaoAplicado || detail.produtoAlimentacao}`)
+    }
+    if (detail.produtoBebida && detail.qtdBebida != null) {
+      products.push(`${detail.qtdBebida} ${detail.produtoBebidaAplicado || detail.produtoBebida}`)
+    }
+    if (products.length) lines.push(products.join(' + '))
+  } else {
+    if (detail.qtdSolicitada != null && detail.funcao) lines.push(`${detail.qtdSolicitada} ${detail.funcao}`)
+    if (detail.atividade) lines.push(`Atividade: ${detail.atividade}`)
+    if (detail.turno) lines.push(`Turno: ${detail.turno}`)
+  }
+  if (detail.supervisor) lines.push(`Supervisor(a) ${detail.supervisor}`)
+  return lines.join('\n')
 }
 
 export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
@@ -151,9 +179,9 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const [pageSize, setPageSize] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [quickLoading, setQuickLoading] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdministrativeSolicitationListItem | null>(null)
   const [deleteReason, setDeleteReason] = useState('')
@@ -188,7 +216,6 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   function applyListResponse(response: Awaited<ReturnType<typeof fetchAdministrativeSolicitations>>) {
     setItems(response.itens)
     setTotal(response.total)
-    setTotalPages(response.totalPaginas)
     if (response.resumo) setPeriodSummary(response.resumo)
   }
 
@@ -209,7 +236,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
 
   function ensureCatalogsForAction() {
     if (!canAdminister || catalogs) return
-    void requestCatalogs().catch((error) => notify('error', error instanceof Error ? error.message : 'Não foi possível carregar os cadastros auxiliares.'))
+    void requestCatalogs().catch(() => undefined)
   }
 
   function requestDetail(idSolicitacao: string, force = false) {
@@ -287,6 +314,69 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     setDetailLoading(false)
   }
 
+  async function handleQuickStatus(item: AdministrativeSolicitationListItem, status: OperationalSolicitationStatus, message: string) {
+    if (!canAdminister || quickLoading) return
+    setQuickLoading(item.idSolicitacao)
+    try {
+      await updateAdministrativeSolicitationStatus({ idSolicitacao: item.idSolicitacao, status })
+      setItems((current) => current.map((row) => row.idSolicitacao === item.idSolicitacao ? { ...row, status } : row))
+      detailCacheRef.current.delete(item.idSolicitacao)
+      notify('success', message)
+      void refreshItems().catch(() => undefined)
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Não foi possível atualizar o status.')
+    } finally {
+      setQuickLoading(null)
+    }
+  }
+
+  async function handleCopySummary(item: AdministrativeSolicitationListItem) {
+    if (quickLoading) return
+    setQuickLoading(item.idSolicitacao)
+    try {
+      const loaded = await requestDetail(item.idSolicitacao)
+      await navigator.clipboard.writeText(buildSupplierSummary(loaded))
+      notify('success', `Resumo da solicitação ${item.idSolicitacao} copiado.`)
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Não foi possível copiar o resumo.')
+    } finally {
+      setQuickLoading(null)
+    }
+  }
+
+  async function handleOpenSupplier(item: AdministrativeSolicitationListItem) {
+    if (quickLoading) return
+    setQuickLoading(item.idSolicitacao)
+    try {
+      const [loaded, loadedCatalogs] = await Promise.all([requestDetail(item.idSolicitacao), requestCatalogs()])
+      const message = buildSupplierSummary(loaded)
+      const provider = loadedCatalogs.fornecedores.find((candidate) => candidate.nome === loaded.fornecedor)
+      if (provider?.whatsappDestino === 'NUMERO' && provider.whatsappNumero) {
+        window.open(`https://wa.me/${provider.whatsappNumero.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+      } else if (provider?.whatsappDestino === 'GRUPO' && provider.whatsappGrupoLink) {
+        await navigator.clipboard.writeText(message).catch(() => undefined)
+        window.open(provider.whatsappGrupoLink, '_blank', 'noopener,noreferrer')
+        notify('success', 'Grupo aberto. O resumo foi copiado para colar no WhatsApp.')
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'Não foi possível abrir o contato do fornecedor.')
+    } finally {
+      setQuickLoading(null)
+    }
+  }
+
+  async function handleWorkflowChanged(idSolicitacao: string, message: string) {
+    await Promise.all([refreshItems(), refreshDetail(idSolicitacao)])
+    notify('success', message)
+  }
+
+  async function handleCorrectionSaved(idSolicitacao: string) {
+    await Promise.all([refreshItems(), refreshDetail(idSolicitacao)])
+    notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
+  }
+
   function openDelete(item: AdministrativeSolicitationListItem) {
     if (!canAdminister) return
     setDeleteTarget(item)
@@ -307,16 +397,6 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     if (registrationYear === 'TODOS' && registrationMonth === 'TODOS' && registrationDate === 'TODOS') setPeriodSummary(loaded.resumo)
   }
 
-  async function handleWorkflowChanged(idSolicitacao: string, message: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao), refreshMetadata()])
-    notify('success', message)
-  }
-
-  async function handleCorrectionSaved(idSolicitacao: string) {
-    await Promise.all([refreshItems(), refreshDetail(idSolicitacao), refreshMetadata()])
-    notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
-  }
-
   async function confirmDelete() {
     const item = deleteTarget
     if (!item || !canAdminister) return
@@ -331,12 +411,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
       await deleteAdministrativeSolicitation({ idSolicitacao: item.idSolicitacao, motivoExclusao: deleteReason.trim() })
       detailCacheRef.current.delete(item.idSolicitacao)
       detailRequestsRef.current.delete(item.idSolicitacao)
-      if (items.length === 1 && currentPage > 1) {
-        setCurrentPage((page) => Math.max(1, page - 1))
-        await refreshMetadata()
-      } else {
-        await Promise.all([refreshItems(), refreshMetadata()])
-      }
+      await Promise.all([refreshItems(), refreshMetadata()])
       setDeleteTarget(null)
       setDeleteReason('')
       notify('success', `Solicitação ${item.idSolicitacao} excluída e registrada na auditoria.`)
@@ -370,7 +445,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   }, [currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
 
   useEffect(() => {
-    if (loading || workflowOpen || correctionOpen || deleteLoading) return
+    if (loading || workflowOpen || correctionOpen || deleteLoading || quickLoading) return
     let disposed = false
     const revalidate = () => {
       if (disposed || document.visibilityState !== 'visible') return
@@ -380,18 +455,9 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         .catch(() => undefined)
     }
     const interval = window.setInterval(revalidate, BACKGROUND_REVALIDATION_MS)
-    const handleVisibility = () => { if (document.visibilityState === 'visible') revalidate() }
-    const handleFocus = () => revalidate()
-    document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', handleFocus)
-    return () => {
-      disposed = true
-      window.clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', handleFocus)
-    }
+    return () => { disposed = true; window.clearInterval(interval) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, workflowOpen, correctionOpen, deleteLoading, currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
+  }, [loading, workflowOpen, correctionOpen, deleteLoading, quickLoading, currentPage, pageSize, debouncedSearch, typeFilter, statusFilter, registrationYear, registrationMonth, registrationDate])
 
   useEffect(() => {
     if (loading || metadata) return
@@ -401,10 +467,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         setMetadata(loaded)
         if (!periodSummary && registrationYear === 'TODOS' && registrationMonth === 'TODOS') setPeriodSummary(loaded.resumo)
       })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        notify('error', error instanceof Error ? `Fila carregada. Metadados indisponíveis: ${error.message}` : 'Fila carregada, mas os metadados não puderam ser carregados.')
-      })
+      .catch(() => undefined)
     return () => controller.abort()
   }, [loading, metadata, periodSummary, registrationMonth, registrationYear])
 
@@ -488,13 +551,21 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     const status = statusInfo(item)
     return <Tag value={status.label} severity={status.severity} rounded />
   }
+
   const actionsBody = (item: AdministrativeSolicitationListItem) => {
-    const rowBusy = detailLoading || Boolean(deleteLoading)
+    const busy = Boolean(deleteLoading) || quickLoading === item.idSolicitacao
+    const canShare = canAdminister && item.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status)
     return (
-      <div className="nx-modern-actions">
-        {canAdminister && <Button icon="pi pi-pencil" label="Editar" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={rowBusy} />}
-        <Button icon="pi pi-external-link" label="Abrir" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={rowBusy} className="nx-primary-button" />
-        {canAdminister && <Button icon={deleteLoading === item.idSolicitacao ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} label={deleteLoading === item.idSolicitacao ? 'Excluindo…' : 'Excluir'} size="small" severity="danger" text onClick={() => openDelete(item)} disabled={rowBusy} />}
+      <div className="nx-modern-actions nx-solicitation-row-actions">
+        {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon="pi pi-undo" label="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
+        {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon="pi pi-send" label="Confirmar envio" size="small" disabled={busy} onClick={() => void handleQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
+        {canShare && <Button icon="pi pi-copy" label="Copiar resumo" size="small" text disabled={busy} onClick={() => void handleCopySummary(item)} />}
+        {canShare && <Button icon="pi pi-whatsapp" label="Abrir fornecedor" size="small" text disabled={busy} onClick={() => void handleOpenSupplier(item)} />}
+        {canAdminister && item.status === 'ENVIADA_AO_FORNECEDOR' && <Button icon="pi pi-play" label="Em atendimento" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} />}
+        {canAdminister && item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status) && <Button icon="pi pi-check" label="Atendida" size="small" severity="success" disabled={busy} onClick={() => void handleQuickStatus(item, 'ATENDIDA', 'Solicitação marcada como atendida.')} />}
+        <Button icon="pi pi-external-link" label="Abrir" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={busy || detailLoading} className="nx-primary-button" />
+        {canAdminister && <Button icon="pi pi-pencil" label="Editar" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={busy || detailLoading} />}
+        {canAdminister && <Button icon="pi pi-trash" aria-label={`Excluir ${item.idSolicitacao}`} tooltip="Excluir" size="small" severity="danger" text onClick={() => openDelete(item)} disabled={busy || detailLoading} />}
       </div>
     )
   }
@@ -548,7 +619,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
             <Column header="Qtd. considerada" body={consideredQuantityBody} />
             <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
             <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '19rem' : '7rem' }} />
+            <Column header="Ações" body={actionsBody} style={{ minWidth: canAdminister ? '34rem' : '7rem' }} />
           </DataTable>
         )}
 
@@ -558,10 +629,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
             rows={pageSize}
             totalRecords={total}
             rowsPerPageOptions={pageSizeOptions}
-            onPageChange={(event) => {
-              setCurrentPage(event.page + 1)
-              setPageSize(event.rows)
-            }}
+            onPageChange={(event) => { setCurrentPage(event.page + 1); setPageSize(event.rows) }}
             template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
             currentPageReportTemplate="{first}–{last} de {totalRecords}"
             className="nx-prime-paginator"
@@ -582,31 +650,14 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         busy={Boolean(deleteLoading)}
         width="medium"
         bodyClassName="nx-delete-dialog"
-        footer={
-          <>
-            <Button label="Cancelar" text onClick={closeDelete} disabled={Boolean(deleteLoading)} />
-            <Button
-              label={deleteLoading ? 'Excluindo…' : 'Excluir solicitação'}
-              icon={deleteLoading ? 'pi pi-spin pi-spinner' : 'pi pi-trash'}
-              severity="danger"
-              onClick={() => void confirmDelete()}
-              disabled={Boolean(deleteLoading) || deleteReason.trim().length < 5}
-            />
-          </>
-        }
+        footer={<><Button label="Cancelar" text onClick={closeDelete} disabled={Boolean(deleteLoading)} /><Button label={deleteLoading ? 'Excluindo…' : 'Excluir solicitação'} icon={deleteLoading ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} severity="danger" onClick={() => void confirmDelete()} disabled={Boolean(deleteLoading) || deleteReason.trim().length < 5} /></>}
       >
         <div className="nx-delete-dialog-body">
           <Message severity="warn" text="Esta ação é definitiva na base operacional e ficará registrada na auditoria." />
           {deleteError && <Message severity="error" text={deleteError} />}
           <label className="nx-workflow-field">
             <span>Motivo da exclusão</span>
-            <InputTextarea
-              value={deleteReason}
-              onChange={(event) => setDeleteReason(event.target.value)}
-              rows={4}
-              autoResize
-              placeholder="Descreva o motivo com pelo menos 5 caracteres."
-            />
+            <InputTextarea value={deleteReason} onChange={(event) => setDeleteReason(event.target.value)} rows={4} autoResize placeholder="Descreva o motivo com pelo menos 5 caracteres." />
             <small>{deleteReason.trim().length}/5 caracteres mínimos</small>
           </label>
         </div>
