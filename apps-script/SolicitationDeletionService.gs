@@ -2,6 +2,8 @@ const SolicitationDeletionService = (() => {
   const SHEET_SOLICITACOES = 'SOLICITACOES';
   const SHEET_EXCECOES = 'EXCECOES_JORNADA_MO';
   const SHEET_AUDITORIA = 'AUDITORIA_SOLICITACOES';
+  const SHEET_FECHAMENTO_ITENS = 'FECHAMENTO_SOLICITACOES';
+  const SHEET_DESTINOS_FINANCEIROS = 'DESTINOS_FINANCEIROS_SOLICITACOES';
   const AUDIT_HEADERS = [
     'ID_AUDITORIA',
     'ID_SOLICITACAO',
@@ -52,6 +54,8 @@ const SolicitationDeletionService = (() => {
       const requestSheet = spreadsheet.getSheetByName(SHEET_SOLICITACOES);
       if (!requestSheet) throw new Error('Aba não encontrada: ' + SHEET_SOLICITACOES);
 
+      assertNoFinancialLink_(spreadsheet, solicitationId);
+
       const exceptionSnapshot = findRelatedExceptions_(spreadsheet, solicitationId);
       ensureAuditSheet_(spreadsheet);
       appendAudit_(solicitationId, administrativeUser, reason, found.record, exceptionSnapshot.rows);
@@ -76,6 +80,40 @@ const SolicitationDeletionService = (() => {
     } finally {
       lock.releaseLock();
     }
+  }
+
+  function assertNoFinancialLink_(spreadsheet, solicitationId) {
+    const protectedSheets = [
+      {
+        sheetName: SHEET_FECHAMENTO_ITENS,
+        message: 'A solicitação já pertence a um fechamento financeiro e não pode ser excluída.',
+      },
+      {
+        sheetName: SHEET_DESTINOS_FINANCEIROS,
+        message: 'A solicitação já possui destino financeiro registrado e não pode ser excluída.',
+      },
+    ];
+
+    protectedSheets.forEach(function (config) {
+      const sheet = spreadsheet.getSheetByName(config.sheetName);
+      if (!sheet || sheet.getLastRow() <= 1 || sheet.getLastColumn() <= 0) return;
+
+      const headers = sheet
+        .getRange(1, 1, 1, sheet.getLastColumn())
+        .getDisplayValues()[0]
+        .map(function (header) { return String(header || '').trim(); });
+      const idIndex = headers.indexOf('ID_SOLICITACAO');
+      if (idIndex < 0) return;
+
+      const match = sheet
+        .getRange(2, idIndex + 1, sheet.getLastRow() - 1, 1)
+        .createTextFinder(solicitationId)
+        .matchEntireCell(true)
+        .matchCase(true)
+        .findNext();
+
+      if (match) ValidationService.fail(config.message);
+    });
   }
 
   function findRelatedExceptions_(spreadsheet, solicitationId) {
