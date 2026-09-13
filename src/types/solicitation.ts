@@ -9,11 +9,18 @@ export type OperationalSolicitationStatus =
   | 'EM_ATENDIMENTO'
   | 'ATENDIDA'
 
-export type SolicitationStatus =
-  | OperationalSolicitationStatus
+export type FinancialSolicitationStatus =
   | 'AGUARDANDO_NF'
   | 'CONFERIDA'
   | 'ENCERRADA'
+
+export type AdministrativeTransitionStatus =
+  | OperationalSolicitationStatus
+  | 'AGUARDANDO_NF'
+
+export type SolicitationStatus =
+  | OperationalSolicitationStatus
+  | FinancialSolicitationStatus
 
 export interface PartialShiftException {
   idExcecao: string

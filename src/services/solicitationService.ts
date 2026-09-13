@@ -3,7 +3,7 @@ import type {
   AdministrativeSolicitationListQuery,
   AdministrativeSolicitationListResponse,
   AdministrativeSolicitationMetadata,
-  OperationalSolicitationStatus,
+  AdministrativeTransitionStatus,
   SolicitationStatus,
 } from '../types/solicitation'
 import { invalidateDashboardCache } from './dashboardService'
@@ -404,7 +404,7 @@ export async function registerAdministrativeAttendance(input: {
 
 export async function updateAdministrativeSolicitationStatus(input: {
   idSolicitacao: string
-  status: OperationalSolicitationStatus
+  status: AdministrativeTransitionStatus
   motivo?: string
 }): Promise<{
   idSolicitacao: string
