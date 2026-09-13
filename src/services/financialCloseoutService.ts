@@ -1,7 +1,11 @@
 import type {
+  FinancialCloseoutCompleteResult,
   FinancialCloseoutListResponse,
   FinancialCloseoutMetadata,
   FinancialCloseoutMutationResult,
+  FinancialInvoiceMutationResult,
+  FinancialReconciliationMutationResult,
+  ReconciliationResult,
 } from '../types/financialCloseout'
 
 interface ApiSuccess<T> {
@@ -34,16 +38,11 @@ export class FinancialCloseoutServiceError extends Error {
 
 async function parseResponse<T>(response: Response): Promise<T> {
   let payload: ApiResponse<T>
-
   try {
     payload = (await response.json()) as ApiResponse<T>
   } catch {
-    throw new FinancialCloseoutServiceError(
-      'O serviço de fechamento retornou uma resposta inválida.',
-      'INVALID_FINANCIAL_CLOSEOUT_RESPONSE',
-    )
+    throw new FinancialCloseoutServiceError('O serviço de fechamento retornou uma resposta inválida.')
   }
-
   if (!response.ok || !payload.ok) {
     const apiError = payload.ok ? null : payload.error
     throw new FinancialCloseoutServiceError(
@@ -52,13 +51,19 @@ async function parseResponse<T>(response: Response): Promise<T> {
       apiError?.details,
     )
   }
-
   return payload.data
 }
 
-export async function fetchFinancialCloseoutMetadata(
-  signal?: AbortSignal,
-): Promise<FinancialCloseoutMetadata> {
+async function post<T>(payload: Record<string, unknown>): Promise<T> {
+  const response = await fetch('/api/fechamentos', {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return parseResponse<T>(response)
+}
+
+export async function fetchFinancialCloseoutMetadata(signal?: AbortSignal): Promise<FinancialCloseoutMetadata> {
   const response = await fetch('/api/fechamentos?metadata=1', {
     method: 'GET',
     headers: { accept: 'application/json' },
@@ -71,37 +76,40 @@ export async function fetchFinancialCloseout(
   competencia: string,
   signal?: AbortSignal,
 ): Promise<FinancialCloseoutListResponse> {
-  const response = await fetch(
-    `/api/fechamentos?competencia=${encodeURIComponent(competencia)}`,
-    {
-      method: 'GET',
-      headers: { accept: 'application/json' },
-      signal,
-    },
-  )
+  const response = await fetch(`/api/fechamentos?competencia=${encodeURIComponent(competencia)}`, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+    signal,
+  })
   return parseResponse<FinancialCloseoutListResponse>(response)
 }
 
-export async function closeFinancialGroup(input: {
+export function closeFinancialGroup(input: {
   competencia: string
   fornecedor: string
 }): Promise<FinancialCloseoutMutationResult> {
-  let response: Response
+  return post<FinancialCloseoutMutationResult>({ ...input, acao: 'FECHAR' })
+}
 
-  try {
-    response = await fetch('/api/fechamentos', {
-      method: 'POST',
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(input),
-    })
-  } catch {
-    throw new FinancialCloseoutServiceError(
-      'Não foi possível conectar ao serviço de fechamento.',
-    )
-  }
+export function saveFinancialInvoice(input: {
+  idFechamento: string
+  numeroNf: string
+  dataEmissao: string
+  dataRecebimento: string
+  valorNf: number
+}): Promise<FinancialInvoiceMutationResult> {
+  return post<FinancialInvoiceMutationResult>({ ...input, acao: 'SALVAR_NF' })
+}
 
-  return parseResponse<FinancialCloseoutMutationResult>(response)
+export function reconcileFinancialInvoice(input: {
+  idFechamento: string
+  resultadoConciliacao: Exclude<ReconciliationResult, ''>
+  valorAjuste?: number
+  observacaoConciliacao?: string
+}): Promise<FinancialReconciliationMutationResult> {
+  return post<FinancialReconciliationMutationResult>({ ...input, acao: 'CONCILIAR' })
+}
+
+export function completeFinancialCloseout(idFechamento: string): Promise<FinancialCloseoutCompleteResult> {
+  return post<FinancialCloseoutCompleteResult>({ acao: 'ENCERRAR', idFechamento })
 }
