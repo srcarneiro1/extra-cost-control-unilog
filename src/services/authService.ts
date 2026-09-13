@@ -1,4 +1,4 @@
-export type AuthProvider = 'session' | 'cloudflare' | 'test'
+export type AuthProvider = 'session' | 'test'
 
 export interface AuthUser {
   email: string
@@ -87,15 +87,9 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return parse<AuthUser>(response, 'E-mail ou senha inválidos.')
 }
 
-export async function logout(user?: AuthUser | null): Promise<void> {
-  try {
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: { accept: 'application/json' },
-    })
-  } finally {
-    if (user?.provider === 'cloudflare') {
-      window.location.assign('/cdn-cgi/access/logout')
-    }
-  }
+export async function logout(_user?: AuthUser | null): Promise<void> {
+  await fetch('/api/auth/logout', {
+    method: 'POST',
+    headers: { accept: 'application/json' },
+  })
 }
