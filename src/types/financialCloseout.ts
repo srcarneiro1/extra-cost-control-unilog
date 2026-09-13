@@ -102,3 +102,37 @@ export interface FinancialCloseoutCompleteResult {
   statusFechamento: 'ENCERRADA'
   dataEncerramento: string
 }
+
+export type FinancialExceptionDestination =
+  | 'RECLASSIFICAR_PROXIMA_COMPETENCIA'
+  | 'ABSORVIDA_NAO_FATURADA'
+
+export interface FinancialExceptionItem {
+  idSolicitacao: string
+  competenciaOriginal: string
+  fornecedor: string
+  idFechamentoOriginal: string
+  statusFechamentoOriginal: FinancialCloseoutStatus
+  dataOperacional: string
+  operacao: string
+  tipoSolicitacao: string
+  responsavelCusto: string
+  valorReal: number | null
+}
+
+export interface FinancialExceptionListResponse {
+  total: number
+  itens: FinancialExceptionItem[]
+}
+
+export interface FinancialExceptionDecisionResult {
+  idDestinoFinanceiro: string
+  idSolicitacao: string
+  competenciaOriginal: string
+  fornecedor: string
+  destinoFinanceiro: FinancialExceptionDestination
+  competenciaFaturamento: string | null
+  motivo: string
+  dataDecisao: string
+  usuarioDecisao: string
+}
