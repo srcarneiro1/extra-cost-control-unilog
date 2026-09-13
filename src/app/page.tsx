@@ -211,6 +211,7 @@ function FunctionalShell({ user, onExit }: { user: AuthUser; onExit: () => Promi
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const copy = SECTION_COPY[section]
+  const canAdministerSolicitations = user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
 
   const allowedItems = useMemo(
     () => NAV_ITEMS.filter((item) => canAccess(user, item)),
@@ -393,7 +394,7 @@ function FunctionalShell({ user, onExit }: { user: AuthUser; onExit: () => Promi
 
           {mountedSections.has('solicitacoes') && (
             <div hidden={section !== 'solicitacoes'}>
-              <AdminSolicitationsPageCurrentPeriod />
+              <AdminSolicitationsPageCurrentPeriod canAdminister={canAdministerSolicitations} />
             </div>
           )}
 
