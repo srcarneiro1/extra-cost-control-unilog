@@ -60,6 +60,9 @@ const statusFilterOptions = [
   { label: 'Enviada ao fornecedor', value: 'ENVIADA_AO_FORNECEDOR' },
   { label: 'Em atendimento', value: 'EM_ATENDIMENTO' },
   { label: 'Atendida', value: 'ATENDIDA' },
+  { label: 'Aguardando NF', value: 'AGUARDANDO_NF' },
+  { label: 'Conferida', value: 'CONFERIDA' },
+  { label: 'Encerrada', value: 'ENCERRADA' },
   { label: 'Fila: aguardando triagem', value: 'AGUARDANDO_TRIAGEM' },
   { label: 'Fila: aguardando realizado', value: 'AGUARDANDO_REALIZADO' },
   { label: 'Com divergência', value: 'COM_DIVERGENCIA' },
@@ -121,7 +124,7 @@ function typeLabel(value: string) {
 
 function statusInfo(item: AdministrativeSolicitationListItem) {
   if (item.status === 'AGUARDANDO_AJUSTE') return { label: STATUS_LABELS[item.status], severity: 'danger' as const }
-  if (item.status === 'ENVIADA_AO_FORNECEDOR' || item.status === 'EM_ATENDIMENTO') return { label: STATUS_LABELS[item.status], severity: 'warning' as const }
+  if (item.status === 'ENVIADA_AO_FORNECEDOR' || item.status === 'EM_ATENDIMENTO' || item.status === 'AGUARDANDO_NF') return { label: STATUS_LABELS[item.status], severity: 'warning' as const }
   if (item.status === 'ATENDIDA' || item.status === 'CONFERIDA' || item.status === 'ENCERRADA') return { label: STATUS_LABELS[item.status], severity: 'success' as const }
   if (item.status === 'EM_TRIAGEM') return { label: STATUS_LABELS[item.status], severity: 'info' as const }
   return { label: STATUS_LABELS[item.status], severity: 'secondary' as const }
