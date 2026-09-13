@@ -63,7 +63,7 @@ export function FinancialCloseoutExceptionActions({ group, competencias, onChang
     if (!open) return
     const controller = new AbortController()
     setLoading(true)
-    void fetchFinancialExceptions(group.competencia, group.fornecedor, controller.signal)
+    void fetchFinancialExceptions(group.competencia, group.fornecedor, controller.signal, true)
       .then((result) => {
         setItems(result.itens)
         setSelectedId(result.itens[0]?.idSolicitacao || '')
