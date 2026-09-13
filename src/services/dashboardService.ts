@@ -211,14 +211,11 @@ export function fetchDashboard(
 }
 
 export function revalidateDashboard(query: DashboardQuery, signal?: AbortSignal): Promise<DashboardResponse> {
-  return fetchDashboard(query, signal, { force: true })
+  return fetchDashboard(query, signal)
 }
 
-export function prefetchDashboard(query: DashboardQuery): void {
-  const key = buildDashboardUrl(query)
-  const snapshot = dashboardSnapshot(key)
-  if (snapshot?.isFresh || dashboardRequests.has(key)) return
-  void requestForKey(key).catch(() => undefined)
+export function prefetchDashboard(_query: DashboardQuery): void {
+  // Dashboard é uma leitura pesada no Apps Script. Carregar somente quando a tela solicitar.
 }
 
 export async function fetchDashboardExport(query: DashboardQuery, type: DashboardExportType): Promise<DashboardExportResponse> {
