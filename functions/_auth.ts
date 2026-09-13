@@ -1,9 +1,7 @@
-import { SignJWT, createRemoteJWKSet, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
 
 export interface GatewayAuthEnv {
   GATEWAY_TEST_TOKEN?: string;
-  CLOUDFLARE_ACCESS_TEAM_DOMAIN?: string;
-  CLOUDFLARE_ACCESS_AUD?: string;
   APP_SESSION_SECRET?: string;
 }
 
@@ -12,7 +10,7 @@ export type AppProfile = 'OWNER' | 'ADMINISTRATIVO' | 'OPERACIONAL';
 export type GatewayIdentity =
   | {
       mode: 'access';
-      provider: 'session' | 'cloudflare';
+      provider: 'session';
       email: string;
       subject: string;
       name?: string;
@@ -36,24 +34,9 @@ const APP_SESSION_ISSUER = 'extra-cost-control-unilog';
 const APP_SESSION_AUDIENCE = 'extra-cost-control';
 const APP_SESSION_SECONDS = 8 * 60 * 60;
 
-const jwksByDomain = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
-
-function normalizeTeamDomain_(value: unknown): string {
-  const normalized = String(value || '')
-    .trim()
-    .replace(/\/+$/, '');
-
-  if (!normalized) return '';
-
-  return /^https?:\/\//i.test(normalized)
-    ? normalized
-    : `https://${normalized}`;
-}
-
 function isAuthorizedForTest_(request: Request, env: GatewayAuthEnv): boolean {
   const configuredToken = String(env.GATEWAY_TEST_TOKEN || '').trim();
   const providedToken = String(request.headers.get('x-gateway-test-token') || '').trim();
-
   return Boolean(configuredToken && providedToken && configuredToken === providedToken);
 }
 
@@ -82,7 +65,6 @@ async function authorizeWithSession_(
 ): Promise<GatewayIdentity | null> {
   const token = getCookie_(request, APP_SESSION_COOKIE);
   const secret = sessionSecret_(env);
-
   if (!token || !secret) return null;
 
   try {
@@ -94,7 +76,6 @@ async function authorizeWithSession_(
     const email = typeof payload.email === 'string'
       ? payload.email.trim().toLowerCase()
       : '';
-
     if (!email) return null;
 
     return {
@@ -107,55 +88,6 @@ async function authorizeWithSession_(
       name: typeof payload.name === 'string' ? payload.name.trim() : '',
       profile: typeof payload.profile === 'string' ? payload.profile.trim().toUpperCase() : '',
       operation: typeof payload.operation === 'string' ? payload.operation.trim().toUpperCase() : '',
-    };
-  } catch {
-    return null;
-  }
-}
-
-function getJwks_(teamDomain: string): ReturnType<typeof createRemoteJWKSet> {
-  const cached = jwksByDomain.get(teamDomain);
-  if (cached) return cached;
-
-  const jwks = createRemoteJWKSet(
-    new URL(`${teamDomain}/cdn-cgi/access/certs`)
-  );
-
-  jwksByDomain.set(teamDomain, jwks);
-  return jwks;
-}
-
-async function authorizeWithAccess_(
-  request: Request,
-  env: GatewayAuthEnv
-): Promise<GatewayIdentity | null> {
-  const token = String(request.headers.get('cf-access-jwt-assertion') || '').trim();
-  if (!token) return null;
-
-  const teamDomain = normalizeTeamDomain_(env.CLOUDFLARE_ACCESS_TEAM_DOMAIN);
-  const audience = String(env.CLOUDFLARE_ACCESS_AUD || '').trim();
-
-  if (!teamDomain || !audience) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, getJwks_(teamDomain), {
-      issuer: teamDomain,
-      audience,
-    });
-
-    const email = typeof payload.email === 'string'
-      ? payload.email.trim().toLowerCase()
-      : '';
-
-    if (!email) return null;
-
-    return {
-      mode: 'access',
-      provider: 'cloudflare',
-      email,
-      subject: typeof payload.sub === 'string' && payload.sub.trim()
-        ? payload.sub.trim()
-        : email,
     };
   } catch {
     return null;
@@ -258,16 +190,9 @@ export async function authorizeAppSessionRequest(
   return authorizeWithSession_(request, env);
 }
 
-export async function authorizeCloudflareAccessRequest(
-  request: Request,
-  env: GatewayAuthEnv,
-): Promise<GatewayIdentity | null> {
-  return authorizeWithAccess_(request, env);
-}
-
 export async function authorizeGatewayRequest(
   request: Request,
-  env: GatewayAuthEnv
+  env: GatewayAuthEnv,
 ): Promise<GatewayIdentity | null> {
   if (isAuthorizedForTest_(request, env)) {
     return {
@@ -276,7 +201,5 @@ export async function authorizeGatewayRequest(
     };
   }
 
-  // Cloudflare Access permanece como a barreira externa do site, mas a autorização
-  // funcional do aplicativo exige a sessão própria criada pelo login da plataforma.
   return authorizeWithSession_(request, env);
 }
