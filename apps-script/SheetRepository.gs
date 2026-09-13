@@ -24,6 +24,16 @@ const SheetRepository = (() => {
     PRECOS_MO: true,
     PRECOS_PRODUTOS: true,
   };
+  const MONEY_FORMAT = 'R$ #,##0.00';
+  const SOLICITATION_MONEY_FIELDS = [
+    'PRECO_UNITARIO_APLICADO',
+    'PRECO_ALIMENTACAO_APLICADO',
+    'VALOR_ALIMENTACAO',
+    'PRECO_BEBIDA_APLICADO',
+    'VALOR_BEBIDA',
+    'VALOR_PREVISTO',
+    'VALOR_REAL',
+  ];
 
   let spreadsheetCache_ = null;
 
@@ -102,6 +112,19 @@ const SheetRepository = (() => {
     } catch (error) {
       // Cache é apenas otimização; falha nunca bloqueia persistência.
     }
+  }
+
+  function solicitationMoneyField_(sheetName, fieldName) {
+    return sheetName === 'SOLICITACOES' && SOLICITATION_MONEY_FIELDS.indexOf(fieldName) >= 0;
+  }
+
+  function applySolicitationMoneyFormats_(sheet, headers, rowNumber, fieldNames) {
+    (fieldNames || []).forEach(function (fieldName) {
+      if (!solicitationMoneyField_('SOLICITACOES', fieldName)) return;
+      const columnIndex = headers.indexOf(fieldName);
+      if (columnIndex < 0) return;
+      sheet.getRange(rowNumber, columnIndex + 1).setNumberFormat(MONEY_FORMAT);
+    });
   }
 
   function ensureColumns(sheetName, columns) {
@@ -336,6 +359,9 @@ const SheetRepository = (() => {
     });
 
     sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
+    if (sheetName === 'SOLICITACOES') {
+      applySolicitationMoneyFormats_(sheet, headers, targetRow, SOLICITATION_MONEY_FIELDS);
+    }
     invalidateCaches_(sheetName);
     return targetRow;
   }
@@ -386,10 +412,32 @@ const SheetRepository = (() => {
 
       const cell = sheet.getRange(rowNumber, columnIndex + 1);
       if (textFields.indexOf(fieldName) >= 0) cell.setNumberFormat('@');
+      if (solicitationMoneyField_(sheetName, fieldName)) cell.setNumberFormat(MONEY_FORMAT);
       cell.setValue(updates[fieldName]);
     });
 
     invalidateCaches_(sheetName);
+  }
+
+  function formatSolicitationMoneyColumns() {
+    const sheet = getSheet_('SOLICITACOES');
+    const headers = headers_(sheet);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return { formatado: true, linhas: 0, colunas: [] };
+
+    const formatted = [];
+    SOLICITATION_MONEY_FIELDS.forEach(function (fieldName) {
+      const columnIndex = headers.indexOf(fieldName);
+      if (columnIndex < 0) return;
+      sheet.getRange(2, columnIndex + 1, lastRow - 1, 1).setNumberFormat(MONEY_FORMAT);
+      formatted.push(fieldName);
+    });
+
+    return {
+      formatado: true,
+      linhas: lastRow - 1,
+      colunas: formatted,
+    };
   }
 
   return {
@@ -406,5 +454,12 @@ const SheetRepository = (() => {
     findRowByField,
     updateFields,
     ensureColumns,
+    formatSolicitationMoneyColumns,
   };
 })();
+
+function formatSolicitationMoneyColumns() {
+  const result = SheetRepository.formatSolicitationMoneyColumns();
+  console.log(JSON.stringify(result, null, 2));
+  return result;
+}
