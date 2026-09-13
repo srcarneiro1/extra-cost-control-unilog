@@ -43,6 +43,124 @@
 }
 
 /* --------------------------------------------------------------------------
+   ADMIN SUMMARY CARDS — SHARED SEMANTIC LANGUAGE
+   Solicitações, Cadastros, Usuários e Fechamentos share SummaryMetrics. The
+   surfaces intentionally follow the readable Message palette while preserving
+   richer KPI content and clickable filters.
+   -------------------------------------------------------------------------- */
+.ui-summary-metrics.nx-prime-metrics{
+  gap:10px!important;
+}
+.ui-summary-metric.nx-prime-metric{
+  min-height:82px!important;
+  border-width:1px!important;
+  box-shadow:none!important;
+  transition:border-color .15s ease,box-shadow .15s ease,filter .15s ease!important;
+}
+.ui-summary-metric.nx-prime-metric>.p-card-body{
+  height:100%;
+  padding:0!important;
+}
+.ui-summary-metric.nx-prime-metric>.p-card-body>.p-card-content{
+  height:100%;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:11px!important;
+  padding:12px 14px!important;
+}
+button.ui-summary-metric.nx-prime-metric{
+  justify-content:flex-start!important;
+  text-align:left!important;
+  padding:12px 14px!important;
+}
+button.ui-summary-metric.nx-prime-metric>.p-button-label{
+  display:contents!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-icon{
+  width:34px!important;
+  height:34px!important;
+  border-radius:10px!important;
+  font-size:15px!important;
+  background:rgba(255,255,255,.62)!important;
+  border:1px solid rgba(73,74,86,.07)!important;
+}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy{gap:2px!important}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>span{
+  font-size:8px!important;
+  font-weight:800!important;
+  letter-spacing:.07em!important;
+}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>strong{
+  font-size:20px!important;
+  line-height:1.05!important;
+  letter-spacing:-.02em!important;
+}
+.ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>small{
+  font-size:9px!important;
+  line-height:1.3!important;
+}
+
+.ui-summary-metric-neutral.nx-prime-metric{
+  background:#f5f6f8!important;
+  border-color:#e2e5e9!important;
+  color:#59616c!important;
+}
+.ui-summary-metric-neutral.nx-prime-metric .ui-summary-metric-icon{color:#59616c!important}
+.ui-summary-metric-neutral.nx-prime-metric .ui-summary-metric-copy>strong{color:#343a43!important}
+
+.ui-summary-metric-info.nx-prime-metric{
+  background:#eef5ff!important;
+  border-color:#cfe0f7!important;
+  color:#2f67b1!important;
+}
+.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-icon{color:#2f67b1!important}
+.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>span,
+.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>strong{color:#2f67b1!important}
+.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>small{color:#5a7599!important}
+
+.ui-summary-metric-success.nx-prime-metric{
+  background:#edf8f2!important;
+  border-color:#cce6d6!important;
+  color:#2f7650!important;
+}
+.ui-summary-metric-success.nx-prime-metric .ui-summary-metric-icon{color:#2f7650!important}
+.ui-summary-metric-success.nx-prime-metric .ui-summary-metric-copy>span,
+.ui-summary-metric-success.nx-prime-metric .ui-summary-metric-copy>strong{color:#2f7650!important}
+.ui-summary-metric-success.nx-prime-metric .ui-summary-metric-copy>small{color:#5d7f6c!important}
+
+.ui-summary-metric-warning.nx-prime-metric{
+  background:#fff7e8!important;
+  border-color:#f1ddae!important;
+  color:#a46a00!important;
+}
+.ui-summary-metric-warning.nx-prime-metric .ui-summary-metric-icon{color:#a46a00!important}
+.ui-summary-metric-warning.nx-prime-metric .ui-summary-metric-copy>span,
+.ui-summary-metric-warning.nx-prime-metric .ui-summary-metric-copy>strong{color:#a46a00!important}
+.ui-summary-metric-warning.nx-prime-metric .ui-summary-metric-copy>small{color:#8d7447!important}
+
+.ui-summary-metric-danger.nx-prime-metric{
+  background:#fff0f1!important;
+  border-color:#efc9cc!important;
+  color:#b51b24!important;
+}
+.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-icon{color:#b51b24!important}
+.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>span,
+.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>strong{color:#b51b24!important}
+.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>small{color:#956166!important}
+
+button.ui-summary-metric.nx-prime-metric:hover:not(:disabled){
+  filter:brightness(.985);
+  box-shadow:0 3px 10px rgba(18,24,34,.055)!important;
+}
+button.ui-summary-metric.nx-prime-metric.is-active{
+  box-shadow:inset 0 0 0 2px rgba(23,27,36,.16)!important;
+  border-color:rgba(23,27,36,.28)!important;
+}
+
+/* --------------------------------------------------------------------------
    KPI CARDS — ONLY TRUE STATUS GETS COLOR
    Neutral/info KPIs stay visually neutral. Success/warning/danger receive a
    restrained semantic accent. No hover animation: these cards are indicators,
@@ -187,6 +305,10 @@
 }
 
 @media(max-width:600px){
+  .ui-summary-metric.nx-prime-metric{min-height:74px!important}
+  .ui-summary-metric.nx-prime-metric>.p-card-body>.p-card-content{padding:11px 12px!important}
+  button.ui-summary-metric.nx-prime-metric{padding:11px 12px!important}
+  .ui-summary-metric.nx-prime-metric .ui-summary-metric-copy>strong{font-size:18px!important}
   .nx-dashboard-metric-card.dashboard-metric-success::after,
   .nx-dashboard-metric-card.dashboard-metric-warning::after,
   .nx-dashboard-metric-card.dashboard-metric-danger::after{top:12px;right:12px}
