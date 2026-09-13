@@ -6,7 +6,7 @@ import { InputTextarea } from 'primereact/inputtextarea'
 import type { CatalogosDto } from '../types/catalog'
 import type {
   AdministrativeSolicitationDetail,
-  OperationalSolicitationStatus,
+  AdministrativeTransitionStatus,
   PartialShiftException,
   SolicitationStatus,
 } from '../types/solicitation'
@@ -112,7 +112,7 @@ function formatDateTime(value: string) {
 
 function statusInfo(status: SolicitationStatus) {
   if (status === 'AGUARDANDO_AJUSTE') return { label: STATUS_LABELS[status], tone: 'danger' as const }
-  if (status === 'ENVIADA_AO_FORNECEDOR' || status === 'EM_ATENDIMENTO') return { label: STATUS_LABELS[status], tone: 'warning' as const }
+  if (status === 'ENVIADA_AO_FORNECEDOR' || status === 'EM_ATENDIMENTO' || status === 'AGUARDANDO_NF') return { label: STATUS_LABELS[status], tone: 'warning' as const }
   if (status === 'ATENDIDA' || status === 'CONFERIDA' || status === 'ENCERRADA') return { label: STATUS_LABELS[status], tone: 'success' as const }
   return { label: STATUS_LABELS[status], tone: 'neutral' as const }
 }
@@ -251,7 +251,7 @@ export function SolicitationDetailModal({
     setPartialDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item))
   }
 
-  async function handleStatus(status: OperationalSolicitationStatus, message: string) {
+  async function handleStatus(status: AdministrativeTransitionStatus, message: string) {
     if (!detail || !canAdminister) return
     setActionLoading(true)
     try {
@@ -555,6 +555,21 @@ export function SolicitationDetailModal({
               <SectionHeading icon="pi pi-user-plus" title="Comparecimento real" detail="O registro conclui operacionalmente a solicitação" />
               <div className="workflow-form-grid workflow-form-grid-single nx-workflow-grid"><label className="nx-workflow-field"><span>Quantidade comparecida</span><InputText type="number" min="0" step="1" value={attendance} onChange={(event) => setAttendance(event.target.value)} /></label></div>
               <div className="nx-workflow-actions"><Button label={actionLoading ? 'Salvando…' : 'Registrar comparecimento'} icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-check'} onClick={() => void handleAttendance()} disabled={actionLoading || attendance === ''} className="nx-primary-button" /></div>
+            </section>
+          )}
+
+          {canAdminister && detail.status === 'ATENDIDA' && (
+            <section className="workflow-action-box">
+              <SectionHeading icon="pi pi-file" title="Fechamento financeiro" detail="Envie a solicitação concluída para a fila de nota fiscal" />
+              <div className="nx-workflow-actions">
+                <Button
+                  label={actionLoading ? 'Salvando…' : 'Enviar para aguardando NF'}
+                  icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'}
+                  onClick={() => void handleStatus('AGUARDANDO_NF', 'Solicitação enviada para a fila de aguardando NF.')}
+                  disabled={actionLoading}
+                  className="nx-primary-button"
+                />
+              </div>
             </section>
           )}
 
