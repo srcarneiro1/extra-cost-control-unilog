@@ -94,6 +94,10 @@ const Api = (() => {
 
       if (route === 'status_solicitacao') {
         const servicePayload = AccessScopeService.assertSolicitation(authorizeGateway_(payload));
+        const targetStatus = ValidationService.normalizeUpper(servicePayload && servicePayload.status);
+        if (targetStatus === SolicitationStatusService.STATUS.WAITING_INVOICE) {
+          ValidationService.fail('Aguardando NF é controlado pelo fechamento consolidado da competência e fornecedor.');
+        }
         return JsonResponse.ok(writeAndInvalidate_(function () { return SolicitationStatusService.transition(servicePayload); }));
       }
 
