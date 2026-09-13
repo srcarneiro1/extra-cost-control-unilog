@@ -12,6 +12,7 @@ const Api = (() => {
       if (route === 'usuarios') return JsonResponse.unauthorized('Administração de usuários disponível somente pelo gateway protegido.');
       if (route === 'cadastros') return JsonResponse.unauthorized('Acesso aos cadastros disponível somente pelo gateway protegido.');
       if (route === 'solicitacoes_admin') return JsonResponse.unauthorized('Consulta administrativa disponível somente pelo gateway protegido.');
+      if (route === 'fechamentos') return JsonResponse.unauthorized('Fechamento financeiro disponível somente pelo gateway protegido.');
       if (route === 'dashboard' || route === 'dashboard_export') return JsonResponse.unauthorized('Dashboard disponível somente pelo gateway protegido.');
       return JsonResponse.notFound('Rota não encontrada.');
     } catch (error) {
@@ -72,6 +73,17 @@ const Api = (() => {
 
       if (route === 'solicitacoes_admin') {
         return JsonResponse.ok(AdministrativeSolicitationCacheService.get(authorizeGateway_(payload)));
+      }
+
+      if (route === 'fechamentos') {
+        const servicePayload = authorizeGateway_(payload);
+        const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
+        if (action === FinancialCloseoutService.ACTIONS.CLOSE) {
+          return JsonResponse.ok(writeAndInvalidate_(function () {
+            return FinancialCloseoutService.execute(servicePayload);
+          }));
+        }
+        return JsonResponse.ok(FinancialCloseoutService.execute(servicePayload));
       }
 
       if (route === 'dashboard') {
