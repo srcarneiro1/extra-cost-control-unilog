@@ -3,7 +3,7 @@ import type {
   AdministrativeSolicitationListQuery,
   AdministrativeSolicitationListResponse,
   AdministrativeSolicitationMetadata,
-  OperationalSolicitationStatus,
+  AdministrativeTransitionStatus,
   SolicitationStatus,
 } from '../types/solicitation'
 import { invalidateDashboardCache } from './dashboardService'
@@ -298,7 +298,7 @@ export function fetchAdministrativeSolicitations(
 ): Promise<AdministrativeSolicitationListResponse> {
   if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
 
-  const query = normalizeAdministrativeListQuery(queryOrLimit)
+  const query = normalizeAdministrativeSolicitationListQuery(queryOrLimit)
   const key = buildAdministrativeListUrl(query)
   const snapshot = getAdministrativeSolicitationsSnapshot(query)
 
@@ -322,6 +322,12 @@ export function fetchAdministrativeSolicitations(
       )
     }),
   ])
+}
+
+function normalizeAdministrativeSolicitationListQuery(
+  queryOrLimit: AdministrativeSolicitationListQuery | number = {},
+): AdministrativeSolicitationListQuery {
+  return normalizeAdministrativeListQuery(queryOrLimit)
 }
 
 export function fetchAdministrativeSolicitationMetadata(
@@ -409,7 +415,7 @@ export async function registerAdministrativeAttendance(input: {
 
 export async function updateAdministrativeSolicitationStatus(input: {
   idSolicitacao: string
-  status: OperationalSolicitationStatus
+  status: AdministrativeTransitionStatus
   motivo?: string
 }): Promise<{
   idSolicitacao: string
