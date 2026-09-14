@@ -30,7 +30,17 @@ O login é realizado em `POST /api/auth/login`. A Pages Function envia as creden
 
 As rotas protegidas usam `authorizeGatewayRequest()` e validam perfil/operação antes de chamar o Apps Script. Usuários operacionais precisam possuir uma operação específica. OWNER e ADMINISTRATIVO seguem as regras de acesso definidas em `_access-control.ts`.
 
-O header `x-gateway-test-token` continua disponível somente como fallback controlado de testes enquanto `GATEWAY_TEST_TOKEN` estiver configurado. Ele não deve ser utilizado pelo frontend normal.
+### Requisito de produção — token de teste legado
+
+O código ainda reconhece `x-gateway-test-token` somente quando a variável `GATEWAY_TEST_TOKEN` está configurada no ambiente Cloudflare. Esse caminho é legado e não deve estar ativo em produção.
+
+Para produção da V1:
+
+- **não configurar `GATEWAY_TEST_TOKEN`**;
+- se a variável já existir, removê-la do ambiente de produção;
+- não enviar `x-gateway-test-token` em clientes, automações ou chamadas manuais.
+
+Sem `GATEWAY_TEST_TOKEN` configurado, o header de teste não autoriza nenhuma requisição. A autenticação efetiva fica restrita à sessão assinada do aplicativo.
 
 ## Cache de borda
 
@@ -70,13 +80,12 @@ Sem Cloudflare Access na frente do domínio, `/api/auth/login` fica acessível p
 
 ## Variáveis / segredos no Cloudflare Pages
 
-Configurar por ambiente:
+Configurar em produção:
 
 ```text
 APPS_SCRIPT_URL
 APPS_SCRIPT_GATEWAY_TOKEN
 APP_SESSION_SECRET
-GATEWAY_TEST_TOKEN
 ```
 
 Regras:
@@ -84,10 +93,10 @@ Regras:
 - `APPS_SCRIPT_URL`: URL estável `/exec` da implantação do Web App;
 - `APPS_SCRIPT_GATEWAY_TOKEN`: segredo compartilhado Cloudflare → Apps Script;
 - `APP_SESSION_SECRET`: segredo com pelo menos 32 caracteres usado para assinar a sessão do aplicativo;
-- `GATEWAY_TEST_TOKEN`: fallback temporário para testes controlados;
-- nenhum desses valores deve ser incluído no bundle React.
+- `GATEWAY_TEST_TOKEN`: **não deve existir no ambiente de produção**;
+- nenhum segredo deve ser incluído no bundle React.
 
-As antigas variáveis `CLOUDFLARE_ACCESS_TEAM_DOMAIN` e `CLOUDFLARE_ACCESS_AUD` deixam de ser utilizadas pelo código e podem ser removidas dos ambientes depois da homologação da arquitetura sem Access.
+As antigas variáveis `CLOUDFLARE_ACCESS_TEAM_DOMAIN` e `CLOUDFLARE_ACCESS_AUD` não são utilizadas pela arquitetura atual e podem permanecer removidas.
 
 ## Propriedade no Apps Script
 
@@ -99,17 +108,17 @@ GATEWAY_TOKEN
 
 O valor deve ser exatamente o mesmo de `APPS_SCRIPT_GATEWAY_TOKEN` no Cloudflare. O Apps Script continua protegido por autenticação serviço-a-serviço mesmo com o domínio Pages sem Cloudflare Access.
 
-## Homologação antes de remover Cloudflare Access
+## Smoke test final da V1
 
-Validar no Preview, nesta ordem:
+Validar no Preview e depois em produção:
 
 1. abrir a aplicação e autenticar pelo login próprio;
 2. `/api/auth/me` reconhecer a sessão;
-3. OWNER/ADMINISTRATIVO acessarem dados administrativos normalmente;
-4. OPERACIONAL enxergar somente a própria operação;
-5. request sem sessão para rota protegida retornar `401`;
-6. escrita continuar exigindo sessão/permissão e gateway token no backend;
-7. repetir leituras de dashboard, solicitações e catálogos e confirmar redução de latência por cache de borda;
-8. logout invalidar o cookie de sessão.
-
-Somente depois dessa homologação a aplicação/política Cloudflare Access que protege o domínio deve ser desativada no painel da Cloudflare.
+3. OWNER acessar todas as áreas previstas;
+4. ADMINISTRATIVO acessar áreas administrativas e financeiras, sem gestão de usuários;
+5. OPERACIONAL enxergar somente a própria operação e não executar mutações administrativas;
+6. request sem sessão para rota protegida retornar `401`;
+7. escrita continuar exigindo sessão/permissão e gateway token no backend;
+8. dashboard, solicitações, cadastros e fechamentos carregarem sem regressão;
+9. logout invalidar o cookie de sessão;
+10. confirmar que `GATEWAY_TEST_TOKEN` não está configurado em produção.

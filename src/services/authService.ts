@@ -50,6 +50,10 @@ async function parse<T>(response: Response, fallback: string): Promise<T> {
   return payload.data
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function getCurrentUser(signal?: AbortSignal): Promise<AuthUser | null> {
   let response: Response
 
@@ -68,7 +72,7 @@ export async function getCurrentUser(signal?: AbortSignal): Promise<AuthUser | n
   return parse<AuthUser>(response, 'Não foi possível verificar sua sessão.')
 }
 
-export async function login(email: string, password: string): Promise<AuthUser> {
+async function loginOnce(email: string, password: string): Promise<AuthUser> {
   let response: Response
 
   try {
@@ -85,6 +89,21 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   }
 
   return parse<AuthUser>(response, 'E-mail ou senha inválidos.')
+}
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  try {
+    return await loginOnce(email, password)
+  } catch (error) {
+    const shouldRetry =
+      error instanceof AuthServiceError &&
+      (error.code === 'AUTH_INVALID_RESPONSE' || error.code === 'INVALID_AUTH_RESPONSE')
+
+    if (!shouldRetry) throw error
+
+    await delay(200)
+    return loginOnce(email, password)
+  }
 }
 
 export async function logout(_user?: AuthUser | null): Promise<void> {

@@ -121,8 +121,22 @@ async function proxyToAppsScript(
   try {
     upstreamPayload = JSON.parse(upstreamText);
   } catch {
+    const trimmed = upstreamText.trim();
     return jsonResponse(
-      { ok: false, error: { code: 'UPSTREAM_INVALID_RESPONSE', message: 'Apps Script retornou uma resposta inválida.' } },
+      {
+        ok: false,
+        error: {
+          code: 'UPSTREAM_INVALID_RESPONSE',
+          message: 'Apps Script retornou uma resposta inválida.',
+          details: {
+            upstreamStatus: upstreamResponse.status,
+            upstreamContentType: upstreamResponse.headers.get('content-type') || null,
+            upstreamRedirected: upstreamResponse.redirected,
+            upstreamBodyLength: upstreamText.length,
+            upstreamLooksLikeJson: trimmed.startsWith('{') || trimmed.startsWith('['),
+          },
+        },
+      },
       502
     );
   }
