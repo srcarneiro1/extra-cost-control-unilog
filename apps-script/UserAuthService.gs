@@ -12,6 +12,7 @@ const UserAuthService = (() => {
     'PERFIL',
     'OPERACAO',
     'ATIVO',
+    'EXIGE_TROCA_SENHA',
     'ULTIMA_ALTERACAO',
   ];
   const ALLOWED_PROFILES = ['OWNER', 'ADMINISTRATIVO', 'OPERACIONAL'];
@@ -56,6 +57,7 @@ const UserAuthService = (() => {
       nome: ValidationService.normalizeText(match.record.NOME) || email.split('@')[0],
       perfil: profile,
       operacao: ValidationService.normalizeUpper(match.record.OPERACAO || ''),
+      exigeTrocaSenha: requiresPasswordChange_(match.record.EXIGE_TROCA_SENHA),
     };
   }
 
@@ -73,7 +75,7 @@ const UserAuthService = (() => {
         ValidationService.fail('Defina AUTH_PENDING_PASSWORD com uma senha de pelo menos 8 caracteres.');
       }
 
-      setPassword_(email, password);
+      setPassword_(email, password, true);
 
       return {
         ok: true,
@@ -98,10 +100,26 @@ const UserAuthService = (() => {
       ValidationService.fail('A senha deve possuir pelo menos 8 caracteres.');
     }
 
-    setPassword_(normalizedEmail, normalizedPassword);
+    setPassword_(normalizedEmail, normalizedPassword, true);
   }
 
-  function setPassword_(email, password) {
+  function completePasswordChange(email, password) {
+    const normalizedEmail = normalizeEmail_(email);
+    const normalizedPassword = String(password || '');
+
+    if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      ValidationService.fail('Informe um e-mail válido para definir a senha.');
+    }
+
+    if (normalizedPassword.length < 8) {
+      ValidationService.fail('A nova senha deve possuir pelo menos 8 caracteres.');
+    }
+
+    setPassword_(normalizedEmail, normalizedPassword, false);
+    return authenticate({ email: normalizedEmail, password: normalizedPassword });
+  }
+
+  function setPassword_(email, password, requireChange) {
     ensureSheet_();
 
     const match = findUser_(email);
@@ -118,9 +136,10 @@ const UserAuthService = (() => {
       {
         SENHA_HASH: hashPassword_(password, salt),
         SALT: salt,
+        EXIGE_TROCA_SENHA: requireChange ? 'SIM' : 'NAO',
         ULTIMA_ALTERACAO: new Date(),
       },
-      { textFields: ['SENHA_HASH', 'SALT'] }
+      { textFields: ['SENHA_HASH', 'SALT', 'EXIGE_TROCA_SENHA'] }
     );
   }
 
@@ -159,6 +178,11 @@ const UserAuthService = (() => {
   function isActive_(value) {
     const normalized = ValidationService.normalizeUpper(value);
     return ['SIM', 'TRUE', '1', 'ATIVO', 'YES'].indexOf(normalized) >= 0;
+  }
+
+  function requiresPasswordChange_(value) {
+    const normalized = ValidationService.normalizeUpper(value);
+    return ['SIM', 'TRUE', '1', 'YES'].indexOf(normalized) >= 0;
   }
 
   function authorizationFail_() {
@@ -225,5 +249,6 @@ const UserAuthService = (() => {
     ensureSheet: ensureSheet_,
     applyPendingPassword,
     setPassword,
+    completePasswordChange,
   };
 })();
