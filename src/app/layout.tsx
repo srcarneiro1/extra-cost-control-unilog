@@ -27,6 +27,7 @@ import './prime-closeouts.css'
 import './prime-polish.css'
 import './prime-unified-surfaces.css'
 import './prime-card-selection-refinement.css'
+import './mobile-solicitation-actions.css'
 
 export const metadata: Metadata = {
   title: 'Extra Cost Control | Unilog Express',
