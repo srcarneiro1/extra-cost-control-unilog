@@ -569,9 +569,7 @@ export const onRequestPost: PagesFunction<Env> =
     let payload: Record<string, unknown>;
 
     try {
-      payload =
-        (await request.json())
-        as Record<string, unknown>;
+      payload = (await request.json()) as Record<string, unknown>;
     } catch {
       return jsonResponse(
         {
