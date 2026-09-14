@@ -57,8 +57,9 @@ const UserAdminService = (() => {
         Object.assign({}, values, {
           SENHA_HASH: '',
           SALT: '',
+          EXIGE_TROCA_SENHA: 'SIM',
         }),
-        { textFields: ['EMAIL', 'SENHA_HASH', 'SALT', 'OPERACAO'] }
+        { textFields: ['EMAIL', 'SENHA_HASH', 'SALT', 'OPERACAO', 'EXIGE_TROCA_SENHA'] }
       );
     }
 
@@ -72,12 +73,17 @@ const UserAdminService = (() => {
   function resetPassword(payload) {
     const email = normalizeEmail_(payload && payload.email);
     const password = String(payload && payload.password ? payload.password : '');
+    const completeOwnChange = Boolean(payload && payload.concluirTroca === true);
 
     if (!email || !findUser_(email)) {
       ValidationService.fail('Usuário não encontrado.');
     }
 
-    UserAuthService.setPassword(email, password);
+    if (completeOwnChange) {
+      UserAuthService.completePasswordChange(email, password);
+    } else {
+      UserAuthService.setPassword(email, password);
+    }
     return toSafeUser_(findUser_(email).record);
   }
 
@@ -148,6 +154,7 @@ const UserAdminService = (() => {
       operacao: ValidationService.normalizeUpper(record.OPERACAO || ''),
       ativo: normalizeBoolean_(record.ATIVO),
       senhaConfigurada: Boolean(String(record.SENHA_HASH || '').trim() && String(record.SALT || '').trim()),
+      exigeTrocaSenha: normalizeBoolean_(record.EXIGE_TROCA_SENHA),
       ultimaAlteracao: dateTime_(record.ULTIMA_ALTERACAO),
     };
   }

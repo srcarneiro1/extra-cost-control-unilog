@@ -17,6 +17,7 @@ interface AppsScriptSuccess {
     nome: string;
     perfil: string;
     operacao: string;
+    exigeTrocaSenha?: boolean;
   };
 }
 
@@ -95,18 +96,62 @@ function registerLoginCooldown_(
   }
 }
 
+async function appsScriptPost(
+  env: Env,
+  route: string,
+  payload: Record<string, unknown>,
+): Promise<Response> {
+  const targetUrl = new URL(env.APPS_SCRIPT_URL);
+  targetUrl.searchParams.set('route', route);
+  return fetch(targetUrl.toString(), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN }),
+    redirect: 'follow',
+  });
+}
+
+async function authenticateWithRetry(
+  env: Env,
+  email: string,
+  password: string,
+): Promise<Response> {
+  try {
+    return await appsScriptPost(env, 'auth', { acao: 'LOGIN', email, password });
+  } catch {
+    await delay(200);
+    return appsScriptPost(env, 'auth', { acao: 'LOGIN', email, password });
+  }
+}
+
+async function reconcilePasswordChange(
+  env: Env,
+  email: string,
+  newPassword: string,
+): Promise<AppsScriptSuccess | null> {
+  try {
+    const response = await authenticateWithRetry(env, email, newPassword);
+    const payload = (await response.json()) as AppsScriptSuccess | AppsScriptFailure;
+    if (response.ok && payload.ok && payload.data.exigeTrocaSenha !== true) return payload;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
-  let body: { email?: unknown; password?: unknown };
+  let body: { email?: unknown; password?: unknown; newPassword?: unknown };
 
   try {
-    body = (await request.json()) as { email?: unknown; password?: unknown };
+    body = (await request.json()) as { email?: unknown; password?: unknown; newPassword?: unknown };
   } catch {
     return jsonResponse({ ok: false, error: { code: 'INVALID_JSON', message: 'Corpo JSON inválido.' } }, 400);
   }
 
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
+  const newPassword = String(body.newPassword || '');
 
   if (!email || !password) {
     return jsonResponse({ ok: false, error: { code: 'INVALID_CREDENTIALS', message: 'Informe e-mail e senha.' } }, 400);
@@ -130,37 +175,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonResponse({ ok: false, error: { code: 'GATEWAY_CONFIG_ERROR', message: 'Gateway não configurado.' } }, 500);
   }
 
-  const targetUrl = new URL(env.APPS_SCRIPT_URL);
-  targetUrl.searchParams.set('route', 'auth');
-
   let upstreamResponse: Response;
   try {
-    try {
-      upstreamResponse = await fetch(targetUrl.toString(), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          acao: 'LOGIN',
-          email,
-          password,
-          _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
-        }),
-        redirect: 'follow',
-      });
-    } catch {
-      await delay(200);
-      upstreamResponse = await fetch(targetUrl.toString(), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          acao: 'LOGIN',
-          email,
-          password,
-          _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
-        }),
-        redirect: 'follow',
-      });
-    }
+    upstreamResponse = await authenticateWithRetry(env, email, password);
   } catch {
     return jsonResponse({ ok: false, error: { code: 'AUTH_UPSTREAM_UNAVAILABLE', message: 'Não foi possível validar o acesso.' } }, 502);
   }
@@ -184,6 +201,62 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       },
       401,
     );
+  }
+
+  if (upstream.data.exigeTrocaSenha === true) {
+    if (!newPassword) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: {
+            code: 'PASSWORD_CHANGE_REQUIRED',
+            message: 'Defina uma nova senha para concluir o primeiro acesso.',
+          },
+        },
+        409,
+      );
+    }
+
+    if (newPassword.length < 8) {
+      return jsonResponse(
+        { ok: false, error: { code: 'INVALID_NEW_PASSWORD', message: 'A nova senha deve possuir pelo menos 8 caracteres.' } },
+        400,
+      );
+    }
+
+    let passwordChangeResponse: Response;
+    try {
+      passwordChangeResponse = await appsScriptPost(env, 'usuarios', {
+        acao: 'REDEFINIR_SENHA',
+        email,
+        password: newPassword,
+        concluirTroca: true,
+      });
+    } catch {
+      return jsonResponse(
+        { ok: false, error: { code: 'PASSWORD_CHANGE_UNAVAILABLE', message: 'Não foi possível concluir a troca de senha.' } },
+        502,
+      );
+    }
+
+    let passwordChangeSucceeded = false;
+    try {
+      const payload = (await passwordChangeResponse.json()) as { ok?: unknown };
+      passwordChangeSucceeded = passwordChangeResponse.ok && payload?.ok === true;
+    } catch {
+      const reconciled = await reconcilePasswordChange(env, email, newPassword);
+      if (reconciled) {
+        upstream = reconciled;
+        passwordChangeSucceeded = true;
+      }
+    }
+
+    if (!passwordChangeSucceeded) {
+      return jsonResponse(
+        { ok: false, error: { code: 'PASSWORD_CHANGE_FAILED', message: 'Não foi possível concluir a troca de senha.' } },
+        502,
+      );
+    }
   }
 
   const user: AppSessionUser = {

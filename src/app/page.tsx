@@ -14,6 +14,8 @@ import {
 } from '@/services/catalogService'
 import { prefetchDashboard } from '@/services/dashboardService'
 import {
+  AuthServiceError,
+  completeFirstAccess,
   getCurrentUser,
   login,
   logout,
@@ -135,6 +137,9 @@ function profileLabel(profile: string) {
 function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [firstAccess, setFirstAccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -142,12 +147,31 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
     event.preventDefault()
     if (loading) return
 
+    if (firstAccess) {
+      if (newPassword.length < 8) {
+        setError('A nova senha deve possuir pelo menos 8 caracteres.')
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        setError('A confirmação da nova senha não confere.')
+        return
+      }
+    }
+
     setLoading(true)
     setError('')
     try {
-      const user = await login(email.trim(), password)
+      const user = firstAccess
+        ? await completeFirstAccess(email.trim(), password, newPassword)
+        : await login(email.trim(), password)
       onAuthenticated(user)
     } catch (requestError) {
+      if (requestError instanceof AuthServiceError && requestError.code === 'PASSWORD_CHANGE_REQUIRED') {
+        setFirstAccess(true)
+        setNewPassword('')
+        setConfirmPassword('')
+        return
+      }
       setError(requestError instanceof Error ? requestError.message : 'Não foi possível entrar.')
     } finally {
       setLoading(false)
@@ -180,9 +204,13 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
 
         <div className="nx-login-form-panel">
           <div className="nx-login-heading">
-            <span className="nx-overline">ACESSO À PLATAFORMA</span>
-            <h2 id="login-title">Bem-vindo de volta</h2>
-            <p>Entre com o usuário cadastrado pela administração.</p>
+            <span className="nx-overline">{firstAccess ? 'PRIMEIRO ACESSO' : 'ACESSO À PLATAFORMA'}</span>
+            <h2 id="login-title">{firstAccess ? 'Crie sua própria senha' : 'Bem-vindo de volta'}</h2>
+            <p>
+              {firstAccess
+                ? 'A senha recebida é temporária. Defina uma nova senha para liberar seu acesso.'
+                : 'Entre com o usuário cadastrado pela administração.'}
+            </p>
           </div>
 
           <form className="nx-login-form" onSubmit={submit}>
@@ -197,11 +225,11 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
                 placeholder="nome@empresa.com.br"
                 autoComplete="username"
                 required
-                disabled={loading}
+                disabled={loading || firstAccess}
               />
             </span>
 
-            <label htmlFor="login-password">Senha</label>
+            <label htmlFor="login-password">{firstAccess ? 'Senha temporária' : 'Senha'}</label>
             <Password
               inputId="login-password"
               value={password}
@@ -211,10 +239,44 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
               feedback={false}
               toggleMask
               required
-              disabled={loading}
+              disabled={loading || firstAccess}
               className="nx-password"
               inputClassName="nx-password-input"
             />
+
+            {firstAccess && (
+              <>
+                <label htmlFor="new-password">Nova senha</label>
+                <Password
+                  inputId="new-password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="Mínimo de 8 caracteres"
+                  autoComplete="new-password"
+                  feedback={false}
+                  toggleMask
+                  required
+                  disabled={loading}
+                  className="nx-password"
+                  inputClassName="nx-password-input"
+                />
+
+                <label htmlFor="confirm-password">Confirmar nova senha</label>
+                <Password
+                  inputId="confirm-password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Repita a nova senha"
+                  autoComplete="new-password"
+                  feedback={false}
+                  toggleMask
+                  required
+                  disabled={loading}
+                  className="nx-password"
+                  inputClassName="nx-password-input"
+                />
+              </>
+            )}
 
             {error && (
               <div className="nx-login-error" role="alert">
@@ -225,8 +287,8 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
 
             <Button
               type="submit"
-              label={loading ? 'Entrando…' : 'Entrar'}
-              icon={loading ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'}
+              label={loading ? 'Salvando…' : firstAccess ? 'Definir minha senha' : 'Entrar'}
+              icon={loading ? 'pi pi-spin pi-spinner' : firstAccess ? 'pi pi-check' : 'pi pi-arrow-right'}
               iconPos="right"
               disabled={loading}
               className="nx-primary-button"
@@ -235,7 +297,11 @@ function LoginExperience({ onAuthenticated }: { onAuthenticated: (user: AuthUser
 
           <div className="nx-login-footnote">
             <i className="pi pi-info-circle" />
-            <span>O acesso depende de uma conta ativa com perfil e operação definidos.</span>
+            <span>
+              {firstAccess
+                ? 'A nova senha substitui a senha temporária e não é armazenada em texto puro.'
+                : 'O acesso depende de uma conta ativa com perfil e operação definidos.'}
+            </span>
           </div>
         </div>
       </section>
