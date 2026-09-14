@@ -1,16 +1,12 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Avatar } from 'primereact/avatar'
 import { Button } from 'primereact/button'
 import { InputText } from 'primereact/inputtext'
 import { Password } from 'primereact/password'
 import { Tag } from 'primereact/tag'
-import { AdminSolicitationsPageCurrentPeriod } from '@/components/AdminSolicitationsPageCurrentPeriod'
-import { CadastrosPagePaginated } from '@/components/CadastrosPagePaginated'
-import { DashboardPage } from '@/components/DashboardPage'
-import { FinancialCloseoutPage } from '@/components/FinancialCloseoutPage'
-import { UsersPage } from '@/components/UsersPage'
 import {
   fetchCatalogoAdminScope,
   fetchCatalogos,
@@ -27,6 +23,47 @@ import {
   fetchAdministrativeSolicitationMetadata,
   fetchAdministrativeSolicitations,
 } from '@/services/solicitationService'
+
+function SectionLoading() {
+  return (
+    <div
+      className="nx-session-loading"
+      role="status"
+      aria-live="polite"
+      style={{ minHeight: '16rem', background: 'transparent' }}
+    >
+      <i className="pi pi-spin pi-spinner" />
+      <span>Carregando seção…</span>
+    </div>
+  )
+}
+
+const AdminSolicitationsPageCurrentPeriod = dynamic(
+  () => import('@/components/AdminSolicitationsPageCurrentPeriod')
+    .then((module) => module.AdminSolicitationsPageCurrentPeriod),
+  { ssr: false, loading: () => <SectionLoading /> },
+)
+
+const CadastrosPagePaginated = dynamic(
+  () => import('@/components/CadastrosPagePaginated')
+    .then((module) => module.CadastrosPagePaginated),
+  { ssr: false, loading: () => <SectionLoading /> },
+)
+
+const DashboardPage = dynamic(
+  () => import('@/components/DashboardPage').then((module) => module.DashboardPage),
+  { ssr: false, loading: () => <SectionLoading /> },
+)
+
+const FinancialCloseoutPage = dynamic(
+  () => import('@/components/FinancialCloseoutPage').then((module) => module.FinancialCloseoutPage),
+  { ssr: false, loading: () => <SectionLoading /> },
+)
+
+const UsersPage = dynamic(
+  () => import('@/components/UsersPage').then((module) => module.UsersPage),
+  { ssr: false, loading: () => <SectionLoading /> },
+)
 
 type Section = 'dashboard' | 'solicitacoes' | 'fechamentos' | 'cadastros' | 'usuarios'
 
