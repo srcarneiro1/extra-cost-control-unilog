@@ -19,6 +19,9 @@ interface Env extends GatewayAuthEnv {
 
 const LIST_EDGE_CACHE_SECONDS = 30;
 const METADATA_EDGE_CACHE_SECONDS = 300;
+const APPS_SCRIPT_EXECUTION_HOST = 'script.google.com';
+const APPS_SCRIPT_CONTENT_HOST = 'script.googleusercontent.com';
+const MAX_APPS_SCRIPT_REDIRECTS = 4;
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -93,10 +96,59 @@ function cacheSuccessfulResponse_(
   }
 }
 
+function isRedirectStatus_(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+async function fetchAppsScriptRead_(url: string, body: string): Promise<Response> {
+  let currentUrl = url;
+
+  for (let hop = 0; hop < MAX_APPS_SCRIPT_REDIRECTS; hop += 1) {
+    const response = await fetch(currentUrl, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body,
+      redirect: 'manual',
+    });
+
+    if (!isRedirectStatus_(response.status)) return response;
+
+    const location = response.headers.get('location');
+    if (!location) return response;
+
+    const nextUrl = new URL(location, currentUrl);
+
+    if (nextUrl.hostname === APPS_SCRIPT_CONTENT_HOST) {
+      return fetch(nextUrl.toString(), {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+        redirect: 'follow',
+      });
+    }
+
+    if (nextUrl.hostname === APPS_SCRIPT_EXECUTION_HOST) {
+      currentUrl = nextUrl.toString();
+      continue;
+    }
+
+    console.warn('Apps Script retornou redirecionamento inesperado em leitura de solicitações.', {
+      status: response.status,
+      host: nextUrl.hostname,
+    });
+    return response;
+  }
+
+  throw new Error('Apps Script excedeu o limite de redirecionamentos na leitura de solicitações.');
+}
+
 async function proxyToAppsScript(
   env: Env,
   route: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  readOnly = false,
 ): Promise<Response> {
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
@@ -107,13 +159,24 @@ async function proxyToAppsScript(
 
   const targetUrl = new URL(env.APPS_SCRIPT_URL);
   targetUrl.searchParams.set('route', route);
+  const body = JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN });
 
-  const upstreamResponse = await fetch(targetUrl.toString(), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN }),
-    redirect: 'follow',
-  });
+  let upstreamResponse: Response;
+  try {
+    upstreamResponse = readOnly
+      ? await fetchAppsScriptRead_(targetUrl.toString(), body)
+      : await fetch(targetUrl.toString(), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body,
+          redirect: 'follow',
+        });
+  } catch {
+    return jsonResponse(
+      { ok: false, error: { code: 'UPSTREAM_CONNECTION_ERROR', message: 'Não foi possível conectar ao Apps Script.' } },
+      502,
+    );
+  }
 
   const upstreamText = await upstreamResponse.text();
   let upstreamPayload: unknown;
@@ -132,6 +195,7 @@ async function proxyToAppsScript(
             upstreamStatus: upstreamResponse.status,
             upstreamContentType: upstreamResponse.headers.get('content-type') || null,
             upstreamRedirected: upstreamResponse.redirected,
+            upstreamFinalHost: upstreamResponse.url ? new URL(upstreamResponse.url).hostname : null,
             upstreamBodyLength: upstreamText.length,
             upstreamLooksLikeJson: trimmed.startsWith('{') || trimmed.startsWith('['),
           },
@@ -215,6 +279,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     env,
     'solicitacoes_admin',
     enforceOperationScope(identity, payload),
+    true,
   );
 
   if (edgeTtl > 0) {
@@ -252,7 +317,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const adminRead = optionalParam(url, 'admin') === '1';
 
   if (adminRead) {
-    return proxyToAppsScript(env, 'solicitacoes_admin', enforceOperationScope(identity, payload));
+    return proxyToAppsScript(env, 'solicitacoes_admin', enforceOperationScope(identity, payload), true);
   }
 
   const trustedPayload = enforceCreationScope(identity, {
