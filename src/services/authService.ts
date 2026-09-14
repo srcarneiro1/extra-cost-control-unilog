@@ -72,7 +72,7 @@ export async function getCurrentUser(signal?: AbortSignal): Promise<AuthUser | n
   return parse<AuthUser>(response, 'Não foi possível verificar sua sessão.')
 }
 
-async function loginOnce(email: string, password: string): Promise<AuthUser> {
+async function loginOnce(email: string, password: string, newPassword?: string): Promise<AuthUser> {
   let response: Response
 
   try {
@@ -82,7 +82,7 @@ async function loginOnce(email: string, password: string): Promise<AuthUser> {
         accept: 'application/json',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, ...(newPassword ? { newPassword } : {}) }),
     })
   } catch {
     throw new AuthServiceError('Não foi possível conectar ao serviço de acesso.')
@@ -104,6 +104,14 @@ export async function login(email: string, password: string): Promise<AuthUser> 
     await delay(200)
     return loginOnce(email, password)
   }
+}
+
+export async function completeFirstAccess(
+  email: string,
+  temporaryPassword: string,
+  newPassword: string,
+): Promise<AuthUser> {
+  return loginOnce(email, temporaryPassword, newPassword)
 }
 
 export async function logout(_user?: AuthUser | null): Promise<void> {
