@@ -57,8 +57,9 @@ const UserAdminService = (() => {
         Object.assign({}, values, {
           SENHA_HASH: '',
           SALT: '',
+          EXIGE_TROCA_SENHA: 'SIM',
         }),
-        { textFields: ['EMAIL', 'SENHA_HASH', 'SALT', 'OPERACAO'] }
+        { textFields: ['EMAIL', 'SENHA_HASH', 'SALT', 'OPERACAO', 'EXIGE_TROCA_SENHA'] }
       );
     }
 
@@ -148,6 +149,7 @@ const UserAdminService = (() => {
       operacao: ValidationService.normalizeUpper(record.OPERACAO || ''),
       ativo: normalizeBoolean_(record.ATIVO),
       senhaConfigurada: Boolean(String(record.SENHA_HASH || '').trim() && String(record.SALT || '').trim()),
+      exigeTrocaSenha: normalizeBoolean_(record.EXIGE_TROCA_SENHA),
       ultimaAlteracao: dateTime_(record.ULTIMA_ALTERACAO),
     };
   }
