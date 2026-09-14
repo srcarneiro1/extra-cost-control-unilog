@@ -13,6 +13,9 @@ interface Env extends GatewayAuthEnv {
 }
 
 const EDGE_CACHE_SECONDS = 300;
+const APPS_SCRIPT_EXECUTION_HOST = 'script.google.com';
+const APPS_SCRIPT_CONTENT_HOST = 'script.googleusercontent.com';
+const MAX_APPS_SCRIPT_REDIRECTS = 4;
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -82,9 +85,58 @@ function cacheSuccessfulResponse_(
   }
 }
 
+function isRedirectStatus_(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+async function fetchAppsScriptRead_(url: string, body: string): Promise<Response> {
+  let currentUrl = url;
+
+  for (let hop = 0; hop < MAX_APPS_SCRIPT_REDIRECTS; hop += 1) {
+    const response = await fetch(currentUrl, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body,
+      redirect: 'manual',
+    });
+
+    if (!isRedirectStatus_(response.status)) return response;
+
+    const location = response.headers.get('location');
+    if (!location) return response;
+
+    const nextUrl = new URL(location, currentUrl);
+
+    if (nextUrl.hostname === APPS_SCRIPT_CONTENT_HOST) {
+      return fetch(nextUrl.toString(), {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+        redirect: 'follow',
+      });
+    }
+
+    if (nextUrl.hostname === APPS_SCRIPT_EXECUTION_HOST) {
+      currentUrl = nextUrl.toString();
+      continue;
+    }
+
+    console.warn('Apps Script retornou redirecionamento inesperado em leitura de cadastros.', {
+      status: response.status,
+      host: nextUrl.hostname,
+    });
+    return response;
+  }
+
+  throw new Error('Apps Script excedeu o limite de redirecionamentos na leitura de cadastros.');
+}
+
 async function proxyCatalogRequest(
   env: Env,
   servicePayload: Record<string, unknown>,
+  readOnly = false,
 ): Promise<Response> {
   if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
     return jsonResponse(
@@ -95,16 +147,27 @@ async function proxyCatalogRequest(
 
   const targetUrl = new URL(env.APPS_SCRIPT_URL);
   targetUrl.searchParams.set('route', 'cadastros');
-
-  const upstreamResponse = await fetch(targetUrl.toString(), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      ...servicePayload,
-      _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
-    }),
-    redirect: 'follow',
+  const body = JSON.stringify({
+    ...servicePayload,
+    _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN,
   });
+
+  let upstreamResponse: Response;
+  try {
+    upstreamResponse = readOnly
+      ? await fetchAppsScriptRead_(targetUrl.toString(), body)
+      : await fetch(targetUrl.toString(), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body,
+          redirect: 'follow',
+        });
+  } catch {
+    return jsonResponse(
+      { ok: false, error: { code: 'UPSTREAM_CONNECTION_ERROR', message: 'Não foi possível conectar ao Apps Script.' } },
+      502,
+    );
+  }
 
   const upstreamText = await upstreamResponse.text();
   let upstreamPayload: unknown;
@@ -113,7 +176,19 @@ async function proxyCatalogRequest(
     upstreamPayload = JSON.parse(upstreamText);
   } catch {
     return jsonResponse(
-      { ok: false, error: { code: 'UPSTREAM_INVALID_RESPONSE', message: 'Apps Script retornou uma resposta inválida.' } },
+      {
+        ok: false,
+        error: {
+          code: 'UPSTREAM_INVALID_RESPONSE',
+          message: 'Apps Script retornou uma resposta inválida.',
+          details: {
+            upstreamStatus: upstreamResponse.status,
+            upstreamContentType: upstreamResponse.headers.get('content-type') || null,
+            upstreamRedirected: upstreamResponse.redirected,
+            upstreamFinalHost: upstreamResponse.url ? new URL(upstreamResponse.url).hostname : null,
+          },
+        },
+      },
       502,
     );
   }
@@ -169,7 +244,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       : { modo: 'ADMIN' }
     : {};
 
-  const response = await proxyCatalogRequest(env, payload);
+  const response = await proxyCatalogRequest(env, payload, true);
   cacheSuccessfulResponse_(context, request, identity, response);
   return response;
 };
