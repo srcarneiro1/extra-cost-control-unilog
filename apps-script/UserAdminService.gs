@@ -73,12 +73,17 @@ const UserAdminService = (() => {
   function resetPassword(payload) {
     const email = normalizeEmail_(payload && payload.email);
     const password = String(payload && payload.password ? payload.password : '');
+    const completeOwnChange = Boolean(payload && payload.concluirTroca === true);
 
     if (!email || !findUser_(email)) {
       ValidationService.fail('Usuário não encontrado.');
     }
 
-    UserAuthService.setPassword(email, password);
+    if (completeOwnChange) {
+      UserAuthService.completePasswordChange(email, password);
+    } else {
+      UserAuthService.setPassword(email, password);
+    }
     return toSafeUser_(findUser_(email).record);
   }
 
