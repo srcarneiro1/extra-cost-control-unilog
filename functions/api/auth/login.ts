@@ -30,6 +30,9 @@ interface AppsScriptFailure {
 }
 
 const FAILED_LOGIN_COOLDOWN_SECONDS = 10;
+const APPS_SCRIPT_EXECUTION_HOST = 'script.google.com';
+const APPS_SCRIPT_CONTENT_HOST = 'script.googleusercontent.com';
+const MAX_APPS_SCRIPT_REDIRECTS = 4;
 
 function jsonResponse(payload: unknown, status = 200, headers?: HeadersInit): Response {
   return new Response(JSON.stringify(payload), {
@@ -96,19 +99,90 @@ function registerLoginCooldown_(
   }
 }
 
-async function appsScriptPost(
+function isRedirectStatus_(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+function appsScriptTarget_(env: Env, route: string): URL {
+  const targetUrl = new URL(env.APPS_SCRIPT_URL);
+  targetUrl.searchParams.set('route', route);
+  return targetUrl;
+}
+
+function appsScriptBody_(env: Env, payload: Record<string, unknown>): string {
+  return JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN });
+}
+
+async function appsScriptReadPost_(
   env: Env,
   route: string,
   payload: Record<string, unknown>,
 ): Promise<Response> {
-  const targetUrl = new URL(env.APPS_SCRIPT_URL);
-  targetUrl.searchParams.set('route', route);
-  return fetch(targetUrl.toString(), {
+  let currentUrl = appsScriptTarget_(env, route).toString();
+  const body = appsScriptBody_(env, payload);
+
+  for (let hop = 0; hop < MAX_APPS_SCRIPT_REDIRECTS; hop += 1) {
+    const response = await fetch(currentUrl, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body,
+      redirect: 'manual',
+    });
+
+    if (!isRedirectStatus_(response.status)) return response;
+
+    const location = response.headers.get('location');
+    if (!location) return response;
+
+    const nextUrl = new URL(location, currentUrl);
+    if (nextUrl.hostname === APPS_SCRIPT_CONTENT_HOST) {
+      return fetch(nextUrl.toString(), {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+        redirect: 'follow',
+      });
+    }
+
+    if (nextUrl.hostname === APPS_SCRIPT_EXECUTION_HOST) {
+      currentUrl = nextUrl.toString();
+      continue;
+    }
+
+    return response;
+  }
+
+  throw new Error('Apps Script excedeu o limite de redirecionamentos na autenticação.');
+}
+
+async function appsScriptMutationOnce_(
+  env: Env,
+  route: string,
+  payload: Record<string, unknown>,
+): Promise<Response> {
+  const targetUrl = appsScriptTarget_(env, route);
+  const response = await fetch(targetUrl.toString(), {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN }),
-    redirect: 'follow',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: appsScriptBody_(env, payload),
+    redirect: 'manual',
   });
+
+  if (!isRedirectStatus_(response.status)) return response;
+
+  const location = response.headers.get('location');
+  if (!location) return response;
+
+  const nextUrl = new URL(location, targetUrl.toString());
+  if (nextUrl.hostname === APPS_SCRIPT_CONTENT_HOST) {
+    return fetch(nextUrl.toString(), {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      redirect: 'follow',
+    });
+  }
+
+  // A troca de senha é mutação: nunca repetimos o POST em outro redirect.
+  return response;
 }
 
 async function authenticateWithRetry(
@@ -117,10 +191,10 @@ async function authenticateWithRetry(
   password: string,
 ): Promise<Response> {
   try {
-    return await appsScriptPost(env, 'auth', { acao: 'LOGIN', email, password });
+    return await appsScriptReadPost_(env, 'auth', { acao: 'LOGIN', email, password });
   } catch {
     await delay(200);
-    return appsScriptPost(env, 'auth', { acao: 'LOGIN', email, password });
+    return appsScriptReadPost_(env, 'auth', { acao: 'LOGIN', email, password });
   }
 }
 
@@ -224,26 +298,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    let passwordChangeResponse: Response;
+    let passwordChangeSucceeded = false;
     try {
-      passwordChangeResponse = await appsScriptPost(env, 'usuarios', {
+      const passwordChangeResponse = await appsScriptMutationOnce_(env, 'usuarios', {
         acao: 'REDEFINIR_SENHA',
         email,
         password: newPassword,
         concluirTroca: true,
       });
+
+      try {
+        const payload = (await passwordChangeResponse.json()) as { ok?: unknown };
+        passwordChangeSucceeded = passwordChangeResponse.ok && payload?.ok === true;
+      } catch {
+        passwordChangeSucceeded = false;
+      }
     } catch {
-      return jsonResponse(
-        { ok: false, error: { code: 'PASSWORD_CHANGE_UNAVAILABLE', message: 'Não foi possível concluir a troca de senha.' } },
-        502,
-      );
+      passwordChangeSucceeded = false;
     }
 
-    let passwordChangeSucceeded = false;
-    try {
-      const payload = (await passwordChangeResponse.json()) as { ok?: unknown };
-      passwordChangeSucceeded = passwordChangeResponse.ok && payload?.ok === true;
-    } catch {
+    if (!passwordChangeSucceeded) {
       const reconciled = await reconcilePasswordChange(env, email, newPassword);
       if (reconciled) {
         upstream = reconciled;
