@@ -2,9 +2,9 @@
 
 import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
-import { Avatar } from 'primereact/avatar'
 import { Tag } from 'primereact/tag'
 import { type AuthUser } from '@/services/authService'
+import { ShellSidebar } from '@/features/shell/ShellSidebar'
 import { useShellPrefetch } from '@/features/shell/useShellPrefetch'
 import {
   NAV_ITEMS,
@@ -92,72 +92,17 @@ export function FunctionalShell({ user, onExit }: FunctionalShellProps) {
 
   return (
     <main className={`nx-app ${collapsed ? 'is-collapsed' : ''}`}>
-      {mobileOpen && (
-        <button
-          className="nx-sidebar-backdrop"
-          type="button"
-          aria-label="Fechar menu"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      <aside className={`nx-sidebar ${mobileOpen ? 'is-mobile-open' : ''}`}>
-        <div className="nx-sidebar-brand">
-          <img src="/brand/unilog-logo-white-transparent.svg" alt="Unilog Express" />
-          <button
-            type="button"
-            className="nx-icon-button nx-desktop-collapse"
-            onClick={() => setCollapsed((current) => !current)}
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            <i className={collapsed ? 'pi pi-angle-right' : 'pi pi-angle-left'} />
-          </button>
-          <button
-            type="button"
-            className="nx-icon-button nx-mobile-close"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Fechar menu"
-          >
-            <i className="pi pi-times" />
-          </button>
-        </div>
-
-        <nav className="nx-navigation" aria-label="Navegação principal">
-          {allowedItems.map((item) => {
-            const firstAdministrative = item.administrative &&
-              allowedItems.findIndex((candidate) => candidate.administrative) === allowedItems.indexOf(item)
-
-            return (
-              <div key={item.key} className={firstAdministrative ? 'nx-admin-group' : ''}>
-                {firstAdministrative && <span className="nx-nav-caption">ADMINISTRAÇÃO</span>}
-                <button
-                  type="button"
-                  className={`nx-nav-item ${section === item.key ? 'is-active' : ''}`}
-                  onClick={() => navigate(item.key)}
-                >
-                  <i className={item.icon} />
-                  <span>{item.label}</span>
-                </button>
-              </div>
-            )
-          })}
-        </nav>
-
-        <div className="nx-user-card">
-          <Avatar
-            label={(user.name || user.email || 'U').slice(0, 1).toUpperCase()}
-            shape="circle"
-            className="nx-avatar"
-          />
-          <div className="nx-user-copy" title={user.email}>
-            <strong>{user.name || user.email}</strong>
-            <span>{profileLabel(user.profile)} · {user.operation || 'Sem operação'}</span>
-          </div>
-          <button type="button" className="nx-icon-button" onClick={() => void onExit()} aria-label="Sair">
-            <i className="pi pi-sign-out" />
-          </button>
-        </div>
-      </aside>
+      <ShellSidebar
+        user={user}
+        section={section}
+        allowedItems={allowedItems}
+        collapsed={collapsed}
+        mobileOpen={mobileOpen}
+        onToggleCollapsed={() => setCollapsed((current) => !current)}
+        onCloseMobile={() => setMobileOpen(false)}
+        onNavigate={navigate}
+        onExit={onExit}
+      />
 
       <section className="nx-workspace">
         <header className="nx-topbar">
