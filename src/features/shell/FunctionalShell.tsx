@@ -2,16 +2,14 @@
 
 import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
-import { Tag } from 'primereact/tag'
 import { type AuthUser } from '@/services/authService'
 import { ShellSidebar } from '@/features/shell/ShellSidebar'
+import { ShellTopbar } from '@/features/shell/ShellTopbar'
 import { useShellPrefetch } from '@/features/shell/useShellPrefetch'
 import {
   NAV_ITEMS,
-  SECTION_COPY,
   canAccess,
   canNavigate,
-  profileLabel,
   type Section,
 } from '@/features/shell/shellNavigation'
 
@@ -68,7 +66,6 @@ export function FunctionalShell({ user, onExit }: FunctionalShellProps) {
   )
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const copy = SECTION_COPY[section]
   const canAdministerSolicitations = user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
 
   const allowedItems = useMemo(
@@ -105,31 +102,11 @@ export function FunctionalShell({ user, onExit }: FunctionalShellProps) {
       />
 
       <section className="nx-workspace">
-        <header className="nx-topbar">
-          <div className="nx-topbar-title">
-            <button
-              type="button"
-              className="nx-icon-button nx-mobile-menu"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Abrir menu"
-            >
-              <i className="pi pi-bars" />
-            </button>
-            <div>
-              <small>EXTRA COST CONTROL</small>
-              <strong>{copy.title}</strong>
-            </div>
-          </div>
-
-          <div className="nx-topbar-status">
-            <span className="nx-scope-chip">
-              <small>Escopo ativo</small>
-              <strong>{copy.scope}</strong>
-            </span>
-            <Tag value={profileLabel(user.profile)} severity="secondary" rounded />
-            <span className="nx-gateway-state"><i /> Gateway conectado</span>
-          </div>
-        </header>
+        <ShellTopbar
+          user={user}
+          section={section}
+          onOpenMobileMenu={() => setMobileOpen(true)}
+        />
 
         <div className="nx-content nx-functional-content">
           <div hidden={section !== 'dashboard'}>
