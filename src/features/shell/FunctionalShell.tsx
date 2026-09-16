@@ -1,20 +1,11 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Avatar } from 'primereact/avatar'
 import { Tag } from 'primereact/tag'
-import {
-  fetchCatalogoAdminScope,
-  fetchCatalogos,
-  prefetchCatalogoAdminScope,
-} from '@/services/catalogService'
-import { prefetchDashboard } from '@/services/dashboardService'
 import { type AuthUser } from '@/services/authService'
-import {
-  fetchAdministrativeSolicitationMetadata,
-  fetchAdministrativeSolicitations,
-} from '@/services/solicitationService'
+import { useShellPrefetch } from '@/features/shell/useShellPrefetch'
 
 function SectionLoading() {
   return (
@@ -88,30 +79,6 @@ const SECTION_COPY: Record<Section, { title: string; scope: string }> = {
   usuarios: { title: 'Usuários', scope: 'Owner · Gestão de acessos' },
 }
 
-function currentPeriod() {
-  const now = new Date()
-  return {
-    anoRegistro: String(now.getFullYear()),
-    mesRegistro: String(now.getMonth() + 1).padStart(2, '0'),
-  }
-}
-
-function adjacentDashboardCompetence(offset: number, operation = 'TODOS') {
-  const now = new Date()
-  const closingMonth = now.getMonth() + (now.getDate() >= 21 ? 1 : 0)
-  const target = new Date(now.getFullYear(), closingMonth + offset, 1)
-  return {
-    ano: String(target.getFullYear()),
-    mesCompetencia: String(target.getMonth() + 1).padStart(2, '0'),
-    operacao: operation,
-    supervisor: 'TODOS' as const,
-    fornecedor: 'TODOS' as const,
-    tipo: 'TODOS' as const,
-    responsavelCusto: 'TODOS' as const,
-    atividade: 'TODOS' as const,
-  }
-}
-
 function canAccess(user: AuthUser, item: NavItem) {
   if (item.ownerOnly) return user.profile === 'OWNER'
   if (item.administrative) return user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
@@ -144,66 +111,7 @@ export function FunctionalShell({ user, onExit }: FunctionalShellProps) {
     [user],
   )
 
-  useEffect(() => {
-    const canManageCatalogs = user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
-    const operation = user.profile === 'OWNER' || !user.operation ? 'TODOS' : user.operation
-
-    const firstWave = window.setTimeout(() => {
-      const period = currentPeriod()
-      void fetchAdministrativeSolicitations({
-        pagina: 1,
-        tamanhoPagina: 20,
-        anoRegistro: period.anoRegistro,
-        mesRegistro: period.mesRegistro,
-      }).catch(() => undefined)
-      void fetchAdministrativeSolicitationMetadata().catch(() => undefined)
-
-      if (canManageCatalogs) {
-        void fetchCatalogos().catch(() => undefined)
-        prefetchCatalogoAdminScope('RESUMO')
-        prefetchCatalogoAdminScope('OPERACOES')
-        prefetchCatalogoAdminScope('SUPERVISORES')
-        prefetchCatalogoAdminScope('FUNCOES')
-        prefetchCatalogoAdminScope('ATIVIDADES')
-        prefetchCatalogoAdminScope('FORNECEDORES')
-        prefetchCatalogoAdminScope('PRODUTOS')
-      }
-    }, 900)
-
-    const secondWave = window.setTimeout(() => {
-      const period = currentPeriod()
-      void fetchAdministrativeSolicitations({
-        pagina: 2,
-        tamanhoPagina: 20,
-        anoRegistro: period.anoRegistro,
-        mesRegistro: period.mesRegistro,
-      }).catch(() => undefined)
-      prefetchDashboard(adjacentDashboardCompetence(-1, operation))
-
-      if (canManageCatalogs) {
-        prefetchCatalogoAdminScope('FERIADOS')
-        prefetchCatalogoAdminScope('METAS')
-        void fetchCatalogoAdminScope('PRECOS_MO', {
-          pagina: 1,
-          tamanhoPagina: 25,
-        }).catch(() => undefined)
-        void fetchCatalogoAdminScope('PRECOS_PRODUTOS', {
-          pagina: 1,
-          tamanhoPagina: 25,
-        }).catch(() => undefined)
-      }
-    }, 2200)
-
-    const thirdWave = window.setTimeout(() => {
-      prefetchDashboard(adjacentDashboardCompetence(-2, operation))
-    }, 4200)
-
-    return () => {
-      window.clearTimeout(firstWave)
-      window.clearTimeout(secondWave)
-      window.clearTimeout(thirdWave)
-    }
-  }, [user])
+  useShellPrefetch(user)
 
   function navigate(next: Section) {
     if (!canNavigate(user, next)) return
