@@ -6,6 +6,14 @@ import { Avatar } from 'primereact/avatar'
 import { Tag } from 'primereact/tag'
 import { type AuthUser } from '@/services/authService'
 import { useShellPrefetch } from '@/features/shell/useShellPrefetch'
+import {
+  NAV_ITEMS,
+  SECTION_COPY,
+  canAccess,
+  canNavigate,
+  profileLabel,
+  type Section,
+} from '@/features/shell/shellNavigation'
 
 function SectionLoading() {
   return (
@@ -48,52 +56,9 @@ const UsersPage = dynamic(
   { ssr: false, loading: () => <SectionLoading /> },
 )
 
-type Section = 'dashboard' | 'solicitacoes' | 'fechamentos' | 'cadastros' | 'usuarios'
-
-type NavItem = {
-  key: Section
-  label: string
-  icon: string
-  administrative?: boolean
-  ownerOnly?: boolean
-}
-
 type FunctionalShellProps = {
   user: AuthUser
   onExit: () => Promise<void>
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', label: 'Visão geral', icon: 'pi pi-chart-bar' },
-  { key: 'solicitacoes', label: 'Solicitações', icon: 'pi pi-receipt' },
-  { key: 'fechamentos', label: 'Fechamentos', icon: 'pi pi-wallet', administrative: true },
-  { key: 'cadastros', label: 'Cadastros', icon: 'pi pi-sliders-h', administrative: true },
-  { key: 'usuarios', label: 'Usuários', icon: 'pi pi-users', administrative: true, ownerOnly: true },
-]
-
-const SECTION_COPY: Record<Section, { title: string; scope: string }> = {
-  dashboard: { title: 'Visão geral', scope: 'Executivo · Custos extras' },
-  solicitacoes: { title: 'Solicitações', scope: 'Custos extras' },
-  fechamentos: { title: 'Fechamentos', scope: 'Administrativo · Financeiro' },
-  cadastros: { title: 'Cadastros', scope: 'Administrativo · Catálogos' },
-  usuarios: { title: 'Usuários', scope: 'Owner · Gestão de acessos' },
-}
-
-function canAccess(user: AuthUser, item: NavItem) {
-  if (item.ownerOnly) return user.profile === 'OWNER'
-  if (item.administrative) return user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
-  return true
-}
-
-function canNavigate(user: AuthUser, section: Section) {
-  const item = NAV_ITEMS.find((candidate) => candidate.key === section)
-  return item ? canAccess(user, item) : false
-}
-
-function profileLabel(profile: string) {
-  if (profile === 'OWNER') return 'Owner'
-  if (profile === 'ADMINISTRATIVO') return 'Administrativo'
-  return 'Operacional'
 }
 
 export function FunctionalShell({ user, onExit }: FunctionalShellProps) {
