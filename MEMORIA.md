@@ -10,7 +10,7 @@ Repositório: `srcarneiro1/extra-cost-control-unilog`.
 
 Stack: Next.js 15 + React 19 + PrimeReact/PrimeIcons + Chart.js; Cloudflare Pages; Pages Functions como gateway; Google Apps Script como API/regras; Google Sheets como persistência. Não usar Supabase neste projeto.
 
-Estado funcional: V1 consolidada, hardening principal concluído e projeto considerado encerrado pelo responsável em 15/09/2026. Novas alterações devem ser tratadas como manutenção/correção ou nova fase, sem reabrir escopo antigo por padrão.
+Estado funcional: V1 consolidada, hardening principal concluído e projeto considerado encerrado pelo responsável em 15/09/2026. Novas alterações funcionais devem ser tratadas como manutenção/correção ou nova fase, sem reabrir escopo antigo por padrão. Há uma pendência técnica opcional registrada para modularização integral do frontend.
 
 Regra central: o solicitante informa a necessidade; o Administrativo decide quem atende.
 
@@ -176,6 +176,33 @@ Extra Cost Control:
 
 Conclusão: a diferença de velocidade observada não foi tratada como defeito. A arquitetura separada do Extra Cost Control faz sentido para um sistema transacional; não fazer intervenção de performance sem medição objetiva de gargalo.
 
+## Próxima pendência técnica — modularização integral do frontend
+
+Pendência registrada em 15/09/2026. Não é correção funcional nem urgência de produção; é uma evolução arquitetural para reduzir componentes grandes, separar responsabilidades e facilitar manutenção futura sem trocar Next.js, React ou PrimeReact.
+
+Estimativa recomendada: **7 PRs incrementais**, cada um pequeno o suficiente para revisão e homologação isolada. Evitar uma refatoração única de grande porte.
+
+Plano sugerido:
+1. **PR 1 — Shell, autenticação e estrutura compartilhada:** separar responsabilidades hoje concentradas em `src/app/page.tsx`, mantendo comportamento, sessão e primeiro acesso intactos.
+2. **PR 2 — Dashboard e Analytics:** decompor `DashboardPage`, `AdvancedAnalytics`, exportação, filtros, cards e gráficos em módulos/colegiados menores.
+3. **PR 3 — Solicitações:** decompor `AdminSolicitationsPageCurrentPeriod`, detalhes, correção e ações operacionais em submódulos, hooks e componentes específicos.
+4. **PR 4 — Cadastros:** decompor `CadastrosPagePaginated` por domínio/aba (operações, supervisores, funções, atividades, fornecedores, produtos, preços, feriados e metas), preservando paginação e regras atuais.
+5. **PR 5 — Fechamentos:** organizar `FinancialCloseoutPage`, ações financeiras, exceções e componentes de conciliação por responsabilidade, sem alterar regras financeiras.
+6. **PR 6 — Usuários e administração:** modularizar `UsersPage`, primeiro acesso, formulários e componentes administrativos compartilhados.
+7. **PR 7 — Consolidação final do frontend:** revisar componentes compartilhados, hooks, services, types, CSS, imports e code splitting; eliminar duplicações comprovadas; medir bundle/First Load e executar smoke completo.
+
+Critérios permanentes para essa futura modularização:
+- refatoração estrutural somente; não alterar regra de negócio junto com modularização;
+- um domínio por PR sempre que possível;
+- preservar APIs e contratos existentes;
+- não tocar Apps Script ou planilha se não houver necessidade técnica concreta;
+- não introduzir retry em mutações;
+- validar GitHub Actions + Cloudflare Preview no head exato de cada PR;
+- homologar o domínio afetado antes de merge;
+- merge somente com autorização explícita.
+
+A estimativa de 7 PRs é deliberadamente conservadora para reduzir risco. Seria possível condensar em aproximadamente 5 PRs, mas isso aumentaria o tamanho dos diffs e dificultaria isolamento de regressões. Para manutenção segura, manter a referência de 7 PRs.
+
 ## Regras permanentes do projeto
 
 - nunca fazer retry automático em mutações;
@@ -193,14 +220,17 @@ Conclusão: a diferença de velocidade observada não foi tratada como defeito. 
 
 ## Estado de encerramento
 
-Em 15/09/2026 o responsável considerou o projeto encerrado após a consolidação da V1 e os hardenings de transporte. Não há PR funcional pendente registrado nesta memória.
+Em 15/09/2026 o responsável considerou a V1 funcionalmente encerrada após a consolidação e os hardenings de transporte. Não há PR funcional pendente registrado nesta memória.
+
+Permanece registrada apenas a pendência técnica opcional de modularização integral do frontend, estimada em 7 PRs incrementais. Ela não deve ser iniciada automaticamente nem tratada como incidente de produção.
 
 Se o projeto for retomado, começar por:
 1. ler apenas `MEMORIA.md`;
 2. verificar o estado atual da `main` e os deployments antes de assumir qualquer condição;
-3. tratar novas demandas como manutenção ou nova fase;
-4. não reabrir migrações históricas nem regras financeiras consolidadas sem evidência concreta.
+3. tratar novas demandas funcionais como manutenção ou nova fase;
+4. se a retomada for para modularização, seguir o plano de 7 PRs por domínio e preservar integralmente as regras existentes;
+5. não reabrir migrações históricas nem regras financeiras consolidadas sem evidência concreta.
 
 ## Retomada curta
 
-`Leia somente MEMORIA.md. A V1 do Extra Cost Control foi consolidada e considerada encerrada em 15/09/2026. PRs #66–#73 foram concluídos; o último merge foi o PR #73 em 0b309fd26360ba2f484133dfe17801e5a750173d. Nunca execute migrateSolicitationStatuses(), nunca repita mutações automaticamente e nunca faça merge sem autorização explícita.`
+`Leia somente MEMORIA.md. A V1 funcional do Extra Cost Control foi consolidada e considerada encerrada em 15/09/2026. PRs #66–#73 foram concluídos; o último merge funcional foi o PR #73 em 0b309fd26360ba2f484133dfe17801e5a750173d. Próxima pendência técnica opcional: modularização integral do frontend em 7 PRs incrementais. Nunca execute migrateSolicitationStatuses(), nunca repita mutações automaticamente e nunca faça merge sem autorização explícita.`
