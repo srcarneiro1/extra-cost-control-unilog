@@ -13,6 +13,9 @@ interface Env extends GatewayAuthEnv {
 }
 
 const EDGE_CACHE_SECONDS = 120
+const APPS_SCRIPT_EXECUTION_HOST = 'script.google.com'
+const APPS_SCRIPT_CONTENT_HOST = 'script.googleusercontent.com'
+const MAX_APPS_SCRIPT_REDIRECTS = 4
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -99,25 +102,63 @@ function cacheSuccessfulResponse_(
   }
 }
 
-async function fetchAppsScript(
+function isRedirectStatus_(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+}
+
+async function fetchAppsScriptRead_(
   targetUrl: URL,
   payload: Record<string, unknown>,
   gatewayToken: string,
 ): Promise<{ response: Response; payload: unknown } | null> {
-  try {
-    const response = await fetch(targetUrl.toString(), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...payload, _gatewayToken: gatewayToken }),
-      redirect: 'follow',
-    })
+  let currentUrl = targetUrl.toString()
+  const body = JSON.stringify({ ...payload, _gatewayToken: gatewayToken })
 
-    const text = await response.text()
-    try {
-      return { response, payload: JSON.parse(text) as unknown }
-    } catch {
+  try {
+    for (let hop = 0; hop < MAX_APPS_SCRIPT_REDIRECTS; hop += 1) {
+      const response = await fetch(currentUrl, {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body,
+        redirect: 'manual',
+      })
+
+      if (!isRedirectStatus_(response.status)) {
+        const text = await response.text()
+        try {
+          return { response, payload: JSON.parse(text) as unknown }
+        } catch {
+          return null
+        }
+      }
+
+      const location = response.headers.get('location')
+      if (!location) return null
+      const nextUrl = new URL(location, currentUrl)
+
+      if (nextUrl.hostname === APPS_SCRIPT_CONTENT_HOST) {
+        const finalResponse = await fetch(nextUrl.toString(), {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+          redirect: 'follow',
+        })
+        const text = await finalResponse.text()
+        try {
+          return { response: finalResponse, payload: JSON.parse(text) as unknown }
+        } catch {
+          return null
+        }
+      }
+
+      if (nextUrl.hostname === APPS_SCRIPT_EXECUTION_HOST) {
+        currentUrl = nextUrl.toString()
+        continue
+      }
+
       return null
     }
+
+    return null
   } catch {
     return null
   }
@@ -137,11 +178,11 @@ async function proxyToAppsScript(
   const targetUrl = new URL(env.APPS_SCRIPT_URL)
   targetUrl.searchParams.set('route', 'dashboard')
 
-  let upstream = await fetchAppsScript(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
+  let upstream = await fetchAppsScriptRead_(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
 
   if (!upstream) {
     await delay(200)
-    upstream = await fetchAppsScript(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
+    upstream = await fetchAppsScriptRead_(targetUrl, payload, env.APPS_SCRIPT_GATEWAY_TOKEN)
   }
 
   if (!upstream) {
