@@ -10,6 +10,7 @@ import { ProjectionChart } from '@/features/dashboard/components/ProjectionChart
 import { DashboardExportActions } from '@/features/dashboard/export/DashboardExportActions'
 import { DashboardFilters } from '@/features/dashboard/DashboardFilters'
 import { CompetenceComparison } from '@/features/dashboard/executive/CompetenceComparison'
+import { DailyEvolution } from '@/features/dashboard/executive/DailyEvolution'
 import { MetaStatusAlert } from '@/features/dashboard/executive/MetaStatusAlert'
 import {
   currency,
@@ -143,10 +144,7 @@ export function DashboardPage() {
           <MetaStatusAlert data={data} />
           <ProjectionChart points={data.evolucaoMetaProjecao} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>
-          <Card className="dashboard-card nx-dashboard-section-card">
-            <div className="dashboard-card-header"><div><span className="ui-eyebrow">EVOLUÇÃO</span><h2>Movimento diário da competência</h2><p>Data operacional dentro da janela 21–20.</p></div></div>
-            <div className="dashboard-daily-grid">{data.evolucaoDiaria.length ? data.evolucaoDiaria.map((item) => <div className="dashboard-daily-item" key={item.data}><span>{shortDate(item.data).slice(0, 5)}</span><strong>{currency(item.realizado)}</strong><small>Prev. {currency(item.previsto)}</small></div>) : <div className="ui-empty-state"><div><strong>Sem movimento</strong><p>Não há custos na combinação de filtros selecionada.</p></div></div>}</div>
-          </Card>
+          <DailyEvolution items={data.evolucaoDiaria} />
         </div>
       ) : (
         <div className="dashboard-view">
