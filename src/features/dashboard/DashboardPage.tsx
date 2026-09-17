@@ -5,6 +5,7 @@ import { Message } from 'primereact/message'
 import { SelectButton } from 'primereact/selectbutton'
 import { Skeleton } from 'primereact/skeleton'
 import { AdvancedAnalytics } from '@/features/dashboard/analytics/AdvancedAnalytics'
+import { MetricCard, type MetricTone } from '@/features/dashboard/components/DashboardMetricCard'
 import { DashboardExportActions } from '@/features/dashboard/export/DashboardExportActions'
 import { DashboardFilters } from '@/features/dashboard/DashboardFilters'
 import { CompetenceComparison } from '@/features/dashboard/executive/CompetenceComparison'
@@ -25,7 +26,6 @@ import type {
 } from '@/types/dashboard'
 
 type DashboardTab = 'executiva' | 'analytics'
-type MetricTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
 
 const CHART_PALETTE = {
   ink: '#242a36',
@@ -46,16 +46,6 @@ function currentCompetence() {
     ano: String(closing.getFullYear()),
     mesCompetencia: String(closing.getMonth() + 1).padStart(2, '0'),
   }
-}
-
-function MetricCard({ label, value, detail, tone = 'neutral' }: { label: string; value: string; detail: string; tone?: MetricTone }) {
-  return (
-    <Card className={`dashboard-metric dashboard-metric-${tone} nx-dashboard-metric-card`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </Card>
-  )
 }
 
 function HorizontalRanking({ title, subtitle, items, limit = 8 }: { title: string; subtitle: string; items: DashboardBreakdownItem[]; limit?: number }) {
