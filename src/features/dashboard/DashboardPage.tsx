@@ -10,6 +10,7 @@ import { ProjectionChart } from '@/features/dashboard/components/ProjectionChart
 import { DashboardExportActions } from '@/features/dashboard/export/DashboardExportActions'
 import { DashboardFilters } from '@/features/dashboard/DashboardFilters'
 import { CompetenceComparison } from '@/features/dashboard/executive/CompetenceComparison'
+import { MetaStatusAlert } from '@/features/dashboard/executive/MetaStatusAlert'
 import {
   currency,
   monthName,
@@ -97,9 +98,6 @@ export function DashboardPage() {
   const totalReal = (kpis?.realizadoMaoObra || 0) + (kpis?.realizadoLanches || 0)
   const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
   const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null ? 'neutral' : kpis.atingimentoMetaPercentual > 100 ? 'danger' : kpis.atingimentoMetaPercentual > 85 ? 'warning' : 'success'
-  const metaAlertMessage = data?.alertaMeta.status === 'FORA_DA_META' ? `Mantido o ritmo atual, a projeção supera a meta em ${currency(Math.max(data.alertaMeta.desvioProjetadoMeta || 0, 0))}.` : data?.alertaMeta.mensagem || ''
-  const remainingDailyLimit = data && kpis?.metaMaoObra != null && data.projecao.diasRestantes > 0 ? (kpis.metaMaoObra - kpis.realizadoMaoObra) / data.projecao.diasRestantes : null
-  const remainingDailyMessage = remainingDailyLimit == null ? '' : remainingDailyLimit >= 0 ? `Limite médio restante: ${currency(remainingDailyLimit)}/dia por ${data?.projecao.diasRestantes || 0} dia(s).` : `A meta realizada já foi excedida em ${currency(Math.abs((kpis?.metaMaoObra || 0) - (kpis?.realizadoMaoObra || 0)))}.`
 
   const tabOptions = [
     { label: 'Visão Executiva', value: 'executiva' },
@@ -142,11 +140,7 @@ export function DashboardPage() {
             <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
           </div>
           <CompetenceComparison comparison={data.comparativoCompetencia} />
-          <Card className={`dashboard-meta-alert dashboard-meta-alert-${data.alertaMeta.status.toLowerCase()} nx-dashboard-alert-card`}>
-            <div className="dashboard-meta-alert-icon"><i className={data.alertaMeta.status === 'FORA_DA_META' ? 'pi pi-exclamation-triangle' : data.alertaMeta.status === 'NO_LIMITE_DA_META' ? 'pi pi-exclamation-circle' : data.alertaMeta.status === 'DENTRO_DA_META' ? 'pi pi-check-circle' : 'pi pi-info-circle'} aria-hidden="true" /></div>
-            <div><span className="ui-eyebrow">STATUS DA META · MÃO DE OBRA</span><strong>{data.alertaMeta.titulo}</strong><p>{metaAlertMessage}</p>{remainingDailyMessage && <p>{remainingDailyMessage}</p>}</div>
-            <div className="dashboard-meta-alert-value"><span>Projeção / Meta</span><strong>{percent(data.alertaMeta.percentualMetaProjetado)}</strong></div>
-          </Card>
+          <MetaStatusAlert data={data} />
           <ProjectionChart points={data.evolucaoMetaProjecao} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>
           <Card className="dashboard-card nx-dashboard-section-card">
