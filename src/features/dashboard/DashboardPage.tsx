@@ -11,6 +11,7 @@ import { DashboardExportActions } from '@/features/dashboard/export/DashboardExp
 import { DashboardFilters } from '@/features/dashboard/DashboardFilters'
 import { CompetenceComparison } from '@/features/dashboard/executive/CompetenceComparison'
 import { DailyEvolution } from '@/features/dashboard/executive/DailyEvolution'
+import { ExecutiveMetrics } from '@/features/dashboard/executive/ExecutiveMetrics'
 import { MetaStatusAlert } from '@/features/dashboard/executive/MetaStatusAlert'
 import {
   currency,
@@ -95,8 +96,6 @@ export function DashboardPage() {
   }
 
   const kpis = data?.kpis
-  const totalPlanned = (kpis?.previstoMaoObra || 0) + (kpis?.previstoLanches || 0)
-  const totalReal = (kpis?.realizadoMaoObra || 0) + (kpis?.realizadoLanches || 0)
   const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
   const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null ? 'neutral' : kpis.atingimentoMetaPercentual > 100 ? 'danger' : kpis.atingimentoMetaPercentual > 85 ? 'warning' : 'success'
 
@@ -130,16 +129,7 @@ export function DashboardPage() {
 
       {data && kpis ? <>{loading && <div className="dashboard-refreshing"><i className="pi pi-spin pi-spinner" /> Atualizando indicadores…</div>}{tab === 'executiva' ? (
         <div className="dashboard-view">
-          <div className="dashboard-metrics-grid">
-            <MetricCard label="Previsto · Mão de obra" value={currency(kpis.previstoMaoObra)} detail="Solicitações da competência" />
-            <MetricCard label="Previsto · Lanches" value={currency(kpis.previstoLanches)} detail="Alimentação e bebida" />
-            <MetricCard label="Realizado · Mão de obra" value={currency(kpis.realizadoMaoObra)} detail="Com comparecimento registrado" tone="info" />
-            <MetricCard label="Realizado · Lanches" value={currency(kpis.realizadoLanches)} detail="Calculado pela solicitação" tone="info" />
-            <MetricCard label="Diferença R$" value={currency(kpis.diferencaValor)} detail={`${currency(totalReal)} realizado vs. ${currency(totalPlanned)} previsto`} tone={differenceTone} />
-            <MetricCard label="Diferença %" value={percent(kpis.diferencaPercentual)} detail="Realizado − previsto" tone={differenceTone} />
-            <MetricCard label="Meta MO · Global" value={currency(kpis.metaMaoObra)} detail="Meta da competência, sem rateio por dimensão" tone="neutral" />
-            <MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail={`${kpis.totalSolicitacoes} solicitações · ${kpis.divergenciasComparecimento} divergência(s)`} tone={metaTone} />
-          </div>
+          <ExecutiveMetrics kpis={kpis} />
           <CompetenceComparison comparison={data.comparativoCompetencia} />
           <MetaStatusAlert data={data} />
           <ProjectionChart points={data.evolucaoMetaProjecao} />
