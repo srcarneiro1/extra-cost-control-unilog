@@ -113,7 +113,7 @@ export function CompetenceComparison({ comparison }: { comparison: DashboardComp
         <div>
           <strong>Leitura executiva</strong>
           <p>{financialInsight}</p>
-          <small>{volumeSentence('Mão de obra', variation.quantidadeMaoObraPercentual)} {volumeSentence('Lanches e bebidas', variation.quantidadeMaoObraPercentual)}</small>
+          <small>{volumeSentence('Mão de obra', variation.quantidadeMaoObraPercentual)} {volumeSentence('Lanches e bebidas', variation.quantidadeLanchesPercentual)}</small>
         </div>
       </div>
 
