@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from 'primereact/button'
-import { Dropdown } from 'primereact/dropdown'
 import { InputTextarea } from 'primereact/inputtextarea'
 import { Message } from 'primereact/message'
 import { Paginator } from 'primereact/paginator'
@@ -8,14 +7,13 @@ import { PageHeader } from '@/components/PageHeader'
 import { SolicitationCorrectionModal } from '@/features/solicitations/administrative/SolicitationCorrectionModal'
 import { SolicitationDetailModal } from '@/features/solicitations/administrative/SolicitationDetailModal'
 import { AdminSolicitationsTable } from '@/features/solicitations/administrative/AdminSolicitationsTable'
+import { AdminSolicitationsFilters } from '@/features/solicitations/administrative/AdminSolicitationsFilters'
 import { Modal } from '@/components/ui/Modal'
 import {
   Chip,
   EmptyState,
-  PageToolbar,
   Panel,
   PanelHeader,
-  SearchField,
   Skeleton,
   SummaryMetrics,
   type SummaryMetricItem,
@@ -531,20 +529,26 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
       <Panel className="admin-list-workspace admin-list-workspace-full nx-prime-data-panel">
         <PanelHeader eyebrow="REGISTROS" title="Fila administrativa" description={`${total} registro(s) após filtros · busca e filtros aplicados sobre toda a base.`} trailing={<Chip>{total} encontrados</Chip>} />
 
-        <PageToolbar
-          embedded
-          ariaLabel="Filtros das solicitações"
-          search={<SearchField ariaLabel="Pesquisar solicitações" placeholder="Protocolo, operação, supervisor…" value={search} onChange={setSearch} />}
-          filters={
-            <div className="nx-prime-filter-row">
-              <Dropdown value={registrationYear} options={yearOptions} onChange={(event) => handleYearChange(event.value)} />
-              <Dropdown value={registrationMonth} options={monthOptions} disabled={registrationYear === 'TODOS'} onChange={(event) => handleMonthChange(event.value)} />
-              <Dropdown value={registrationDate} options={dateOptions} disabled={registrationYear === 'TODOS' || registrationMonth === 'TODOS'} onChange={(event) => setRegistrationDate(event.value)} />
-              <Dropdown value={typeFilter} options={typeOptions} onChange={(event) => setTypeFilter(event.value)} />
-              <Dropdown value={statusFilter} options={statusFilterOptions} onChange={(event) => setStatusFilter(event.value)} />
-              <Button label="Limpar filtros" icon="pi pi-filter-slash" outlined onClick={clearAllFilters} disabled={!hasActiveFilters} />
-            </div>
-          }
+        <AdminSolicitationsFilters
+          search={search}
+          registrationYear={registrationYear}
+          registrationMonth={registrationMonth}
+          registrationDate={registrationDate}
+          typeFilter={typeFilter}
+          statusFilter={statusFilter}
+          yearOptions={yearOptions}
+          monthOptions={monthOptions}
+          dateOptions={dateOptions}
+          typeOptions={typeOptions}
+          statusOptions={statusFilterOptions}
+          hasActiveFilters={hasActiveFilters}
+          onSearchChange={setSearch}
+          onYearChange={handleYearChange}
+          onMonthChange={handleMonthChange}
+          onDateChange={setRegistrationDate}
+          onTypeChange={setTypeFilter}
+          onStatusChange={setStatusFilter}
+          onClear={clearAllFilters}
         />
 
         {loading ? (
