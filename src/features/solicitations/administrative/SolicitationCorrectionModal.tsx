@@ -9,6 +9,7 @@ import type { AdministrativeSolicitationDetail } from '@/types/solicitation'
 import { correctAdministrativeSolicitation } from '@/services/solicitationService'
 import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Primitives'
+import { correctionFormFromDetail, correctionOptions, type SolicitationCorrectionFormState } from '@/features/solicitations/administrative/solicitationCorrectionForm'
 
 type Props = {
   open: boolean
@@ -19,57 +20,6 @@ type Props = {
   onSaved: (idSolicitacao: string) => Promise<void> | void
 }
 
-type FormState = {
-  supervisor: string
-  operacao: string
-  dataOperacional: string
-  fornecedor: string
-  justificativa: string
-  responsavelCusto: string
-  centroCusto: string
-  atividade: string
-  funcao: string
-  turno: string
-  qtdSolicitada: string
-  qtdComparecida: string
-  produtoAlimentacao: string
-  qtdAlimentacao: string
-  produtoBebida: string
-  qtdBebida: string
-  produtoAlimentacaoAplicado: string
-  produtoBebidaAplicado: string
-  motivoAjusteProduto: string
-  motivoCorrecao: string
-}
-
-function fromDetail(detail: AdministrativeSolicitationDetail): FormState {
-  return {
-    supervisor: detail.supervisor || '',
-    operacao: detail.operacao || '',
-    dataOperacional: detail.dataOperacional || '',
-    fornecedor: detail.fornecedor || '',
-    justificativa: detail.justificativa || '',
-    responsavelCusto: detail.responsavelCusto || 'CLIENTE',
-    centroCusto: detail.centroCusto || '',
-    atividade: detail.atividade || '',
-    funcao: detail.funcao || '',
-    turno: detail.turno || 'DIURNO',
-    qtdSolicitada: detail.qtdSolicitada == null ? '' : String(detail.qtdSolicitada),
-    qtdComparecida: detail.qtdComparecida == null ? '' : String(detail.qtdComparecida),
-    produtoAlimentacao: detail.produtoAlimentacao || '',
-    qtdAlimentacao: detail.qtdAlimentacao == null ? '' : String(detail.qtdAlimentacao),
-    produtoBebida: detail.produtoBebida || '',
-    qtdBebida: detail.qtdBebida == null ? '' : String(detail.qtdBebida),
-    produtoAlimentacaoAplicado: detail.produtoAlimentacaoAplicado || detail.produtoAlimentacao || '',
-    produtoBebidaAplicado: detail.produtoBebidaAplicado || detail.produtoBebida || '',
-    motivoAjusteProduto: detail.motivoAjusteProduto || '',
-    motivoCorrecao: '',
-  }
-}
-
-function options(items: Array<{ nome: string }> | undefined) {
-  return (items || []).map((item) => ({ label: item.nome, value: item.nome }))
-}
 
 export function SolicitationCorrectionModal({
   open,
@@ -79,13 +29,13 @@ export function SolicitationCorrectionModal({
   onClose,
   onSaved,
 }: Props) {
-  const [form, setForm] = useState<FormState | null>(null)
+  const [form, setForm] = useState<SolicitationCorrectionFormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (open && detail) {
-      setForm(fromDetail(detail))
+      setForm(correctionFormFromDetail(detail))
       setError('')
     }
   }, [open, detail])
@@ -105,7 +55,7 @@ export function SolicitationCorrectionModal({
   const foods = catalogs?.produtos.filter((item) => item.categoria === 'ALIMENTACAO') || []
   const drinks = catalogs?.produtos.filter((item) => item.categoria === 'BEBIDA') || []
 
-  function set<K extends keyof FormState>(field: K, value: FormState[K]) {
+  function set<K extends keyof SolicitationCorrectionFormState>(field: K, value: SolicitationCorrectionFormState[K]) {
     setForm((current) => current ? { ...current, [field]: value } : current)
   }
 
@@ -165,8 +115,8 @@ export function SolicitationCorrectionModal({
   }
 
   const isLoading = loading || !detail || !form
-  const supervisorOptions = options(catalogs?.supervisores)
-  const operationOptions = options(catalogs?.operacoes)
+  const supervisorOptions = correctionOptions(catalogs?.supervisores)
+  const operationOptions = correctionOptions(catalogs?.operacoes)
   const providerOptions = [
     { label: 'Sem triagem', value: '' },
     ...providers.map((item) => ({ label: item.nome, value: item.nome })),
@@ -255,11 +205,11 @@ export function SolicitationCorrectionModal({
             <div className="correction-form-grid correction-section nx-workflow-grid nx-workflow-section">
               <label className="nx-workflow-field">
                 <span>Atividade</span>
-                <Dropdown value={form.atividade} options={options(catalogs?.atividades)} onChange={(event) => set('atividade', event.value || '')} filter />
+                <Dropdown value={form.atividade} options={correctionOptions(catalogs?.atividades)} onChange={(event) => set('atividade', event.value || '')} filter />
               </label>
               <label className="nx-workflow-field">
                 <span>Função</span>
-                <Dropdown value={form.funcao} options={options(catalogs?.funcoes)} onChange={(event) => set('funcao', event.value || '')} filter />
+                <Dropdown value={form.funcao} options={correctionOptions(catalogs?.funcoes)} onChange={(event) => set('funcao', event.value || '')} filter />
               </label>
               <label className="nx-workflow-field">
                 <span>Turno</span>
@@ -311,13 +261,13 @@ export function SolicitationCorrectionModal({
                   {form.produtoAlimentacao && (
                     <label className="nx-workflow-field">
                       <span>Alimentação aplicada</span>
-                      <Dropdown value={form.produtoAlimentacaoAplicado} options={options(foods)} onChange={(event) => set('produtoAlimentacaoAplicado', event.value || '')} filter />
+                      <Dropdown value={form.produtoAlimentacaoAplicado} options={correctionOptions(foods)} onChange={(event) => set('produtoAlimentacaoAplicado', event.value || '')} filter />
                     </label>
                   )}
                   {form.produtoBebida && (
                     <label className="nx-workflow-field">
                       <span>Bebida aplicada</span>
-                      <Dropdown value={form.produtoBebidaAplicado} options={options(drinks)} onChange={(event) => set('produtoBebidaAplicado', event.value || '')} filter />
+                      <Dropdown value={form.produtoBebidaAplicado} options={correctionOptions(drinks)} onChange={(event) => set('produtoBebidaAplicado', event.value || '')} filter />
                     </label>
                   )}
                   <label className="nx-workflow-field correction-form-span">
