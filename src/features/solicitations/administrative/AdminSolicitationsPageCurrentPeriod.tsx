@@ -7,14 +7,13 @@ import { SolicitationDetailModal } from '@/features/solicitations/administrative
 import { AdminSolicitationsTable } from '@/features/solicitations/administrative/AdminSolicitationsTable'
 import { AdminSolicitationsFilters } from '@/features/solicitations/administrative/AdminSolicitationsFilters'
 import { AdminSolicitationDeleteModal } from '@/features/solicitations/administrative/AdminSolicitationDeleteModal'
+import { AdminSolicitationsSummary } from '@/features/solicitations/administrative/AdminSolicitationsSummary'
 import {
   Chip,
   EmptyState,
   Panel,
   PanelHeader,
   Skeleton,
-  SummaryMetrics,
-  type SummaryMetricItem,
 } from '@/components/ui/Primitives'
 import { fetchCatalogos } from '@/services/catalogService'
 import {
@@ -30,7 +29,6 @@ import {
   buildSupplierSummary,
   currentPeriod,
   formatDate,
-  monthLabels,
   statusFilterOptions,
 } from '@/features/solicitations/administrative/solicitationPresentation'
 import type {
@@ -461,18 +459,6 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     return (metadata?.datasRegistro || []).filter((date) => date.slice(0, 4) === registrationYear && date.slice(5, 7) === registrationMonth).sort((left, right) => right.localeCompare(left))
   }, [metadata, registrationYear, registrationMonth])
 
-  const metrics = periodSummary
-  const periodDetail = registrationYear !== 'TODOS' && registrationMonth !== 'TODOS'
-    ? `${monthLabels[Number(registrationMonth) - 1]}/${registrationYear}`
-    : registrationYear !== 'TODOS' ? registrationYear : 'base completa'
-
-  const summary: SummaryMetricItem[] = [
-    { key: 'all', label: 'Total', value: metrics?.total ?? '—', detail: `no período · ${periodDetail}`, icon: 'dataset', active: statusFilter === 'TODOS', onClick: () => setStatusFilter('TODOS') },
-    { key: 'triage', label: 'Aguardando triagem', value: metrics?.aguardandoTriagem ?? '—', detail: `no período · ${periodDetail}`, icon: 'pending_actions', tone: 'info', active: statusFilter === 'AGUARDANDO_TRIAGEM', onClick: () => setStatusFilter('AGUARDANDO_TRIAGEM') },
-    { key: 'actual', label: 'Aguardando realizado', value: metrics?.aguardandoRealizado ?? '—', detail: `no período · ${periodDetail}`, icon: 'groups', tone: 'warning', active: statusFilter === 'AGUARDANDO_REALIZADO', onClick: () => setStatusFilter('AGUARDANDO_REALIZADO') },
-    { key: 'div', label: 'Com divergência', value: metrics?.divergencias ?? '—', detail: `no período · ${periodDetail}`, icon: 'error', tone: 'danger', active: statusFilter === 'COM_DIVERGENCIA', onClick: () => setStatusFilter('COM_DIVERGENCIA') },
-  ]
-
   const hasActiveFilters = Boolean(search.trim()) || typeFilter !== 'TODOS' || statusFilter !== 'TODOS' || registrationYear !== 'TODOS' || registrationMonth !== 'TODOS' || registrationDate !== 'TODOS'
 
   function handleYearChange(value: string) {
@@ -522,7 +508,13 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         </div>
       )}
 
-      <SummaryMetrics items={summary} ariaLabel="Filtrar solicitações por situação" />
+      <AdminSolicitationsSummary
+        metrics={periodSummary}
+        registrationYear={registrationYear}
+        registrationMonth={registrationMonth}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+      />
 
       <Panel className="admin-list-workspace admin-list-workspace-full nx-prime-data-panel">
         <PanelHeader eyebrow="REGISTROS" title="Fila administrativa" description={`${total} registro(s) após filtros · busca e filtros aplicados sobre toda a base.`} trailing={<Chip>{total} encontrados</Chip>} />
