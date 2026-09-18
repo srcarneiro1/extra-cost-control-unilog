@@ -10,6 +10,7 @@ import { correctAdministrativeSolicitation } from '@/services/solicitationServic
 import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Primitives'
 import { correctionFormFromDetail, correctionOptions, type SolicitationCorrectionFormState } from '@/features/solicitations/administrative/solicitationCorrectionForm'
+import { buildSolicitationCorrectionData } from '@/features/solicitations/administrative/solicitationCorrectionPayload'
 
 type Props = {
   open: boolean
@@ -70,31 +71,7 @@ export function SolicitationCorrectionModal({
       return
     }
 
-    const dados: Record<string, unknown> = {
-      supervisor: currentForm.supervisor,
-      operacao: currentForm.operacao,
-      dataOperacional: currentForm.dataOperacional,
-      fornecedor: currentForm.fornecedor,
-      justificativa: currentForm.justificativa,
-      responsavelCusto: currentForm.responsavelCusto,
-      centroCusto: currentForm.responsavelCusto === 'UNILOG' ? currentForm.centroCusto : '',
-    }
-
-    if (currentDetail.tipoSolicitacao === 'MAO_DE_OBRA') {
-      dados.atividade = currentForm.atividade
-      dados.funcao = currentForm.funcao
-      dados.turno = currentForm.turno
-      dados.qtdSolicitada = Number(currentForm.qtdSolicitada)
-      dados.qtdComparecida = currentForm.qtdComparecida === '' ? '' : Number(currentForm.qtdComparecida)
-    } else {
-      dados.produtoAlimentacao = currentForm.produtoAlimentacao
-      dados.qtdAlimentacao = currentForm.produtoAlimentacao ? Number(currentForm.qtdAlimentacao) : ''
-      dados.produtoBebida = currentForm.produtoBebida
-      dados.qtdBebida = currentForm.produtoBebida ? Number(currentForm.qtdBebida) : ''
-      dados.produtoAlimentacaoAplicado = currentForm.produtoAlimentacaoAplicado
-      dados.produtoBebidaAplicado = currentForm.produtoBebidaAplicado
-      dados.motivoAjusteProduto = currentForm.motivoAjusteProduto
-    }
+    const dados = buildSolicitationCorrectionData(currentForm, currentDetail)
 
     setSaving(true)
     setError('')
