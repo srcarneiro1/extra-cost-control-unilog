@@ -29,6 +29,7 @@ import {
   buildSupplierSummary,
   currentPeriod,
   formatDate,
+  monthLabels,
   statusFilterOptions,
 } from '@/features/solicitations/administrative/solicitationPresentation'
 import type {
