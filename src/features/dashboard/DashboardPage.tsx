@@ -4,8 +4,8 @@ import { Message } from 'primereact/message'
 import { SelectButton } from 'primereact/selectbutton'
 import { Skeleton } from 'primereact/skeleton'
 import { AdvancedAnalytics } from '@/features/dashboard/analytics/AdvancedAnalytics'
+import { AnalyticsSummary } from '@/features/dashboard/analytics/AnalyticsSummary'
 import { HorizontalRanking } from '@/features/dashboard/components/HorizontalRanking'
-import { MetricCard, type MetricTone } from '@/features/dashboard/components/DashboardMetricCard'
 import { ProjectionChart } from '@/features/dashboard/components/ProjectionChart'
 import { DashboardExportActions } from '@/features/dashboard/export/DashboardExportActions'
 import { DashboardFilters } from '@/features/dashboard/DashboardFilters'
@@ -14,9 +14,7 @@ import { DailyEvolution } from '@/features/dashboard/executive/DailyEvolution'
 import { ExecutiveMetrics } from '@/features/dashboard/executive/ExecutiveMetrics'
 import { MetaStatusAlert } from '@/features/dashboard/executive/MetaStatusAlert'
 import {
-  currency,
   monthName,
-  percent,
   shortDate,
 } from '@/features/dashboard/dashboardFormatters'
 import { fetchDashboard, revalidateDashboard } from '@/features/dashboard/services/dashboardService'
@@ -96,9 +94,6 @@ export function DashboardPage() {
   }
 
   const kpis = data?.kpis
-  const differenceTone: MetricTone = !kpis?.diferencaValor ? 'neutral' : kpis.diferencaValor > 0 ? 'danger' : 'success'
-  const metaTone: MetricTone = kpis?.atingimentoMetaPercentual == null ? 'neutral' : kpis.atingimentoMetaPercentual > 100 ? 'danger' : kpis.atingimentoMetaPercentual > 85 ? 'warning' : 'success'
-
   const tabOptions = [
     { label: 'Visão Executiva', value: 'executiva' },
     { label: 'Analytics', value: 'analytics' },
@@ -138,7 +133,7 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="dashboard-view">
-          <div className="dashboard-analytics-summary"><MetricCard label="Solicitações analisadas" value={String(kpis.totalSolicitacoes)} detail="Após aplicação dos filtros" /><MetricCard label="Divergências de comparecimento" value={String(kpis.divergenciasComparecimento)} detail="Quantidade solicitada ≠ comparecida" tone={kpis.divergenciasComparecimento ? 'warning' : 'success'} /><MetricCard label="Desvio financeiro" value={currency(kpis.diferencaValor)} detail="Realizado − previsto" tone={differenceTone} /><MetricCard label="Atingimento da Meta MO" value={percent(kpis.atingimentoMetaPercentual)} detail="Meta global da competência" tone={metaTone} /></div>
+          <AnalyticsSummary kpis={kpis} />
           <AdvancedAnalytics data={data} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Responsável pelo custo" subtitle="Separação entre custos Unilog, cliente e demais classificações." items={data.porResponsavelCusto} limit={6} /><HorizontalRanking title="Atividades" subtitle="Atividades com maior concentração de custos extras." items={data.porAtividade} limit={8} /></div>
         </div>
