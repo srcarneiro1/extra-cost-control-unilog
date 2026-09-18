@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from 'primereact/button'
-import { Column } from 'primereact/column'
-import { DataTable } from 'primereact/datatable'
 import { Dropdown } from 'primereact/dropdown'
 import { InputTextarea } from 'primereact/inputtextarea'
 import { Message } from 'primereact/message'
-import { Paginator } from 'primereact/paginator'
-import { Tag } from 'primereact/tag'
 import { PageHeader } from '@/components/PageHeader'
 import { SolicitationCorrectionModal } from '@/features/solicitations/administrative/SolicitationCorrectionModal'
 import { SolicitationDetailModal } from '@/features/solicitations/administrative/SolicitationDetailModal'
+import { AdminSolicitationsTable } from '@/features/solicitations/administrative/AdminSolicitationsTable'
 import { Modal } from '@/components/ui/Modal'
 import {
   Chip,
@@ -34,16 +31,10 @@ import type { CatalogosDto } from '@/types/catalog'
 import {
   allPageSizeOptions,
   buildSupplierSummary,
-  consideredQuantityBody,
   currentPeriod,
   formatDate,
-  formatDateTime,
-  formatMoney,
   monthLabels,
-  requestedQuantityBody,
   statusFilterOptions,
-  statusInfo,
-  typeLabel,
 } from '@/features/solicitations/administrative/solicitationPresentation'
 import type {
   AdministrativeSolicitationDetail,
@@ -521,39 +512,6 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     { label: 'Alimentação / Bebida', value: 'ALIMENTACAO_BEBIDA' },
   ]
 
-  const solicitationBody = (item: AdministrativeSolicitationListItem) => (
-    <div className="nx-user-cell"><strong>{item.idSolicitacao}</strong><small>{item.supervisor || 'Sem supervisor'}</small></div>
-  )
-  const typeBody = (item: AdministrativeSolicitationListItem) => <Tag value={typeLabel(item.tipoSolicitacao)} severity="secondary" rounded />
-  const statusBody = (item: AdministrativeSolicitationListItem) => {
-    const status = statusInfo(item)
-    return <Tag value={status.label} severity={status.severity} rounded className="nx-solicitation-status-tag" />
-  }
-
-  const actionsBody = (item: AdministrativeSolicitationListItem) => {
-    const busy = Boolean(deleteLoading) || quickLoading === item.idSolicitacao
-    const activeAction = quickLoading === item.idSolicitacao ? quickActionKey : null
-    const actionIcon = (key: string, icon: string) => activeAction === key ? 'pi pi-spin pi-spinner' : icon
-    const canShare = canAdminister && item.triagemConcluida && ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status)
-    return (
-      <div
-        className={`nx-modern-actions nx-solicitation-row-actions ${canAdminister ? 'is-admin' : 'is-readonly'}`}
-        onMouseEnter={() => scheduleDetailPrefetch(item.idSolicitacao)}
-        onMouseLeave={cancelDetailPrefetch}
-        onFocusCapture={() => scheduleDetailPrefetch(item.idSolicitacao, 0)}
-      >
-        {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon={actionIcon('status:AGUARDANDO_AJUSTE', 'pi pi-undo')} aria-label="Aguardando ajuste" title="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
-        {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon={actionIcon('status:ENVIADA_AO_FORNECEDOR', 'pi pi-send')} aria-label="Confirmar envio ao fornecedor" title="Confirmar envio ao fornecedor" size="small" disabled={busy} onClick={() => void handleQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
-        {canShare && <Button icon={actionIcon('copy', 'pi pi-copy')} aria-label="Copiar resumo" title="Copiar resumo" size="small" text disabled={busy} onClick={() => void handleCopySummary(item)} />}
-        {canShare && <Button icon={actionIcon('supplier', 'pi pi-whatsapp')} aria-label="Abrir fornecedor" title="Abrir fornecedor" size="small" text disabled={busy} onMouseEnter={ensureCatalogsForAction} onFocus={ensureCatalogsForAction} onClick={() => void handleOpenSupplier(item)} />}
-        {canAdminister && item.status === 'ENVIADA_AO_FORNECEDOR' && <Button icon={actionIcon('status:EM_ATENDIMENTO', 'pi pi-play')} aria-label="Marcar em atendimento" title="Marcar em atendimento" size="small" outlined disabled={busy} onClick={() => void handleQuickStatus(item, 'EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} />}
-        {canAdminister && item.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(item.status) && <Button icon={actionIcon('status:ATENDIDA', 'pi pi-check')} aria-label="Marcar atendida" title="Marcar atendida" size="small" severity="success" disabled={busy} onClick={() => void handleQuickStatus(item, 'ATENDIDA', 'Solicitação marcada como atendida.')} />}
-        <Button icon="pi pi-external-link" aria-label="Abrir detalhes" title="Abrir detalhes" size="small" onClick={() => void openDetail(item.idSolicitacao)} disabled={busy || detailLoading} className="nx-primary-button" />
-        {canAdminister && <Button icon="pi pi-pencil" aria-label="Editar solicitação" title="Editar solicitação" size="small" outlined onClick={() => void openCorrection(item.idSolicitacao)} disabled={busy || detailLoading} />}
-        {canAdminister && <Button icon="pi pi-trash" aria-label="Excluir solicitação" title="Excluir solicitação" size="small" severity="danger" text onClick={() => openDelete(item)} disabled={busy || detailLoading} />}
-      </div>
-    )
-  }
 
   return (
     <section className="admin-page nx-modern-page">
@@ -593,31 +551,28 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         ) : items.length === 0 ? (
           <EmptyState title="Nenhuma solicitação encontrada" description="A busca atual não possui registros. Ajuste a busca ou limpe os filtros." />
         ) : (
-          <DataTable value={items} dataKey="idSolicitacao" stripedRows rowHover scrollable responsiveLayout="scroll" tableStyle={{ tableLayout: 'fixed' }} className="nx-prime-table" emptyMessage="Nenhuma solicitação encontrada">
-            <Column header="Solicitação" body={solicitationBody} frozen />
-            <Column header="Registro" body={(item: AdministrativeSolicitationListItem) => formatDateTime(item.dataCriacao)} />
-            <Column header="Data operacional" body={(item: AdministrativeSolicitationListItem) => formatDate(item.dataOperacional)} />
-            <Column field="operacao" header="Operação" />
-            <Column header="Tipo" body={typeBody} />
-            <Column header="Status" body={statusBody} style={{ width: '12rem' }} />
-            <Column header="Qtd. solicitada" body={requestedQuantityBody} />
-            <Column header="Qtd. considerada" body={consideredQuantityBody} />
-            <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
-            <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-            <Column header="Ações" body={actionsBody} style={{ width: canAdminister ? '22rem' : '4rem' }} />
-          </DataTable>
-        )}
-
-        {!loading && total > 0 && (
-          <Paginator
-            first={(currentPage - 1) * pageSize}
-            rows={pageSize}
-            totalRecords={total}
-            rowsPerPageOptions={pageSizeOptions}
-            onPageChange={(event) => { setCurrentPage(event.page + 1); setPageSize(event.rows) }}
-            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-            currentPageReportTemplate="{first}–{last} de {totalRecords}"
-            className="nx-prime-paginator"
+          <AdminSolicitationsTable
+            items={items}
+            loading={loading}
+            total={total}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            canAdminister={canAdminister}
+            detailLoading={detailLoading}
+            deleteLoading={deleteLoading}
+            quickLoading={quickLoading}
+            quickActionKey={quickActionKey}
+            onPageChange={(page, nextPageSize) => { setCurrentPage(page); setPageSize(nextPageSize) }}
+            onScheduleDetailPrefetch={scheduleDetailPrefetch}
+            onCancelDetailPrefetch={cancelDetailPrefetch}
+            onEnsureCatalogsForAction={ensureCatalogsForAction}
+            onQuickStatus={(item, status, message) => void handleQuickStatus(item, status, message)}
+            onCopySummary={(item) => void handleCopySummary(item)}
+            onOpenSupplier={(item) => void handleOpenSupplier(item)}
+            onOpenDetail={(idSolicitacao) => void openDetail(idSolicitacao)}
+            onOpenCorrection={(idSolicitacao) => void openCorrection(idSolicitacao)}
+            onOpenDelete={openDelete}
           />
         )}
       </Panel>
