@@ -3,6 +3,7 @@ import { Button } from 'primereact/button'
 import { Dropdown } from 'primereact/dropdown'
 import { InputTextarea } from 'primereact/inputtextarea'
 import { Message } from 'primereact/message'
+import { Paginator } from 'primereact/paginator'
 import { PageHeader } from '@/components/PageHeader'
 import { SolicitationCorrectionModal } from '@/features/solicitations/administrative/SolicitationCorrectionModal'
 import { SolicitationDetailModal } from '@/features/solicitations/administrative/SolicitationDetailModal'
@@ -553,17 +554,11 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
         ) : (
           <AdminSolicitationsTable
             items={items}
-            loading={loading}
-            total={total}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            pageSizeOptions={pageSizeOptions}
             canAdminister={canAdminister}
             detailLoading={detailLoading}
             deleteLoading={deleteLoading}
             quickLoading={quickLoading}
             quickActionKey={quickActionKey}
-            onPageChange={(page, nextPageSize) => { setCurrentPage(page); setPageSize(nextPageSize) }}
             onScheduleDetailPrefetch={scheduleDetailPrefetch}
             onCancelDetailPrefetch={cancelDetailPrefetch}
             onEnsureCatalogsForAction={ensureCatalogsForAction}
@@ -573,6 +568,19 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
             onOpenDetail={(idSolicitacao) => void openDetail(idSolicitacao)}
             onOpenCorrection={(idSolicitacao) => void openCorrection(idSolicitacao)}
             onOpenDelete={openDelete}
+          />
+        )}
+
+        {!loading && total > 0 && (
+          <Paginator
+            first={(currentPage - 1) * pageSize}
+            rows={pageSize}
+            totalRecords={total}
+            rowsPerPageOptions={pageSizeOptions}
+            onPageChange={(event) => { setCurrentPage(event.page + 1); setPageSize(event.rows) }}
+            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+            currentPageReportTemplate="{first}–{last} de {totalRecords}"
+            className="nx-prime-paginator"
           />
         )}
       </Panel>
