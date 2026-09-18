@@ -5,40 +5,18 @@ import { Card } from 'primereact/card'
 import { Chart } from 'primereact/chart'
 import { Tag } from 'primereact/tag'
 import type { DashboardAnalytics, DashboardResponse } from '@/types/dashboard'
+import {
+  ANALYTICS_PALETTE as PALETTE,
+  analyticsAxisTicks as axisTicks,
+  analyticsBaseLegend as baseLegend,
+  analyticsCurrency as currency,
+  analyticsPercent as percent,
+  analyticsShortLabel as shortLabel,
+} from '@/features/dashboard/analytics/analyticsChartConfig'
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
 type AnalyticsMetricTone = 'neutral' | 'info' | 'warning' | 'danger'
-
-const PALETTE = {
-  ink: '#242a36',
-  graphite: '#494a56',
-  graphiteSoft: '#8b9099',
-  red: '#db0812',
-  grid: '#eceef1',
-  text: '#5f636b',
-  muted: '#858a93',
-  planned: '#d7dbe0',
-}
-
-function currency(value: number | null | undefined) {
-  if (value == null) return '—'
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function percent(value: number | null | undefined) {
-  if (value == null) return '—'
-  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)}%`
-}
-
-function shortLabel(value: string, max = 12) {
-  const normalized = value.trim()
-  return normalized.length <= max ? normalized : `${normalized.slice(0, Math.max(1, max - 1))}…`
-}
 
 function emptyAnalytics(): DashboardAnalytics {
   return {
@@ -53,23 +31,6 @@ function emptyAnalytics(): DashboardAnalytics {
     potencialReducao: null,
     metodologiaPotencialReducao: '',
   }
-}
-
-const baseLegend = {
-  labels: {
-    color: PALETTE.text,
-    boxWidth: 9,
-    boxHeight: 9,
-    usePointStyle: true,
-    pointStyle: 'circle' as const,
-    padding: 14,
-    font: { size: 10, family: 'Inter, Roboto, Arial, sans-serif' },
-  },
-}
-
-const axisTicks = {
-  color: PALETTE.muted,
-  font: { size: 9, family: 'Inter, Roboto, Arial, sans-serif' },
 }
 
 function AnalyticsMetric({ label, value, detail, tone = 'neutral' }: {
