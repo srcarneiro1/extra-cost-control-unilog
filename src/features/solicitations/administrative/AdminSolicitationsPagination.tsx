@@ -1,0 +1,36 @@
+'use client'
+
+import { Paginator } from 'primereact/paginator'
+
+type Props = {
+  loading: boolean
+  total: number
+  currentPage: number
+  pageSize: number
+  pageSizeOptions: number[]
+  onPageChange: (page: number, pageSize: number) => void
+}
+
+export function AdminSolicitationsPagination({
+  loading,
+  total,
+  currentPage,
+  pageSize,
+  pageSizeOptions,
+  onPageChange,
+}: Props) {
+  if (loading || total <= 0) return null
+
+  return (
+    <Paginator
+      first={(currentPage - 1) * pageSize}
+      rows={pageSize}
+      totalRecords={total}
+      rowsPerPageOptions={pageSizeOptions}
+      onPageChange={(event) => onPageChange(event.page + 1, event.rows)}
+      template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+      currentPageReportTemplate="{first}–{last} de {totalRecords}"
+      className="nx-prime-paginator"
+    />
+  )
+}
