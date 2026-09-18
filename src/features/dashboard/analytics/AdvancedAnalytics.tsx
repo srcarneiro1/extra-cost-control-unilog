@@ -1,10 +1,11 @@
 'use client'
 
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { Card } from 'primereact/card'
 import { Chart } from 'primereact/chart'
 import { Tag } from 'primereact/tag'
 import type { DashboardAnalytics, DashboardResponse } from '@/types/dashboard'
+import { AnalyticsCardHeader, AnalyticsMetric } from '@/features/dashboard/analytics/AnalyticsPrimitives'
 import {
   ANALYTICS_PALETTE as PALETTE,
   analyticsAxisTicks as axisTicks,
@@ -15,8 +16,6 @@ import {
 } from '@/features/dashboard/analytics/analyticsChartConfig'
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-
-type AnalyticsMetricTone = 'neutral' | 'info' | 'warning' | 'danger'
 
 function emptyAnalytics(): DashboardAnalytics {
   return {
@@ -31,39 +30,6 @@ function emptyAnalytics(): DashboardAnalytics {
     potencialReducao: null,
     metodologiaPotencialReducao: '',
   }
-}
-
-function AnalyticsMetric({ label, value, detail, tone = 'neutral' }: {
-  label: string
-  value: string
-  detail: string
-  tone?: AnalyticsMetricTone
-}) {
-  return (
-    <Card className={`dashboard-metric dashboard-metric-${tone} nx-dashboard-metric-card nx-analytics-metric`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </Card>
-  )
-}
-
-function AnalyticsCardHeader({ eyebrow, title, description, trailing }: {
-  eyebrow: string
-  title: string
-  description: string
-  trailing?: ReactNode
-}) {
-  return (
-    <div className="dashboard-card-header nx-chart-card-header">
-      <div>
-        <span className="ui-eyebrow">{eyebrow}</span>
-        <h2>{title}</h2>
-        <p>{description}</p>
-      </div>
-      {trailing}
-    </div>
-  )
 }
 
 function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
