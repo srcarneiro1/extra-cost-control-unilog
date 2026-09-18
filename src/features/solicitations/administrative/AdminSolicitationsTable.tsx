@@ -3,7 +3,6 @@
 import { Button } from 'primereact/button'
 import { Column } from 'primereact/column'
 import { DataTable } from 'primereact/datatable'
-import { Paginator } from 'primereact/paginator'
 import { Tag } from 'primereact/tag'
 import {
   consideredQuantityBody,
@@ -18,17 +17,11 @@ import type { AdministrativeSolicitationListItem } from '@/types/solicitation'
 
 type Props = {
   items: AdministrativeSolicitationListItem[]
-  loading: boolean
-  total: number
-  currentPage: number
-  pageSize: number
-  pageSizeOptions: number[]
   canAdminister: boolean
   detailLoading: boolean
   deleteLoading: string | null
   quickLoading: string | null
   quickActionKey: string | null
-  onPageChange: (page: number, pageSize: number) => void
   onScheduleDetailPrefetch: (idSolicitacao: string, delay?: number) => void
   onCancelDetailPrefetch: () => void
   onEnsureCatalogsForAction: () => void
@@ -42,17 +35,11 @@ type Props = {
 
 export function AdminSolicitationsTable({
   items,
-  loading,
-  total,
-  currentPage,
-  pageSize,
-  pageSizeOptions,
   canAdminister,
   detailLoading,
   deleteLoading,
   quickLoading,
   quickActionKey,
-  onPageChange,
   onScheduleDetailPrefetch,
   onCancelDetailPrefetch,
   onEnsureCatalogsForAction,
@@ -111,18 +98,6 @@ export function AdminSolicitationsTable({
         <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
         <Column header="Ações" body={actionsBody} style={{ width: canAdminister ? '22rem' : '4rem' }} />
       </DataTable>
-      {!loading && total > 0 && (
-        <Paginator
-          first={(currentPage - 1) * pageSize}
-          rows={pageSize}
-          totalRecords={total}
-          rowsPerPageOptions={pageSizeOptions}
-          onPageChange={(event) => onPageChange(event.page + 1, event.rows)}
-          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-          currentPageReportTemplate="{first}–{last} de {totalRecords}"
-          className="nx-prime-paginator"
-        />
-      )}
     </>
   )
 }
