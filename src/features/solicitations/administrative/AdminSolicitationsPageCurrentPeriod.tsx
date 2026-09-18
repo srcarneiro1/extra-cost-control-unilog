@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Paginator } from 'primereact/paginator'
 import { PageHeader } from '@/components/PageHeader'
 import { SolicitationCorrectionModal } from '@/features/solicitations/administrative/SolicitationCorrectionModal'
 import { SolicitationDetailModal } from '@/features/solicitations/administrative/SolicitationDetailModal'
@@ -8,6 +7,7 @@ import { AdminSolicitationsFilters } from '@/features/solicitations/administrati
 import { AdminSolicitationDeleteModal } from '@/features/solicitations/administrative/AdminSolicitationDeleteModal'
 import { AdminSolicitationsSummary } from '@/features/solicitations/administrative/AdminSolicitationsSummary'
 import { AdminSolicitationsNotice, type AdminSolicitationsNoticeValue } from '@/features/solicitations/administrative/AdminSolicitationsNotice'
+import { AdminSolicitationsPagination } from '@/features/solicitations/administrative/AdminSolicitationsPagination'
 import {
   Chip,
   EmptyState,
@@ -559,18 +559,14 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
           />
         )}
 
-        {!loading && total > 0 && (
-          <Paginator
-            first={(currentPage - 1) * pageSize}
-            rows={pageSize}
-            totalRecords={total}
-            rowsPerPageOptions={pageSizeOptions}
-            onPageChange={(event) => { setCurrentPage(event.page + 1); setPageSize(event.rows) }}
-            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-            currentPageReportTemplate="{first}–{last} de {totalRecords}"
-            className="nx-prime-paginator"
-          />
-        )}
+        <AdminSolicitationsPagination
+          loading={loading}
+          total={total}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          onPageChange={(page, nextPageSize) => { setCurrentPage(page); setPageSize(nextPageSize) }}
+        />
       </Panel>
 
       <SolicitationDetailModal open={workflowOpen} loading={detailLoading} detail={detail} catalogs={catalogs} canAdminister={canAdminister} onClose={closeWorkflow} onChanged={handleWorkflowChanged} onNotify={notify} />
