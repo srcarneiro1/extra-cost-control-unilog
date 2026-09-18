@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from 'primereact/button'
 import { Paginator } from 'primereact/paginator'
 import { PageHeader } from '@/components/PageHeader'
 import { SolicitationCorrectionModal } from '@/features/solicitations/administrative/SolicitationCorrectionModal'
@@ -8,6 +7,7 @@ import { AdminSolicitationsTable } from '@/features/solicitations/administrative
 import { AdminSolicitationsFilters } from '@/features/solicitations/administrative/AdminSolicitationsFilters'
 import { AdminSolicitationDeleteModal } from '@/features/solicitations/administrative/AdminSolicitationDeleteModal'
 import { AdminSolicitationsSummary } from '@/features/solicitations/administrative/AdminSolicitationsSummary'
+import { AdminSolicitationsNotice, type AdminSolicitationsNoticeValue } from '@/features/solicitations/administrative/AdminSolicitationsNotice'
 import {
   Chip,
   EmptyState,
@@ -45,7 +45,6 @@ const BACKGROUND_REVALIDATION_MS = 90 * 1000
 const DETAIL_CACHE_FRESH_MS = 30 * 1000
 const DETAIL_PREFETCH_DELAY_MS = 120
 
-type Notice = { tone: 'success' | 'error'; message: string }
 type Props = { canAdminister: boolean }
 
 export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
@@ -73,7 +72,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<AdministrativeSolicitationListItem | null>(null)
   const [deleteReason, setDeleteReason] = useState('')
   const [deleteError, setDeleteError] = useState('')
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<AdminSolicitationsNoticeValue | null>(null)
   const [workflowOpen, setWorkflowOpen] = useState(false)
   const [correctionOpen, setCorrectionOpen] = useState(false)
 
@@ -85,7 +84,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const catalogRequestRef = useRef<Promise<CatalogosDto> | null>(null)
   const listRequestRef = useRef(0)
 
-  function notify(tone: Notice['tone'], message: string) {
+  function notify(tone: AdminSolicitationsNoticeValue['tone'], message: string) {
     setNotice({ tone, message })
   }
 
@@ -501,13 +500,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     <section className="admin-page nx-modern-page">
       <PageHeader eyebrow="CONTROLE DE CUSTOS EXTRAS" title="Solicitações" description="Conferência, triagem, precificação e acompanhamento do realizado em um único workspace administrativo." />
 
-      {notice && (
-        <div className={`nx-prime-notice ${notice.tone === 'success' ? 'is-success' : 'is-error'}`} role={notice.tone === 'error' ? 'alert' : 'status'}>
-          <i className={notice.tone === 'success' ? 'pi pi-check-circle' : 'pi pi-exclamation-circle'} />
-          <span>{notice.message}</span>
-          <Button text rounded icon="pi pi-times" aria-label="Fechar notificação" onClick={() => setNotice(null)} />
-        </div>
-      )}
+      <AdminSolicitationsNotice notice={notice} onClose={() => setNotice(null)} />
 
       <AdminSolicitationsSummary
         metrics={periodSummary}
