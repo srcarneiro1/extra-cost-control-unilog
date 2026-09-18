@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from 'primereact/button'
-import { InputTextarea } from 'primereact/inputtextarea'
-import { Message } from 'primereact/message'
 import { Paginator } from 'primereact/paginator'
 import { PageHeader } from '@/components/PageHeader'
 import { SolicitationCorrectionModal } from '@/features/solicitations/administrative/SolicitationCorrectionModal'
 import { SolicitationDetailModal } from '@/features/solicitations/administrative/SolicitationDetailModal'
 import { AdminSolicitationsTable } from '@/features/solicitations/administrative/AdminSolicitationsTable'
 import { AdminSolicitationsFilters } from '@/features/solicitations/administrative/AdminSolicitationsFilters'
-import { Modal } from '@/components/ui/Modal'
+import { AdminSolicitationDeleteModal } from '@/features/solicitations/administrative/AdminSolicitationDeleteModal'
 import {
   Chip,
   EmptyState,
@@ -592,28 +590,16 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
       <SolicitationDetailModal open={workflowOpen} loading={detailLoading} detail={detail} catalogs={catalogs} canAdminister={canAdminister} onClose={closeWorkflow} onChanged={handleWorkflowChanged} onNotify={notify} />
       {canAdminister && <SolicitationCorrectionModal open={correctionOpen} loading={detailLoading} detail={detail} catalogs={catalogs} onClose={closeCorrection} onSaved={handleCorrectionSaved} />}
 
-      {canAdminister && <Modal
-        open={Boolean(deleteTarget)}
-        titleId="delete-solicitation-title"
-        eyebrow="EXCLUSÃO ADMINISTRATIVA"
-        title={deleteTarget ? `Excluir ${deleteTarget.idSolicitacao}` : 'Excluir solicitação'}
-        description="A solicitação e eventuais jornadas parciais serão removidas da base operacional. Um snapshot será preservado na auditoria."
+      <AdminSolicitationDeleteModal
+        canAdminister={canAdminister}
+        target={deleteTarget}
+        reason={deleteReason}
+        error={deleteError}
+        loading={deleteLoading}
+        onReasonChange={setDeleteReason}
         onClose={closeDelete}
-        busy={Boolean(deleteLoading)}
-        width="medium"
-        bodyClassName="nx-delete-dialog"
-        footer={<><Button label="Cancelar" text onClick={closeDelete} disabled={Boolean(deleteLoading)} /><Button label={deleteLoading ? 'Excluindo…' : 'Excluir solicitação'} icon={deleteLoading ? 'pi pi-spin pi-spinner' : 'pi pi-trash'} severity="danger" onClick={() => void confirmDelete()} disabled={Boolean(deleteLoading) || deleteReason.trim().length < 5} /></>}
-      >
-        <div className="nx-delete-dialog-body">
-          <Message severity="warn" text="Esta ação é definitiva na base operacional e ficará registrada na auditoria." />
-          {deleteError && <Message severity="error" text={deleteError} />}
-          <label className="nx-workflow-field">
-            <span>Motivo da exclusão</span>
-            <InputTextarea value={deleteReason} onChange={(event) => setDeleteReason(event.target.value)} rows={4} autoResize placeholder="Descreva o motivo com pelo menos 5 caracteres." />
-            <small>{deleteReason.trim().length}/5 caracteres mínimos</small>
-          </label>
-        </div>
-      </Modal>}
+        onConfirm={() => void confirmDelete()}
+      />
     </section>
   )
 }
