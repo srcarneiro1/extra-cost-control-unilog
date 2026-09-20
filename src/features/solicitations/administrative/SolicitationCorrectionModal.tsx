@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Primitives'
 import { correctionFormFromDetail, correctionOptions, type SolicitationCorrectionFormState } from '@/features/solicitations/administrative/solicitationCorrectionForm'
 import { buildSolicitationCorrectionData } from '@/features/solicitations/administrative/solicitationCorrectionPayload'
+import { validateSolicitationCorrection } from '@/features/solicitations/administrative/solicitationCorrectionValidation'
 
 type Props = {
   open: boolean
@@ -66,8 +67,9 @@ export function SolicitationCorrectionModal({
 
     if (!currentForm || !currentDetail) return
 
-    if (!currentForm.motivoCorrecao.trim()) {
-      setError('Informe o motivo da correção.')
+    const validationError = validateSolicitationCorrection(currentForm)
+    if (validationError) {
+      setError(validationError)
       return
     }
 
