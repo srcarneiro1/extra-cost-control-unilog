@@ -11,7 +11,7 @@ import { Paginator } from 'primereact/paginator'
 import { TabMenu } from 'primereact/tabmenu'
 import { PageHeader } from '@/components/PageHeader'
 import { Modal } from '@/components/ui/Modal'
-import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton, SummaryMetrics } from '@/components/ui/Primitives'
+import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton } from '@/components/ui/Primitives'
 import {
   fetchCatalogoAdminScope,
   saveAtividadeAdmin,
@@ -65,6 +65,8 @@ import {
   type ProductPriceDraft,
   type ProviderDraft,
 } from '@/features/catalogs/administrative/catalogAdminModel'
+
+import { CatalogAdminSummary } from '@/features/catalogs/administrative/CatalogAdminSummary'
 
 import {
   categoryLabel,
@@ -216,17 +218,6 @@ export function CadastrosPagePaginated() {
   const laborProviders = providerRows.filter((item) => item.ativo && item.maoDeObra)
   const foodProviders = providerRows.filter((item) => item.ativo && item.alimentacao)
   const activeFunctions = functionRows.filter((item) => item.ativo)
-
-  const metrics = [
-    { key: 'operacoes', label: 'Operações', value: summary?.operacoes ?? '—', icon: 'warehouse' },
-    { key: 'supervisores', label: 'Supervisores', value: summary?.supervisores ?? '—', icon: 'badge' },
-    { key: 'fornecedores', label: 'Fornecedores ativos', value: summary?.fornecedores ?? '—', icon: 'local_shipping' },
-    { key: 'atividades', label: 'Atividades', value: summary?.atividades ?? '—', icon: 'task_alt' },
-    { key: 'funcoes', label: 'Funções', value: summary?.funcoes ?? '—', icon: 'engineering' },
-    { key: 'produtos', label: 'Produtos ativos', value: summary?.produtos ?? '—', icon: 'inventory_2' },
-    { key: 'feriados', label: 'Feriados ativos', value: summary?.feriados ?? '—', icon: 'event' },
-    { key: 'metas', label: 'Metas cadastradas', value: summary?.metas ?? '—', icon: 'flag' },
-  ]
 
   function changeSection(nextSection: CatalogSection) {
     setSection(nextSection)
@@ -442,7 +433,7 @@ export function CadastrosPagePaginated() {
       {notice && <Message severity="success" text={notice} className="nx-catalog-message" />}
       {loadError && <Message severity="error" text={loadError} className="nx-catalog-message" />}
 
-      <SummaryMetrics items={metrics} ariaLabel="Resumo geral dos cadastros ativos" />
+      <CatalogAdminSummary summary={summary} />
 
       <div className="nx-catalog-navigation" aria-label="Tipos de cadastro">
         <TabMenu
