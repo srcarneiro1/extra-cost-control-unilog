@@ -42,94 +42,29 @@ import type {
   WhatsappDestino,
 } from '@/types/catalog'
 
-type CatalogSection = 'OPERACOES' | 'SUPERVISORES' | 'FUNCOES' | 'ATIVIDADES' | 'FERIADOS' | 'METAS' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'PRECOS_PRODUTOS'
-type NamedDraft = { nome: string; ativo: boolean }
-type HolidayDraft = { data: string; denominacao: string; tipo: string; municipio: string; uf: string; ativo: boolean; fonte: string }
-type GoalDraft = { competencia: string; valor: string }
-type ProviderDraft = {
-  nome: string
-  maoDeObra: boolean
-  alimentacao: boolean
-  ativo: boolean
-  whatsappDestino: WhatsappDestino
-  whatsappNumero: string
-  whatsappGrupoLink: string
-}
-type ProductDraft = { nome: string; categoria: CategoriaProduto; ativo: boolean }
-type LaborPriceDraft = {
-  fornecedor: string
-  funcao: string
-  turno: 'DIURNO' | 'NOTURNO'
-  tipoDia: TipoDia
-  vigenciaInicio: string
-  precoUnitario: string
-}
-type ProductPriceDraft = { fornecedor: string; produto: string; vigenciaInicio: string; precoUnitario: string }
-
-const PRICE_PAGE_SIZE = 25
-
-const SECTION_ITEMS: Array<{ key: CatalogSection; label: string; icon: string }> = [
-  { key: 'OPERACOES', label: 'Operações', icon: 'pi pi-building' },
-  { key: 'SUPERVISORES', label: 'Supervisores', icon: 'pi pi-id-card' },
-  { key: 'FUNCOES', label: 'Funções', icon: 'pi pi-users' },
-  { key: 'ATIVIDADES', label: 'Atividades', icon: 'pi pi-list-check' },
-  { key: 'FERIADOS', label: 'Feriados', icon: 'pi pi-calendar' },
-  { key: 'METAS', label: 'Metas', icon: 'pi pi-flag' },
-  { key: 'FORNECEDORES', label: 'Fornecedores', icon: 'pi pi-truck' },
-  { key: 'PRODUTOS', label: 'Produtos', icon: 'pi pi-box' },
-  { key: 'PRECOS_MO', label: 'Preços de mão de obra', icon: 'pi pi-wallet' },
-  { key: 'PRECOS_PRODUTOS', label: 'Preços de produtos', icon: 'pi pi-tag' },
-]
-
-const ACTIVE_OPTIONS = [
-  { label: 'Ativo', value: true },
-  { label: 'Inativo', value: false },
-]
-
-const CATEGORY_OPTIONS = [
-  { label: 'Alimentação', value: 'ALIMENTACAO' },
-  { label: 'Bebida', value: 'BEBIDA' },
-]
-
-const WHATSAPP_OPTIONS = [
-  { label: 'Não configurado', value: 'NENHUM' },
-  { label: 'Número', value: 'NUMERO' },
-  { label: 'Grupo', value: 'GRUPO' },
-]
-
-const TURN_OPTIONS = [
-  { label: 'Diurno', value: 'DIURNO' },
-  { label: 'Noturno', value: 'NOTURNO' },
-]
-
-const DAY_TYPE_OPTIONS = [
-  { label: 'Dia útil', value: 'UTIL' },
-  { label: 'Sábado', value: 'SABADO' },
-  { label: 'Domingo / feriado', value: 'DOMINGO_FERIADO' },
-]
-
-const emptyNamedDraft = (): NamedDraft => ({ nome: '', ativo: true })
-const emptyHolidayDraft = (): HolidayDraft => ({ data: '', denominacao: '', tipo: 'FERIADO', municipio: 'SERRA', uf: 'ES', ativo: true, fonte: '' })
-const emptyGoalDraft = (): GoalDraft => ({ competencia: '', valor: '' })
-const emptyProviderDraft = (): ProviderDraft => ({
-  nome: '',
-  maoDeObra: true,
-  alimentacao: false,
-  ativo: true,
-  whatsappDestino: 'NENHUM',
-  whatsappNumero: '',
-  whatsappGrupoLink: '',
-})
-const emptyProductDraft = (): ProductDraft => ({ nome: '', categoria: 'ALIMENTACAO', ativo: true })
-const emptyLaborPriceDraft = (): LaborPriceDraft => ({
-  fornecedor: '',
-  funcao: '',
-  turno: 'DIURNO',
-  tipoDia: 'UTIL',
-  vigenciaInicio: '',
-  precoUnitario: '',
-})
-const emptyProductPriceDraft = (): ProductPriceDraft => ({ fornecedor: '', produto: '', vigenciaInicio: '', precoUnitario: '' })
+import {
+  CATEGORY_OPTIONS,
+  DAY_TYPE_OPTIONS,
+  PRICE_PAGE_SIZE,
+  SECTION_ITEMS,
+  TURN_OPTIONS,
+  WHATSAPP_OPTIONS,
+  emptyGoalDraft,
+  emptyHolidayDraft,
+  emptyLaborPriceDraft,
+  emptyNamedDraft,
+  emptyProductDraft,
+  emptyProductPriceDraft,
+  emptyProviderDraft,
+  type CatalogSection,
+  type GoalDraft,
+  type HolidayDraft,
+  type LaborPriceDraft,
+  type NamedDraft,
+  type ProductDraft,
+  type ProductPriceDraft,
+  type ProviderDraft,
+} from '@/features/catalogs/administrative/catalogAdminModel'
 
 function destinationLabel(item: FornecedorAdminDto) {
   if (item.whatsappDestino === 'NUMERO' && item.whatsappNumero) return `Número · ${item.whatsappNumero}`
