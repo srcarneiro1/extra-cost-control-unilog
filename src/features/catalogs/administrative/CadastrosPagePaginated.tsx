@@ -7,10 +7,9 @@ import { Dropdown } from 'primereact/dropdown'
 import { InputSwitch } from 'primereact/inputswitch'
 import { InputText } from 'primereact/inputtext'
 import { Message } from 'primereact/message'
-import { Paginator } from 'primereact/paginator'
 import { PageHeader } from '@/components/PageHeader'
 import { Modal } from '@/components/ui/Modal'
-import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton } from '@/components/ui/Primitives'
+import { Badge, EmptyState, Panel, PanelHeader, Skeleton } from '@/components/ui/Primitives'
 import {
   fetchCatalogoAdminScope,
   saveAtividadeAdmin,
@@ -67,6 +66,7 @@ import {
 
 import { CatalogAdminSummary } from '@/features/catalogs/administrative/CatalogAdminSummary'
 import { CatalogAdminNavigation } from '@/features/catalogs/administrative/CatalogAdminNavigation'
+import { CatalogAction, CatalogSearch, PricePagination, StatusBadge } from '@/features/catalogs/administrative/CatalogAdminPrimitives'
 
 import {
   categoryLabel,
@@ -81,14 +81,6 @@ import {
   namedSectionLabel,
   priceStatus,
 } from '@/features/catalogs/administrative/catalogAdminPresentation'
-
-function StatusBadge({ active }: { active: boolean }) {
-  return <Badge tone={active ? 'success' : 'neutral'}>{active ? 'Ativo' : 'Inativo'}</Badge>
-}
-
-function CatalogAction({ label, icon = 'pi pi-pencil', onClick }: { label: string; icon?: string; onClick: () => void }) {
-  return <Button label={label} icon={icon} size="small" outlined onClick={onClick} className="nx-catalog-action" />
-}
 
 export function CadastrosPagePaginated() {
   const [summary, setSummary] = useState<CatalogosAdminResumoDto | null>(null)
@@ -481,30 +473,6 @@ export function CadastrosPagePaginated() {
         </div>
       </Modal>
     </div>
-  )
-}
-
-function CatalogSearch({ value, onChange, placeholder, label }: { value: string; onChange: (value: string) => void; placeholder: string; label: string }) {
-  return <div className="nx-catalog-toolbar"><SearchField value={value} onChange={onChange} placeholder={placeholder} ariaLabel={label} /></div>
-}
-
-function CatalogTableShell({ loading, empty, children }: { loading: boolean; empty: React.ReactNode; children: React.ReactNode }) {
-  if (loading) return <Skeleton lines={7} />
-  return <>{children || empty}</>
-}
-
-function PricePagination({ pagination, onPage }: { pagination: CatalogAdminPaginationDto | null; onPage: (page: number) => void }) {
-  if (!pagination?.paginado) return null
-  return (
-    <Paginator
-      first={(pagination.pagina - 1) * pagination.tamanhoPagina}
-      rows={pagination.tamanhoPagina}
-      totalRecords={pagination.total}
-      onPageChange={(event) => onPage(event.page + 1)}
-      template="CurrentPageReport PrevPageLink PageLinks NextPageLink"
-      currentPageReportTemplate="{first}–{last} de {totalRecords}"
-      className="nx-catalog-paginator"
-    />
   )
 }
 
