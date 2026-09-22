@@ -3,12 +3,10 @@ import { Button } from 'primereact/button'
 import { Checkbox } from 'primereact/checkbox'
 import { Column } from 'primereact/column'
 import { DataTable } from 'primereact/datatable'
-import { Dropdown } from 'primereact/dropdown'
 import { InputSwitch } from 'primereact/inputswitch'
 import { InputText } from 'primereact/inputtext'
 import { Message } from 'primereact/message'
 import { Paginator } from 'primereact/paginator'
-import { TabMenu } from 'primereact/tabmenu'
 import { PageHeader } from '@/components/PageHeader'
 import { Modal } from '@/components/ui/Modal'
 import { Badge, EmptyState, Panel, PanelHeader, SearchField, Skeleton } from '@/components/ui/Primitives'
@@ -67,6 +65,7 @@ import {
 } from '@/features/catalogs/administrative/catalogAdminModel'
 
 import { CatalogAdminSummary } from '@/features/catalogs/administrative/CatalogAdminSummary'
+import { CatalogAdminNavigation } from '@/features/catalogs/administrative/CatalogAdminNavigation'
 
 import {
   categoryLabel,
@@ -419,8 +418,6 @@ export function CadastrosPagePaginated() {
                   : section === 'PRECOS_MO' ? 'Novo preço de mão de obra'
                     : 'Novo preço de produto'
 
-  const activeSectionIndex = Math.max(0, SECTION_ITEMS.findIndex((item) => item.key === section))
-
   return (
     <div className="catalog-page nx-modern-page nx-catalog-page">
       <PageHeader
@@ -435,21 +432,7 @@ export function CadastrosPagePaginated() {
 
       <CatalogAdminSummary summary={summary} />
 
-      <div className="nx-catalog-navigation" aria-label="Tipos de cadastro">
-        <TabMenu
-          model={SECTION_ITEMS.map((item) => ({ label: item.label, icon: item.icon }))}
-          activeIndex={activeSectionIndex}
-          onTabChange={(event) => changeSection(SECTION_ITEMS[event.index].key)}
-          className="nx-catalog-tabmenu"
-        />
-        <Dropdown
-          value={section}
-          options={SECTION_ITEMS.map((item) => ({ label: item.label, value: item.key }))}
-          onChange={(event) => changeSection(event.value as CatalogSection)}
-          className="nx-catalog-mobile-nav"
-          aria-label="Tipo de cadastro"
-        />
-      </div>
+      <CatalogAdminNavigation section={section} onChange={changeSection} />
 
       {section === 'OPERACOES' && <NamedPanel loading={loading} singular="Operação" plural="Operações" description="Cadastre, inative ou reative operações disponíveis nos novos lançamentos." items={operations} search={search} setSearch={setSearch} onEdit={editNamed} />}
       {section === 'SUPERVISORES' && <NamedPanel loading={loading} singular="Supervisor" plural="Supervisores" description="Cadastre, inative ou reative supervisores disponíveis nos novos lançamentos." items={supervisors} search={search} setSearch={setSearch} onEdit={editNamed} />}
