@@ -66,62 +66,19 @@ import {
   type ProviderDraft,
 } from '@/features/catalogs/administrative/catalogAdminModel'
 
-function destinationLabel(item: FornecedorAdminDto) {
-  if (item.whatsappDestino === 'NUMERO' && item.whatsappNumero) return `Número · ${item.whatsappNumero}`
-  if (item.whatsappDestino === 'GRUPO' && item.whatsappGrupoLink) return 'Grupo · link configurado'
-  return 'Não configurado'
-}
-
-function money(value: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
-}
-
-function dateLabel(value: string) {
-  if (!value) return 'Em aberto'
-  const [year, month, day] = value.split('-')
-  return year && month && day ? `${day}/${month}/${year}` : value
-}
-
-function competenceLabel(value: string) {
-  if (!value) return '—'
-  const [year, month] = value.split('-')
-  return year && month ? `${month}/${year}` : value
-}
-
-function dayTypeLabel(value: TipoDia) {
-  if (value === 'SABADO') return 'Sábado'
-  if (value === 'DOMINGO_FERIADO') return 'Domingo / feriado'
-  return 'Dia útil'
-}
-
-function categoryLabel(value: CategoriaProduto) {
-  return value === 'BEBIDA' ? 'Bebida' : 'Alimentação'
-}
-
-function priceStatus(item: { ativo: boolean; vigenciaFim: string }) {
-  if (!item.ativo) return { label: 'Inativo', tone: 'neutral' as const }
-  if (item.vigenciaFim) return { label: 'Histórico', tone: 'neutral' as const }
-  return { label: 'Vigente', tone: 'success' as const }
-}
-
-function isPriceSection(section: CatalogSection) {
-  return section === 'PRECOS_MO' || section === 'PRECOS_PRODUTOS'
-}
-
-function isNamedSection(section: CatalogSection) {
-  return section === 'OPERACOES' || section === 'SUPERVISORES' || section === 'FUNCOES' || section === 'ATIVIDADES'
-}
-
-function namedSectionLabel(section: CatalogSection) {
-  if (section === 'OPERACOES') return 'Operação'
-  if (section === 'SUPERVISORES') return 'Supervisor'
-  if (section === 'FUNCOES') return 'Função'
-  return 'Atividade'
-}
-
-function namedOptions(items: Array<{ nome: string }>, emptyLabel = 'Selecione') {
-  return [{ label: emptyLabel, value: '' }, ...items.map((item) => ({ label: item.nome, value: item.nome }))]
-}
+import {
+  categoryLabel,
+  competenceLabel,
+  dateLabel,
+  dayTypeLabel,
+  destinationLabel,
+  isNamedSection,
+  isPriceSection,
+  money,
+  namedOptions,
+  namedSectionLabel,
+  priceStatus,
+} from '@/features/catalogs/administrative/catalogAdminPresentation'
 
 function StatusBadge({ active }: { active: boolean }) {
   return <Badge tone={active ? 'success' : 'neutral'}>{active ? 'Ativo' : 'Inativo'}</Badge>
