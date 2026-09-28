@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { type AuthUser } from '@/services/authService'
+import { type AuthUser } from '@/features/auth/services/authService'
 import { canNavigate, type Section } from '@/features/shell/shellNavigation'
 
 function SectionLoading() {
@@ -19,29 +19,29 @@ function SectionLoading() {
 }
 
 const AdminSolicitationsPageCurrentPeriod = dynamic(
-  () => import('@/components/AdminSolicitationsPageCurrentPeriod')
+  () => import('@/features/solicitations/administrative/AdminSolicitationsPageCurrentPeriod')
     .then((module) => module.AdminSolicitationsPageCurrentPeriod),
   { ssr: false, loading: () => <SectionLoading /> },
 )
 
 const CadastrosPagePaginated = dynamic(
-  () => import('@/components/CadastrosPagePaginated')
+  () => import('@/features/catalogs/administrative/CadastrosPagePaginated')
     .then((module) => module.CadastrosPagePaginated),
   { ssr: false, loading: () => <SectionLoading /> },
 )
 
 const DashboardPage = dynamic(
-  () => import('@/components/DashboardPage').then((module) => module.DashboardPage),
+  () => import('@/features/dashboard/DashboardPage').then((module) => module.DashboardPage),
   { ssr: false, loading: () => <SectionLoading /> },
 )
 
 const FinancialCloseoutPage = dynamic(
-  () => import('@/components/FinancialCloseoutPage').then((module) => module.FinancialCloseoutPage),
+  () => import('@/features/closeouts/administrative/FinancialCloseoutPage').then((module) => module.FinancialCloseoutPage),
   { ssr: false, loading: () => <SectionLoading /> },
 )
 
 const UsersPage = dynamic(
-  () => import('@/components/UsersPage').then((module) => module.UsersPage),
+  () => import('@/features/users/administrative/UsersPage').then((module) => module.UsersPage),
   { ssr: false, loading: () => <SectionLoading /> },
 )
 
