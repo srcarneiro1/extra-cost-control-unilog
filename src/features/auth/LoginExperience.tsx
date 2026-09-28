@@ -9,7 +9,7 @@ import {
   completeFirstAccess,
   login,
   type AuthUser,
-} from '@/services/authService'
+} from '@/features/auth/services/authService'
 
 type LoginExperienceProps = {
   onAuthenticated: (user: AuthUser) => void
