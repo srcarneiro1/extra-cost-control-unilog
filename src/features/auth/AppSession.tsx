@@ -7,7 +7,7 @@ import {
   getCurrentUser,
   logout,
   type AuthUser,
-} from '@/services/authService'
+} from '@/features/auth/services/authService'
 
 export function AppSession() {
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
