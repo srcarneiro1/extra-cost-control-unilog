@@ -1,4 +1,4 @@
-import { type AuthUser } from '@/services/authService'
+import { type AuthUser } from '@/features/auth/services/authService'
 
 export type Section = 'dashboard' | 'solicitacoes' | 'fechamentos' | 'cadastros' | 'usuarios'
 
