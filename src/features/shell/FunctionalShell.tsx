@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { type AuthUser } from '@/services/authService'
+import { type AuthUser } from '@/features/auth/services/authService'
 import { ShellSections } from '@/features/shell/ShellSections'
 import { ShellSidebar } from '@/features/shell/ShellSidebar'
 import { ShellTopbar } from '@/features/shell/ShellTopbar'
