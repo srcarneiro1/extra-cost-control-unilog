@@ -1,7 +1,7 @@
 'use client'
 
 import { Tag } from 'primereact/tag'
-import { type AuthUser } from '@/services/authService'
+import { type AuthUser } from '@/features/auth/services/authService'
 import {
   SECTION_COPY,
   profileLabel,
