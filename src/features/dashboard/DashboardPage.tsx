@@ -80,10 +80,22 @@ export function DashboardPage() {
   }, [query])
 
   useEffect(() => {
-    if (!data?.filtros.mesesCompetencia.length) return
-    if (data.filtros.mesesCompetencia.includes(query.mesCompetencia || '')) return
-    update('mesCompetencia', data.filtros.mesesCompetencia[0])
-  }, [data?.filtros.mesesCompetencia, query.mesCompetencia])
+    const years = data?.filtros.anos || []
+    if (!years.length) return
+
+    const latestYear = [...years].sort().at(-1) || ''
+    if (latestYear && !years.includes(query.ano || '')) {
+      setQuery((current) => ({ ...current, ano: latestYear }))
+      return
+    }
+
+    const months = data?.filtros.mesesCompetencia || []
+    if (!months.length) return
+    if (months.includes(query.mesCompetencia || '')) return
+
+    const latestMonth = [...months].sort().at(-1)
+    if (latestMonth) update('mesCompetencia', latestMonth)
+  }, [data?.filtros.anos, data?.filtros.mesesCompetencia, query.ano, query.mesCompetencia])
 
   function update<K extends keyof DashboardQuery>(field: K, value: DashboardQuery[K]) {
     setQuery((current) => ({ ...current, [field]: value }))
