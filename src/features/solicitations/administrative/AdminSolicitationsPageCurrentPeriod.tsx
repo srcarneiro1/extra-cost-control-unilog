@@ -459,7 +459,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     return (metadata?.datasRegistro || []).filter((date) => date.slice(0, 4) === registrationYear && date.slice(5, 7) === registrationMonth).sort((left, right) => right.localeCompare(left))
   }, [metadata, registrationYear, registrationMonth])
 
-  const hasActiveFilters = Boolean(search.trim()) || typeFilter !== 'TODOS' || statusFilter !== 'TODOS' || registrationYear !== 'TODOS' || registrationMonth !== 'TODOS' || registrationDate !== 'TODOS'
+  const hasActiveFilters = Boolean(search.trim()) || typeFilter !== 'TODOS' || statusFilter !== 'TODOS' || registrationDate !== 'TODOS'
 
   function handleYearChange(value: string) {
     setRegistrationYear(value)
@@ -476,10 +476,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     setSearch('')
     setTypeFilter('TODOS')
     setStatusFilter('TODOS')
-    setRegistrationYear('TODOS')
-    setRegistrationMonth('TODOS')
     setRegistrationDate('TODOS')
-    setPeriodSummary(metadata?.resumo || null)
   }
 
   const pageSizeLimit = total <= 10 ? 10 : Math.min(100, Math.ceil(total / 5) * 5)
