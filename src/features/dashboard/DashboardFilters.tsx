@@ -39,6 +39,13 @@ export function DashboardFilters({
   const yearOptions = (data?.filtros.anos.length ? data.filtros.anos : [query.ano || initial.ano]).map((value) => ({ label: value, value }))
   const competenceOptions = (data?.filtros.mesesCompetencia.length ? data.filtros.mesesCompetencia : [query.mesCompetencia || initial.mesCompetencia]).map((value) => ({ label: monthName(value), value }))
   const typeOptions = (['TODOS', 'MAO_DE_OBRA', 'ALIMENTACAO_BEBIDA'] as DashboardTypeFilter[]).map((value) => ({ label: typeLabel(value), value }))
+  const hasActiveDimensions =
+    query.operacao !== 'TODOS' ||
+    query.supervisor !== 'TODOS' ||
+    query.fornecedor !== 'TODOS' ||
+    query.tipo !== 'TODOS' ||
+    query.responsavelCusto !== 'TODOS' ||
+    query.atividade !== 'TODOS'
 
   return (
     <Card className="dashboard-filter-panel nx-dashboard-filter-card">
@@ -53,7 +60,7 @@ export function DashboardFilters({
         <label className="nx-field">Atividade<Dropdown value={query.atividade} options={optionize(data?.filtros.atividades || [], 'Todas')} onChange={(event) => onChange('atividade', event.value)} filter={(data?.filtros.atividades.length || 0) > 8} /></label>
       </div>
       <div className="nx-dashboard-filter-actions">
-        <Button label="Limpar dimensões" icon="pi pi-filter-slash" outlined onClick={onClearDimensions} />
+        <Button label="Limpar dimensões" icon="pi pi-filter-slash" outlined onClick={onClearDimensions} disabled={!hasActiveDimensions} />
       </div>
     </Card>
   )
