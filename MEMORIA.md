@@ -180,16 +180,16 @@ Conclusão: a diferença de velocidade observada não foi tratada como defeito. 
 
 Pendência registrada em 15/09/2026. Não é correção funcional nem urgência de produção; é uma evolução arquitetural para reduzir componentes grandes, separar responsabilidades e facilitar manutenção futura sem trocar Next.js, React ou PrimeReact.
 
-Estimativa recomendada: **7 PRs incrementais**, cada um pequeno o suficiente para revisão e homologação isolada. Evitar uma refatoração única de grande porte.
+Execução adotada: **um único Draft PR (#74) com 7 macro-etapas por domínio**, usando commits/blocos internos revisáveis. A estratégia substitui a estimativa inicial de 7 PRs separados sem alterar os guardrails de homologação e merge.
 
-Plano sugerido:
-1. **PR 1 — Shell, autenticação e estrutura compartilhada:** separar responsabilidades hoje concentradas em `src/app/page.tsx`, mantendo comportamento, sessão e primeiro acesso intactos.
-2. **PR 2 — Dashboard e Analytics:** decompor `DashboardPage`, `AdvancedAnalytics`, exportação, filtros, cards e gráficos em módulos/colegiados menores.
-3. **PR 3 — Solicitações:** decompor `AdminSolicitationsPageCurrentPeriod`, detalhes, correção e ações operacionais em submódulos, hooks e componentes específicos.
-4. **PR 4 — Cadastros:** decompor `CadastrosPagePaginated` por domínio/aba (operações, supervisores, funções, atividades, fornecedores, produtos, preços, feriados e metas), preservando paginação e regras atuais.
-5. **PR 5 — Fechamentos:** organizar `FinancialCloseoutPage`, ações financeiras, exceções e componentes de conciliação por responsabilidade, sem alterar regras financeiras.
-6. **PR 6 — Usuários e administração:** modularizar `UsersPage`, primeiro acesso, formulários e componentes administrativos compartilhados.
-7. **PR 7 — Consolidação final do frontend:** revisar componentes compartilhados, hooks, services, types, CSS, imports e code splitting; eliminar duplicações comprovadas; medir bundle/First Load e executar smoke completo.
+Plano em execução no Draft PR #74:
+1. **Etapa 1 — Shell, autenticação e estrutura compartilhada:** separar responsabilidades hoje concentradas em `src/app/page.tsx`, mantendo comportamento, sessão e primeiro acesso intactos.
+2. **Etapa 2 — Dashboard e Analytics:** decompor `DashboardPage`, `AdvancedAnalytics`, exportação, filtros, cards e gráficos em módulos/colegiados menores.
+3. **Etapa 3 — Solicitações:** decompor `AdminSolicitationsPageCurrentPeriod`, detalhes, correção e ações operacionais em submódulos, hooks e componentes específicos.
+4. **Etapa 4 — Cadastros:** decompor `CadastrosPagePaginated` por domínio/aba (operações, supervisores, funções, atividades, fornecedores, produtos, preços, feriados e metas), preservando paginação e regras atuais.
+5. **Etapa 5 — Fechamentos:** organizar `FinancialCloseoutPage`, ações financeiras, exceções e componentes de conciliação por responsabilidade, sem alterar regras financeiras.
+6. **Etapa 6 — Usuários e administração:** modularizar `UsersPage`, primeiro acesso, formulários e componentes administrativos compartilhados.
+7. **Etapa 7 — Consolidação final do frontend:** revisar componentes compartilhados, hooks, services, types, CSS, imports e code splitting; eliminar duplicações comprovadas; medir bundle/First Load e executar smoke completo.
 
 Critérios permanentes para essa futura modularização:
 - refatoração estrutural somente; não alterar regra de negócio junto com modularização;
@@ -201,7 +201,7 @@ Critérios permanentes para essa futura modularização:
 - homologar o domínio afetado antes de merge;
 - merge somente com autorização explícita.
 
-A estimativa de 7 PRs é deliberadamente conservadora para reduzir risco. Seria possível condensar em aproximadamente 5 PRs, mas isso aumentaria o tamanho dos diffs e dificultaria isolamento de regressões. Para manutenção segura, manter a referência de 7 PRs.
+Estado do Draft PR #74: Etapas 1 e 2 concluídas e homologadas; Etapa 3 (Solicitações) iniciada. O PR permanece Draft e o merge continua condicionado à autorização explícita.
 
 ## Regras permanentes do projeto
 
@@ -222,15 +222,15 @@ A estimativa de 7 PRs é deliberadamente conservadora para reduzir risco. Seria 
 
 Em 15/09/2026 o responsável considerou a V1 funcionalmente encerrada após a consolidação e os hardenings de transporte. Não há PR funcional pendente registrado nesta memória.
 
-Permanece registrada apenas a pendência técnica opcional de modularização integral do frontend, estimada em 7 PRs incrementais. Ela não deve ser iniciada automaticamente nem tratada como incidente de produção.
+A modularização integral do frontend foi iniciada no Draft PR #74, organizada em 7 macro-etapas. Etapas 1 e 2 já foram concluídas e homologadas; Etapa 3 está em andamento. Não tratar essa refatoração como incidente de produção.
 
 Se o projeto for retomado, começar por:
 1. ler apenas `MEMORIA.md`;
 2. verificar o estado atual da `main` e os deployments antes de assumir qualquer condição;
 3. tratar novas demandas funcionais como manutenção ou nova fase;
-4. se a retomada for para modularização, seguir o plano de 7 PRs por domínio e preservar integralmente as regras existentes;
+4. se a retomada for para modularização, continuar o Draft PR #74 pelas 7 macro-etapas e preservar integralmente as regras existentes;
 5. não reabrir migrações históricas nem regras financeiras consolidadas sem evidência concreta.
 
 ## Retomada curta
 
-`Leia somente MEMORIA.md. A V1 funcional do Extra Cost Control foi consolidada e considerada encerrada em 15/09/2026. PRs #66–#73 foram concluídos; o último merge funcional foi o PR #73 em 0b309fd26360ba2f484133dfe17801e5a750173d. Próxima pendência técnica opcional: modularização integral do frontend em 7 PRs incrementais. Nunca execute migrateSolicitationStatuses(), nunca repita mutações automaticamente e nunca faça merge sem autorização explícita.`
+`Leia somente MEMORIA.md. A V1 funcional do Extra Cost Control foi consolidada e considerada encerrada em 15/09/2026. PRs #66–#73 foram concluídos; o último merge funcional foi o PR #73 em 0b309fd26360ba2f484133dfe17801e5a750173d. Modularização integral do frontend em andamento no Draft PR #74, com 7 macro-etapas; Etapas 1 e 2 concluídas/homologadas e Etapa 3 iniciada. Nunca execute migrateSolicitationStatuses(), nunca repita mutações automaticamente e nunca faça merge sem autorização explícita.`
