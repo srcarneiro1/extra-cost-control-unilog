@@ -285,6 +285,9 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   min-height:52px!important;
   padding:9px 12px!important;
   gap:4px!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex-wrap:wrap!important;
   border:0!important;
   border-top:1px solid var(--unilog-border-soft)!important;
   border-radius:0!important;
@@ -317,8 +320,8 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   min-height:34px!important;
   display:inline-flex!important;
   align-items:center!important;
-  margin:0 4px 0 auto!important;
-  padding:0 8px!important;
+  margin:0 6px!important;
+  padding:0 6px!important;
   color:var(--unilog-muted)!important;
   font-size:10px!important;
   font-weight:650!important;
@@ -326,19 +329,51 @@ button.ui-summary-metric.nx-prime-metric.is-active{
 }
 .nx-prime-paginator .p-dropdown,
 .nx-prime-table .p-paginator .p-dropdown{
+  width:72px!important;
+  min-width:72px!important;
   height:34px!important;
   min-height:34px!important;
-  min-width:74px!important;
-  margin-left:0!important;
+  max-height:34px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  align-self:center!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
   border-radius:8px!important;
   font-size:10px!important;
+  line-height:1!important;
+  vertical-align:middle!important;
 }
 .nx-prime-paginator .p-dropdown .p-dropdown-label,
 .nx-prime-table .p-paginator .p-dropdown .p-dropdown-label{
+  height:32px!important;
+  min-height:32px!important;
   display:flex!important;
+  flex:1 1 auto!important;
   align-items:center!important;
-  padding:0 8px!important;
+  padding:0 4px 0 10px!important;
   font-size:10px!important;
+  line-height:1!important;
+}
+.nx-prime-paginator .p-dropdown .p-dropdown-trigger,
+.nx-prime-table .p-paginator .p-dropdown .p-dropdown-trigger{
+  width:28px!important;
+  min-width:28px!important;
+  height:32px!important;
+  min-height:32px!important;
+  display:grid!important;
+  place-items:center!important;
+  align-self:center!important;
+  padding:0!important;
+}
+.nx-prime-paginator .p-dropdown .p-dropdown-trigger-icon,
+.nx-prime-table .p-paginator .p-dropdown .p-dropdown-trigger-icon{
+  width:12px!important;
+  height:12px!important;
+  margin:0!important;
+  font-size:10px!important;
+  line-height:12px!important;
 }
 .nx-table-toolbar,
 .nx-catalog-toolbar,
