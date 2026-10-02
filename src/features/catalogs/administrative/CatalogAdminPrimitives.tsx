@@ -44,6 +44,10 @@ export function PricePagination({
 }) {
   if (!pagination?.paginado) return null
 
+  const template = pagination.totalPaginas > 1
+    ? 'FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport'
+    : 'CurrentPageReport'
+
   return (
     <Paginator
       first={(pagination.pagina - 1) * pagination.tamanhoPagina}
@@ -51,7 +55,7 @@ export function PricePagination({
       totalRecords={pagination.total}
       onPageChange={(event) => onPage(event.page + 1)}
       pageLinkSize={5}
-      template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+      template={template}
       currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
       className="nx-catalog-paginator"
     />
