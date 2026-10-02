@@ -19,6 +19,7 @@ import {
 } from '@/services/solicitationService'
 import { Modal } from '@/components/ui/Modal'
 import { Badge, Skeleton } from '@/components/ui/Primitives'
+import { copyTextToClipboard, navigateExternalWindow, reserveExternalWindow } from '@/features/solicitations/administrative/whatsappSharing'
 
 type NoticeTone = 'success' | 'error'
 
@@ -409,31 +410,40 @@ export function SolicitationDetailModal({
   async function handleCopySummary() {
     if (!detail || !canShare) return
     try {
-      await navigator.clipboard.writeText(buildWhatsAppMessage(detail))
+      const copied = await copyTextToClipboard(buildWhatsAppMessage(detail))
+      if (!copied) throw new Error('clipboard')
       onNotify('success', 'Resumo copiado para a área de transferência.')
     } catch {
       onNotify('error', 'Não foi possível copiar o resumo automaticamente.')
     }
   }
 
-  function handleOpenWhatsApp() {
+  async function handleOpenWhatsApp() {
     if (!detail || !canShare) return
+    const externalWindow = reserveExternalWindow()
     const message = buildWhatsAppMessage(detail)
 
     if (whatsappProvider?.whatsappDestino === 'NUMERO' && whatsappProvider.whatsappNumero) {
-      window.open(`https://wa.me/${whatsappProvider.whatsappNumero.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+      navigateExternalWindow(
+        externalWindow,
+        `https://wa.me/${whatsappProvider.whatsappNumero.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`,
+      )
       return
     }
 
     if (whatsappProvider?.whatsappDestino === 'GRUPO' && whatsappProvider.whatsappGrupoLink) {
-      void navigator.clipboard.writeText(message)
-        .then(() => onNotify('success', 'Resumo copiado. Cole a mensagem no grupo do WhatsApp.'))
-        .catch(() => onNotify('error', 'O grupo foi aberto, mas não foi possível copiar o resumo automaticamente.'))
-      window.open(whatsappProvider.whatsappGrupoLink, '_blank', 'noopener,noreferrer')
+      const copied = await copyTextToClipboard(message)
+      navigateExternalWindow(externalWindow, whatsappProvider.whatsappGrupoLink)
+      onNotify(
+        copied ? 'success' : 'error',
+        copied
+          ? 'Grupo aberto e resumo copiado. No WhatsApp, basta colar a mensagem no campo do grupo.'
+          : 'Grupo aberto, mas o navegador não permitiu copiar o resumo automaticamente.',
+      )
       return
     }
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+    navigateExternalWindow(externalWindow, `https://wa.me/?text=${encodeURIComponent(message)}`)
   }
 
   return (
@@ -528,7 +538,7 @@ export function SolicitationDetailModal({
               <SectionHeading icon="pi pi-share-alt" title="Contato com fornecedor" detail="Copie ou abra o WhatsApp com o resumo da solicitação" />
               <div className="workflow-share-actions nx-workflow-actions">
                 <Button label="Copiar resumo" icon="pi pi-copy" outlined onClick={() => void handleCopySummary()} />
-                <Button label={whatsappButtonLabel} icon="pi pi-whatsapp" onClick={handleOpenWhatsApp} className="nx-primary-button" />
+                <Button label={whatsappButtonLabel} icon="pi pi-whatsapp" onClick={() => void handleOpenWhatsApp()} className="nx-primary-button" />
               </div>
             </section>
           )}
