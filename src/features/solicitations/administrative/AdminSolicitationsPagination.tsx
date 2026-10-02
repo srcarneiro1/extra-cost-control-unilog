@@ -28,8 +28,9 @@ export function AdminSolicitationsPagination({
       totalRecords={total}
       rowsPerPageOptions={pageSizeOptions}
       onPageChange={(event) => onPageChange(event.page + 1, event.rows)}
-      template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-      currentPageReportTemplate="{first}–{last} de {totalRecords}"
+      pageLinkSize={5}
+      template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+      currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
       className="nx-prime-paginator"
     />
   )

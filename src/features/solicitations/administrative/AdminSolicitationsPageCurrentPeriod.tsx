@@ -8,6 +8,7 @@ import { AdminSolicitationDeleteModal } from '@/features/solicitations/administr
 import { AdminSolicitationsSummary } from '@/features/solicitations/administrative/AdminSolicitationsSummary'
 import { AdminSolicitationsNotice, type AdminSolicitationsNoticeValue } from '@/features/solicitations/administrative/AdminSolicitationsNotice'
 import { AdminSolicitationsPagination } from '@/features/solicitations/administrative/AdminSolicitationsPagination'
+import { copyTextToClipboard, navigateExternalWindow, reserveExternalWindow } from '@/features/solicitations/administrative/whatsappSharing'
 import {
   Chip,
   EmptyState,
@@ -285,7 +286,8 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     setQuickActionKey('copy')
     try {
       const loaded = await requestDetail(item.idSolicitacao)
-      await navigator.clipboard.writeText(buildSupplierSummary(loaded))
+      const copied = await copyTextToClipboard(buildSupplierSummary(loaded))
+      if (!copied) throw new Error('Não foi possível copiar o resumo automaticamente.')
       notify('success', `Resumo da solicitação ${item.idSolicitacao} copiado.`)
     } catch (error) {
       notify('error', error instanceof Error ? error.message : 'Não foi possível copiar o resumo.')
@@ -297,22 +299,37 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
 
   async function handleOpenSupplier(item: AdministrativeSolicitationListItem) {
     if (quickLoading) return
+    const externalWindow = reserveExternalWindow()
     setQuickLoading(item.idSolicitacao)
     setQuickActionKey('supplier')
     try {
       const [loaded, loadedCatalogs] = await Promise.all([requestDetail(item.idSolicitacao), requestCatalogs()])
       const message = buildSupplierSummary(loaded)
       const provider = loadedCatalogs.fornecedores.find((candidate) => candidate.nome === loaded.fornecedor)
+
       if (provider?.whatsappDestino === 'NUMERO' && provider.whatsappNumero) {
-        window.open(`https://wa.me/${provider.whatsappNumero.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
-      } else if (provider?.whatsappDestino === 'GRUPO' && provider.whatsappGrupoLink) {
-        await navigator.clipboard.writeText(message).catch(() => undefined)
-        window.open(provider.whatsappGrupoLink, '_blank', 'noopener,noreferrer')
-        notify('success', 'Grupo aberto. O resumo foi copiado para colar no WhatsApp.')
-      } else {
-        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+        navigateExternalWindow(
+          externalWindow,
+          `https://wa.me/${provider.whatsappNumero.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`,
+        )
+        return
       }
+
+      if (provider?.whatsappDestino === 'GRUPO' && provider.whatsappGrupoLink) {
+        const copied = await copyTextToClipboard(message)
+        navigateExternalWindow(externalWindow, provider.whatsappGrupoLink)
+        notify(
+          copied ? 'success' : 'error',
+          copied
+            ? 'Grupo aberto e resumo copiado. No WhatsApp, basta colar a mensagem no campo do grupo.'
+            : 'Grupo aberto, mas o navegador não permitiu copiar o resumo automaticamente.',
+        )
+        return
+      }
+
+      navigateExternalWindow(externalWindow, `https://wa.me/?text=${encodeURIComponent(message)}`)
     } catch (error) {
+      externalWindow?.close()
       notify('error', error instanceof Error ? error.message : 'Não foi possível abrir o contato do fornecedor.')
     } finally {
       setQuickLoading(null)

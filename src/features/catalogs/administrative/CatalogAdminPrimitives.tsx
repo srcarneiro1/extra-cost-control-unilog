@@ -50,8 +50,9 @@ export function PricePagination({
       rows={pagination.tamanhoPagina}
       totalRecords={pagination.total}
       onPageChange={(event) => onPage(event.page + 1)}
-      template="CurrentPageReport PrevPageLink PageLinks NextPageLink"
-      currentPageReportTemplate="{first}–{last} de {totalRecords}"
+      pageLinkSize={5}
+      template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+      currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
       className="nx-catalog-paginator"
     />
   )

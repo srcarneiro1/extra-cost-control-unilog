@@ -282,12 +282,63 @@ button.ui-summary-metric.nx-prime-metric.is-active{
 .nx-catalog-table .p-paginator,
 .nx-prime-paginator.p-paginator,
 .nx-catalog-paginator.p-paginator{
-  min-height:48px!important;
-  padding:8px 12px!important;
+  min-height:52px!important;
+  padding:9px 12px!important;
+  gap:4px!important;
   border:0!important;
   border-top:1px solid var(--unilog-border-soft)!important;
   border-radius:0!important;
   background:#fff!important;
+}
+.nx-prime-table .p-paginator button,
+.nx-catalog-table .p-paginator button,
+.nx-prime-paginator.p-paginator button,
+.nx-catalog-paginator.p-paginator button{
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  min-height:34px!important;
+  padding:0!important;
+  border-radius:8px!important;
+  font-size:11px!important;
+  line-height:1!important;
+}
+.nx-prime-paginator .p-paginator-page,
+.nx-catalog-paginator .p-paginator-page,
+.nx-prime-table .p-paginator-page,
+.nx-catalog-table .p-paginator-page{
+  margin:0!important;
+  font-variant-numeric:tabular-nums;
+}
+.nx-prime-paginator .p-paginator-current,
+.nx-catalog-paginator .p-paginator-current,
+.nx-prime-table .p-paginator-current,
+.nx-catalog-table .p-paginator-current{
+  min-height:34px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  margin:0 4px 0 auto!important;
+  padding:0 8px!important;
+  color:var(--unilog-muted)!important;
+  font-size:10px!important;
+  font-weight:650!important;
+  white-space:nowrap;
+}
+.nx-prime-paginator .p-dropdown,
+.nx-prime-table .p-paginator .p-dropdown{
+  height:34px!important;
+  min-height:34px!important;
+  min-width:74px!important;
+  margin-left:0!important;
+  border-radius:8px!important;
+  font-size:10px!important;
+}
+.nx-prime-paginator .p-dropdown .p-dropdown-label,
+.nx-prime-table .p-paginator .p-dropdown .p-dropdown-label{
+  display:flex!important;
+  align-items:center!important;
+  padding:0 8px!important;
+  font-size:10px!important;
 }
 .nx-table-toolbar,
 .nx-catalog-toolbar,
@@ -356,6 +407,21 @@ button.ui-summary-metric.nx-prime-metric.is-active{
     padding:0!important;
     border:0!important;
     background:transparent!important;
+  }
+}
+
+@media(max-width:760px){
+  .nx-prime-paginator .p-paginator-current,
+  .nx-catalog-paginator .p-paginator-current,
+  .nx-prime-table .p-paginator-current,
+  .nx-catalog-table .p-paginator-current{
+    order:10;
+    width:100%!important;
+    min-height:22px!important;
+    justify-content:center!important;
+    margin:2px 0 0!important;
+    padding:0!important;
+    text-align:center;
   }
 }
 
