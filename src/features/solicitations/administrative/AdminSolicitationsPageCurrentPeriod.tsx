@@ -43,6 +43,9 @@ import type {
 } from '@/types/solicitation'
 
 const BACKGROUND_REVALIDATION_MS = 90 * 1000
+// Agrupa várias ações seguidas numa única recarga em segundo plano, liberando o
+// Apps Script para atender o próximo clique do usuário primeiro.
+const POST_MUTATION_REFRESH_DELAY_MS = 2500
 const DETAIL_CACHE_FRESH_MS = 30 * 1000
 const DETAIL_PREFETCH_DELAY_MS = 120
 
@@ -84,6 +87,21 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const activeDetailRequestRef = useRef(0)
   const catalogRequestRef = useRef<Promise<CatalogosDto> | null>(null)
   const listRequestRef = useRef(0)
+  const pendingRefreshTimerRef = useRef<number | null>(null)
+  const pendingDetailRefreshRef = useRef(new Set<string>())
+  const workflowOpenRef = useRef(false)
+  const correctionOpenRef = useRef(false)
+  workflowOpenRef.current = workflowOpen
+  correctionOpenRef.current = correctionOpen
+  // Sempre aponta para as funções/estado da renderização mais recente, para que
+  // a recarga adiada use os filtros atuais (e não os do momento do clique).
+  const latestRef = useRef<{
+    listQuery: () => ReturnType<typeof listQuery>
+    applyListResponse: (response: Awaited<ReturnType<typeof fetchAdministrativeSolicitations>>) => void
+    refreshDetail: (idSolicitacao: string) => Promise<AdministrativeSolicitationDetail>
+    invalidateDetailCache: (idSolicitacao: string) => void
+    openDetailId: string | null
+  } | null>(null)
 
   function notify(tone: AdminSolicitationsNoticeValue['tone'], message: string) {
     setNotice({ tone, message })
@@ -111,6 +129,38 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   async function refreshItems(force = false) {
     const response = await fetchAdministrativeSolicitations(listQuery(), undefined, force ? { force: true } : undefined)
     applyListResponse(response)
+  }
+
+  /**
+   * Agenda uma única recarga (lista + detalhes abertos) depois de mutações.
+   * Ações seguidas dentro da janela reiniciam o timer e geram uma só recarga.
+   * O detalhe só é recarregado se o modal ainda estiver aberto naquela solicitação;
+   * caso contrário apenas o cache local é invalidado (recarrega ao abrir).
+   */
+  function scheduleBackgroundRefresh(idSolicitacao?: string) {
+    if (idSolicitacao) pendingDetailRefreshRef.current.add(idSolicitacao)
+    if (pendingRefreshTimerRef.current != null) window.clearTimeout(pendingRefreshTimerRef.current)
+    pendingRefreshTimerRef.current = window.setTimeout(() => {
+      pendingRefreshTimerRef.current = null
+      const latest = latestRef.current
+      if (!latest) return
+      const ids = Array.from(pendingDetailRefreshRef.current)
+      pendingDetailRefreshRef.current.clear()
+      const modalOpen = workflowOpenRef.current || correctionOpenRef.current
+      ids.forEach((id) => {
+        if (modalOpen && latest.openDetailId === id) {
+          void latest.refreshDetail(id).catch(() => undefined)
+        } else {
+          latest.invalidateDetailCache(id)
+        }
+      })
+      const requestId = ++listRequestRef.current
+      void fetchAdministrativeSolicitations(latest.listQuery())
+        .then((response) => {
+          if (requestId === listRequestRef.current) latestRef.current?.applyListResponse(response)
+        })
+        .catch(() => undefined)
+    }, POST_MUTATION_REFRESH_DELAY_MS)
   }
 
   function requestCatalogs(signal?: AbortSignal) {
@@ -266,13 +316,16 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
     if (!canAdminister || quickLoading) return
     setQuickLoading(item.idSolicitacao)
     setQuickActionKey(`status:${status}`)
+    // Atualização otimista: a linha muda na hora e volta ao estado anterior se o servidor recusar.
+    const previousStatus = item.status
+    setItems((current) => current.map((row) => row.idSolicitacao === item.idSolicitacao ? { ...row, status } : row))
     try {
       await updateAdministrativeSolicitationStatus({ idSolicitacao: item.idSolicitacao, status })
-      setItems((current) => current.map((row) => row.idSolicitacao === item.idSolicitacao ? { ...row, status } : row))
       invalidateDetailCache(item.idSolicitacao)
       notify('success', message)
-      void refreshItems().catch(() => undefined)
+      scheduleBackgroundRefresh()
     } catch (error) {
+      setItems((current) => current.map((row) => row.idSolicitacao === item.idSolicitacao ? { ...row, status: previousStatus } : row))
       notify('error', error instanceof Error ? error.message : 'Não foi possível atualizar o status.')
     } finally {
       setQuickLoading(null)
@@ -344,14 +397,14 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   ) {
     applyDetailPatch(idSolicitacao, patch)
     notify('success', message)
-    void refreshDetail(idSolicitacao).catch(() => undefined)
-    void refreshItems().catch(() => undefined)
+    scheduleBackgroundRefresh(idSolicitacao)
   }
 
   function handleCorrectionSaved(idSolicitacao: string) {
     notify('success', 'Correção registrada com sucesso e histórico preservado na auditoria.')
+    // Correção altera vários campos: o detalhe aberto é recarregado já, a lista fica agrupada.
     void refreshDetail(idSolicitacao).catch(() => undefined)
-    void refreshItems().catch(() => undefined)
+    scheduleBackgroundRefresh()
   }
 
   function openDelete(item: AdministrativeSolicitationListItem) {
@@ -388,15 +441,27 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
       await deleteAdministrativeSolicitation({ idSolicitacao: item.idSolicitacao, motivoExclusao: deleteReason.trim() })
       invalidateDetailCache(item.idSolicitacao)
       detailRequestsRef.current.delete(item.idSolicitacao)
-      await Promise.all([refreshItems(), refreshMetadata()])
+      // Remove a linha localmente e fecha o diálogo sem esperar as recargas.
+      setItems((current) => current.filter((row) => row.idSolicitacao !== item.idSolicitacao))
+      setTotal((current) => Math.max(0, current - 1))
       setDeleteTarget(null)
       setDeleteReason('')
       notify('success', `Solicitação ${item.idSolicitacao} excluída e registrada na auditoria.`)
+      scheduleBackgroundRefresh()
+      void refreshMetadata().catch(() => undefined)
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Não foi possível excluir a solicitação.')
     } finally {
       setDeleteLoading(null)
     }
+  }
+
+  latestRef.current = {
+    listQuery: () => listQuery(),
+    applyListResponse,
+    refreshDetail,
+    invalidateDetailCache,
+    openDetailId: detail?.idSolicitacao ?? null,
   }
 
   useEffect(() => {
@@ -456,6 +521,7 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
 
   useEffect(() => () => {
     if (detailIntentTimerRef.current != null) window.clearTimeout(detailIntentTimerRef.current)
+    if (pendingRefreshTimerRef.current != null) window.clearTimeout(pendingRefreshTimerRef.current)
   }, [])
 
   const registrationYears = useMemo(() => {

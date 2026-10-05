@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect } from 'react'
-import { fetchCatalogoAdminScope, fetchCatalogos, prefetchCatalogoAdminScope } from '@/services/catalogService'
+import { fetchCatalogos, prefetchCatalogoAdminScope } from '@/services/catalogService'
 import { prefetchDashboard } from '@/services/dashboardService'
 import type { AuthUser } from '@/services/authService'
-import { fetchAdministrativeSolicitationMetadata, fetchAdministrativeSolicitations } from '@/services/solicitationService'
+import { fetchAdministrativeSolicitations } from '@/services/solicitationService'
 
 function currentPeriod() {
   const now = new Date()
@@ -35,40 +35,25 @@ export function useShellPrefetch(user: AuthUser) {
     const canManageCatalogs = user.profile === 'OWNER' || user.profile === 'ADMINISTRATIVO'
     const operation = user.profile === 'OWNER' || !user.operation ? 'TODOS' : user.operation
 
+    // Cada requisição aqui é uma execução do Apps Script. Antes eram ~16 em 4s,
+    // competindo com o primeiro clique real do usuário. Agora pré-carregamos só
+    // o que a tela inicial e as ações mais comuns precisam; o resto é sob demanda.
+    // O metadata (que lê a aba de solicitações) não é mais pré-carregado.
     const firstWave = window.setTimeout(() => {
       const period = currentPeriod()
       void fetchAdministrativeSolicitations({ pagina: 1, tamanhoPagina: 20, anoRegistro: period.anoRegistro, mesRegistro: period.mesRegistro }).catch(() => undefined)
-      void fetchAdministrativeSolicitationMetadata().catch(() => undefined)
-
-      if (canManageCatalogs) {
-        void fetchCatalogos().catch(() => undefined)
-        ;['RESUMO', 'OPERACOES', 'SUPERVISORES', 'FUNCOES', 'ATIVIDADES', 'FORNECEDORES', 'PRODUTOS'].forEach((scope) => {
-          prefetchCatalogoAdminScope(scope as Parameters<typeof prefetchCatalogoAdminScope>[0])
-        })
-      }
+      if (canManageCatalogs) void fetchCatalogos().catch(() => undefined)
     }, 900)
 
     const secondWave = window.setTimeout(() => {
-      const period = currentPeriod()
-      void fetchAdministrativeSolicitations({ pagina: 2, tamanhoPagina: 20, anoRegistro: period.anoRegistro, mesRegistro: period.mesRegistro }).catch(() => undefined)
+      if (document.visibilityState !== 'visible') return
       prefetchDashboard(adjacentDashboardCompetence(-1, operation))
-
-      if (canManageCatalogs) {
-        prefetchCatalogoAdminScope('FERIADOS')
-        prefetchCatalogoAdminScope('METAS')
-        void fetchCatalogoAdminScope('PRECOS_MO', { pagina: 1, tamanhoPagina: 25 }).catch(() => undefined)
-        void fetchCatalogoAdminScope('PRECOS_PRODUTOS', { pagina: 1, tamanhoPagina: 25 }).catch(() => undefined)
-      }
-    }, 2200)
-
-    const thirdWave = window.setTimeout(() => {
-      prefetchDashboard(adjacentDashboardCompetence(-2, operation))
-    }, 4200)
+      if (canManageCatalogs) prefetchCatalogoAdminScope('RESUMO')
+    }, 5000)
 
     return () => {
       window.clearTimeout(firstWave)
       window.clearTimeout(secondWave)
-      window.clearTimeout(thirdWave)
     }
   }, [user])
 }

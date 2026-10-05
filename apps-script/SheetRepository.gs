@@ -37,6 +37,24 @@ const SheetRepository = (() => {
 
   let spreadsheetCache_ = null;
 
+  // Memos válidos somente durante a execução atual do Apps Script.
+  // Cabeçalhos: só para abas cuja estrutura muda exclusivamente via este repositório.
+  // Dados: só para cadastros (CATALOG_SHEETS), que nunca são gravados fora deste repositório.
+  const HEADER_MEMO_SHEETS = Object.assign({ SOLICITACOES: true }, CATALOG_SHEETS);
+  const headersMemo_ = {};
+  const rowsMemo_ = {};
+
+  function clearMemo_(sheetName) {
+    delete headersMemo_[sheetName];
+    delete rowsMemo_[sheetName];
+  }
+
+  function copyRows_(items) {
+    return items.map(function (item) {
+      return { rowNumber: item.rowNumber, record: Object.assign({}, item.record) };
+    });
+  }
+
   function getSpreadsheet_() {
     if (spreadsheetCache_) return spreadsheetCache_;
 
@@ -69,10 +87,16 @@ const SheetRepository = (() => {
   }
 
   function headers_(sheet) {
+    const sheetName = sheet.getName();
+    const memoize = Boolean(HEADER_MEMO_SHEETS[sheetName]);
+    if (memoize && headersMemo_[sheetName]) return headersMemo_[sheetName].slice();
+
     const lastColumn = sheet.getLastColumn();
-    return normalizeHeaders_(
+    const headers = normalizeHeaders_(
       sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0]
     );
+    if (memoize) headersMemo_[sheetName] = headers.slice();
+    return headers;
   }
 
   function fieldIndex_(headers, sheetName, fieldName) {
@@ -97,6 +121,7 @@ const SheetRepository = (() => {
   }
 
   function invalidateCaches_(sheetName) {
+    clearMemo_(sheetName);
     try {
       const cache = CacheService.getScriptCache();
 
@@ -143,18 +168,21 @@ const SheetRepository = (() => {
     }
 
     sheet.getRange(1, startColumn, 1, missing.length).setValues([missing]);
-    invalidateCaches_(sheetName);
+    invalidateCaches_(sheetName); // também limpa o memo de cabeçalhos
     return existingHeaders.concat(missing);
   }
 
   function readObjectsWithRowNumbers(sheetName) {
+    const memoize = Boolean(CATALOG_SHEETS[sheetName]);
+    if (memoize && rowsMemo_[sheetName]) return copyRows_(rowsMemo_[sheetName]);
+
     const sheet = getSheet_(sheetName);
     const values = sheet.getDataRange().getValues();
 
     if (!values.length || values.length === 1) return [];
 
     const headers = normalizeHeaders_(values[0]);
-    return values.slice(1).map(function (row, index) {
+    const items = values.slice(1).map(function (row, index) {
       return {
         rowNumber: index + 2,
         record: rowToObject_(headers, row),
@@ -162,6 +190,48 @@ const SheetRepository = (() => {
     }).filter(function (item) {
       return hasRecordValue_(item.record);
     });
+
+    if (memoize) {
+      rowsMemo_[sheetName] = items;
+      return copyRows_(items);
+    }
+    return items;
+  }
+
+  /**
+   * Lê somente as colunas pedidas (um único getValues no intervalo mínimo que as contém).
+   * Campos inexistentes na aba retornam ''.
+   */
+  function readColumns(sheetName, fieldNames) {
+    const sheet = getSheet_(sheetName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return [];
+
+    const headers = headers_(sheet);
+    const positions = (fieldNames || []).map(function (field) {
+      return { field: field, index: headers.indexOf(field) };
+    });
+    const found = positions.filter(function (item) { return item.index >= 0; });
+    if (!found.length) return [];
+
+    const minIndex = Math.min.apply(null, found.map(function (item) { return item.index; }));
+    const maxIndex = Math.max.apply(null, found.map(function (item) { return item.index; }));
+    const values = sheet
+      .getRange(2, minIndex + 1, lastRow - 1, maxIndex - minIndex + 1)
+      .getValues();
+
+    const result = [];
+    values.forEach(function (row) {
+      const record = {};
+      let hasValue = false;
+      positions.forEach(function (item) {
+        const value = item.index >= 0 ? row[item.index - minIndex] : '';
+        record[item.field] = value == null ? '' : value;
+        if (record[item.field] !== '') hasValue = true;
+      });
+      if (hasValue) result.push(record);
+    });
+    return result;
   }
 
   function readObjects(sheetName) {
@@ -342,8 +412,8 @@ const SheetRepository = (() => {
 
   function appendObject(sheetName, record, options) {
     const sheet = getSheet_(sheetName);
-    const lastColumn = sheet.getLastColumn();
     const headers = headers_(sheet);
+    const lastColumn = headers.length;
 
     const row = headers.map(function (header) {
       if (!header) return '';
@@ -351,17 +421,22 @@ const SheetRepository = (() => {
     });
 
     const targetRow = sheet.getLastRow() + 1;
+    if (targetRow > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 1);
     const textFields = options && Array.isArray(options.textFields) ? options.textFields : [];
+    const range = sheet.getRange(targetRow, 1, 1, lastColumn);
 
-    textFields.forEach(function (fieldName) {
-      const columnIndex = headers.indexOf(fieldName);
-      if (columnIndex >= 0) sheet.getRange(targetRow, columnIndex + 1).setNumberFormat('@');
-    });
-
-    sheet.getRange(targetRow, 1, 1, lastColumn).setValues([row]);
-    if (sheetName === 'SOLICITACOES') {
-      applySolicitationMoneyFormats_(sheet, headers, targetRow, SOLICITATION_MONEY_FIELDS);
+    // Formatos aplicados ANTES dos valores (texto '@' evita que COMPETENCIA vire data).
+    const needsFormats = textFields.length > 0 || sheetName === 'SOLICITACOES';
+    if (needsFormats) {
+      const formats = range.getNumberFormats()[0];
+      headers.forEach(function (header, index) {
+        if (textFields.indexOf(header) >= 0) formats[index] = '@';
+        else if (solicitationMoneyField_(sheetName, header)) formats[index] = MONEY_FORMAT;
+      });
+      range.setNumberFormats([formats]);
     }
+
+    range.setValues([row]);
     invalidateCaches_(sheetName);
     return targetRow;
   }
@@ -403,19 +478,42 @@ const SheetRepository = (() => {
     const sheet = getSheet_(sheetName);
     const headers = headers_(sheet);
     const textFields = options && Array.isArray(options.textFields) ? options.textFields : [];
+    const fieldNames = Object.keys(updates || {});
+    if (!fieldNames.length) return;
 
-    Object.keys(updates || {}).forEach(function (fieldName) {
+    const indexes = fieldNames.map(function (fieldName) {
       const columnIndex = headers.indexOf(fieldName);
       if (columnIndex < 0) {
         throw new Error('Campo não encontrado na aba ' + sheetName + ': ' + fieldName);
       }
-
-      const cell = sheet.getRange(rowNumber, columnIndex + 1);
-      if (textFields.indexOf(fieldName) >= 0) cell.setNumberFormat('@');
-      if (solicitationMoneyField_(sheetName, fieldName)) cell.setNumberFormat(MONEY_FORMAT);
-      cell.setValue(updates[fieldName]);
+      return columnIndex;
     });
 
+    // Um único intervalo contíguo entre a primeira e a última coluna alterada:
+    // 3 leituras + 2 gravações, independentemente do número de campos.
+    const minIndex = Math.min.apply(null, indexes);
+    const maxIndex = Math.max.apply(null, indexes);
+    const range = sheet.getRange(rowNumber, minIndex + 1, 1, maxIndex - minIndex + 1);
+    const values = range.getValues()[0];
+    const formulas = range.getFormulas()[0];
+    const formats = range.getNumberFormats()[0];
+    const touched = {};
+
+    fieldNames.forEach(function (fieldName, position) {
+      const offset = indexes[position] - minIndex;
+      touched[offset] = true;
+      values[offset] = updates[fieldName];
+      if (textFields.indexOf(fieldName) >= 0) formats[offset] = '@';
+      if (solicitationMoneyField_(sheetName, fieldName)) formats[offset] = MONEY_FORMAT;
+    });
+
+    // Preserva fórmulas existentes nas colunas intermediárias não alteradas.
+    formulas.forEach(function (formula, offset) {
+      if (!touched[offset] && formula) values[offset] = formula;
+    });
+
+    range.setNumberFormats([formats]);
+    range.setValues([values]);
     invalidateCaches_(sheetName);
   }
 
@@ -445,6 +543,7 @@ const SheetRepository = (() => {
     readObjects,
     readObjectsWithRowNumbers,
     readFieldValues,
+    readColumns,
     readObjectsByFieldValues,
     readLastObjects,
     readObjectsWindowFromEnd,

@@ -2,6 +2,20 @@ const AdministrativeSolicitationQueryService = (() => {
   const SHEET_SOLICITACOES = 'SOLICITACOES';
   const ACTIONS = Object.freeze({ LIST: 'LISTAR', DETAIL: 'DETALHAR', METADATA: 'METADADOS' });
   const TYPE_LABOR = 'MAO_DE_OBRA';
+  // Campos usados por summarize_, indicators_, SolicitationStatusService.resolve e dateOnly_.
+  const METADATA_FIELDS = [
+    'ID_SOLICITACAO',
+    'DATA_CRIACAO',
+    'OPERACAO',
+    'STATUS',
+    'TIPO_SOLICITACAO',
+    'FORNECEDOR',
+    'PRECO_UNITARIO_APLICADO',
+    'PRECO_ALIMENTACAO_APLICADO',
+    'PRECO_BEBIDA_APLICADO',
+    'QTD_SOLICITADA',
+    'QTD_COMPARECIDA',
+  ];
 
   function execute(payload) {
     const input = payload || {};
@@ -65,7 +79,11 @@ const AdministrativeSolicitationQueryService = (() => {
 
   function metadata_(input) {
     const operationScope = ValidationService.normalizeUpper(input.operacaoEscopo || '');
-    const rows = applyOperationScope_(SheetRepository.readObjects(SHEET_SOLICITACOES), operationScope);
+    // Lê apenas as colunas usadas no resumo/datas, em vez da aba inteira.
+    const rows = applyOperationScope_(
+      SheetRepository.readColumns(SHEET_SOLICITACOES, METADATA_FIELDS),
+      operationScope
+    );
     const dates = {};
     rows.forEach(function (record) {
       const date = dateOnly_(record.DATA_CRIACAO);

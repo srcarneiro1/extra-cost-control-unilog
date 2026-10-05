@@ -22,6 +22,7 @@ const METADATA_EDGE_CACHE_SECONDS = 300;
 const APPS_SCRIPT_EXECUTION_HOST = 'script.google.com';
 const APPS_SCRIPT_CONTENT_HOST = 'script.googleusercontent.com';
 const MAX_APPS_SCRIPT_REDIRECTS = 4;
+const FRESH_PARAM = '_fresh';
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -40,6 +41,9 @@ function edgeCache_(): Cache | null {
 
 function scopedCacheKey_(request: Request, identity: GatewayIdentity): Request {
   const cacheUrl = new URL(request.url);
+  // `_fresh` só sinaliza bypass; não pode fazer parte da chave, senão cada bypass
+  // gravaria uma entrada descartável em vez de renovar a entrada canônica.
+  cacheUrl.searchParams.delete(FRESH_PARAM);
   cacheUrl.searchParams.set('_profile', identityProfile(identity));
   cacheUrl.searchParams.set('_scope', operationScope(identity) || 'TODOS');
   return new Request(cacheUrl.toString(), { method: 'GET' });
@@ -241,7 +245,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ? METADATA_EDGE_CACHE_SECONDS
       : LIST_EDGE_CACHE_SECONDS;
 
-  if (edgeTtl > 0) {
+  const bypassEdgeCache = url.searchParams.has(FRESH_PARAM);
+
+  if (edgeTtl > 0 && !bypassEdgeCache) {
     const cached = await matchEdgeCache_(request, identity);
     if (cached) return cached;
   }
