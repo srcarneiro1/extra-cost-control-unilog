@@ -3,14 +3,15 @@
   "private": true,
   "version": "0.2.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build && node scripts/copy-next-export.mjs",
-    "start": "next start"
+    "dev": "npm run theme && next dev",
+    "build": "npm run theme && next build && node scripts/copy-next-export.mjs",
+    "start": "next start",
+    "theme": "node scripts/build-unilog-theme.mjs --keep-fonts"
   },
   "dependencies": {
     "chart.js": "^4.4.7",
     "jose": "^6.1.0",
-    "next": "15.5.25",
+    "next": "15.5.27",
     "primeicons": "^7.0.0",
     "primereact": "^10.9.9",
     "react": "19.2.8",

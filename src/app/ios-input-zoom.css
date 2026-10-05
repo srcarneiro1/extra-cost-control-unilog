@@ -1,0 +1,10 @@
+/* iOS/Safari dá zoom automático ao focar campos com texto menor que 16 px,
+   desalinhando a tela até o usuário tirar o zoom. Login usava 12 px. */
+@media(max-width:760px){
+  .nx-login-form .p-inputtext,
+  .nx-login-form input,
+  .nx-password-input,
+  .nx-password-input input{
+    font-size:16px!important;
+  }
+}

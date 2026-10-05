@@ -234,3 +234,12 @@ Se o projeto for retomado, começar por:
 ## Retomada curta
 
 `Leia somente MEMORIA.md. A V1 funcional do Extra Cost Control foi consolidada e considerada encerrada em 15/09/2026. PRs #66–#73 foram concluídos; o último merge funcional foi o PR #73 em 0b309fd26360ba2f484133dfe17801e5a750173d. Modularização integral do frontend em andamento no Draft PR #74, com 7 macro-etapas; Etapas 1 e 2 concluídas/homologadas e Etapa 3 iniciada. Nunca execute migrateSolicitationStatuses(), nunca repita mutações automaticamente e nunca faça merge sem autorização explícita.`
+
+
+## Ajustes de segurança, tema e build — 05/10/2026
+
+- **Cabeçalhos de segurança** (`public/_headers`): `X-Frame-Options: DENY` (impede embutir o site em outra página), `X-Content-Type-Options: nosniff`, `Referrer-Policy` e `Permissions-Policy`.
+- **Tema sem roxo:** `scripts/build-unilog-theme.mjs` gera `src/app/generated/primereact-unilog-theme.css` a cada build a partir do Lara Light Indigo, trocando toda a escala indigo/primary e o anel de foco pela escala vermelha Unilog. Executado com `--keep-fonts` para preservar a fonte Inter usada pelo projeto. Antes: 276 ocorrências de roxo no CSS final; depois: 0. Login comparado pixel a pixel no desktop: idêntico.
+- **iOS:** campos do login com 16 px no celular (`src/app/ios-input-zoom.css`), evitando zoom automático ao tocar.
+- **Build reproduzível:** Next.js 15.5.27, `package-lock.json` versionado e CI com `npm ci`.
+- **CI:** o workflow passa a rodar também em `push` na `main` (antes só em pull request — uploads diretos não eram validados) e bloqueia tons roxos no CSS final.
