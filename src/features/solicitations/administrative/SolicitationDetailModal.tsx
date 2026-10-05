@@ -516,6 +516,15 @@ export function SolicitationDetailModal({
             </section>
           )}
 
+          {canAdminister && detail.status === 'ENVIADA' && detail.triagemConcluida && (
+            <section className="workflow-action-box">
+              <SectionHeading icon="pi pi-refresh" title="Triagem já preenchida" detail="A edição deixou fornecedor e preços válidos; retome o fluxo administrativo" />
+              <div className="nx-workflow-actions">
+                <Button label="Retomar triagem" icon="pi pi-arrow-right" onClick={() => void handleStatus('EM_TRIAGEM', 'Solicitação retomada para triagem.')} disabled={actionLoading} className="nx-primary-button" />
+              </div>
+            </section>
+          )}
+
           {canAdminister && detail.status === 'EM_TRIAGEM' && (
             <section className="workflow-action-box">
               <SectionHeading icon="pi pi-directions" title="Decisão da triagem" detail="Avance o atendimento ou devolva para ajuste" />
