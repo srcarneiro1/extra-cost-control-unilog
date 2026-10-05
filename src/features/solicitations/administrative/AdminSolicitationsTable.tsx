@@ -13,7 +13,7 @@ import {
   statusInfo,
   typeLabel,
 } from '@/features/solicitations/administrative/solicitationPresentation'
-import type { AdministrativeSolicitationListItem } from '@/types/solicitation'
+import type { AdministrativeSolicitationListItem, AdministrativeTransitionStatus } from '@/types/solicitation'
 
 type Props = {
   items: AdministrativeSolicitationListItem[]
@@ -25,7 +25,7 @@ type Props = {
   onScheduleDetailPrefetch: (idSolicitacao: string, delay?: number) => void
   onCancelDetailPrefetch: () => void
   onEnsureCatalogsForAction: () => void
-  onQuickStatus: (item: AdministrativeSolicitationListItem, status: 'AGUARDANDO_AJUSTE' | 'ENVIADA_AO_FORNECEDOR' | 'EM_ATENDIMENTO' | 'ATENDIDA', message: string) => void
+  onQuickStatus: (item: AdministrativeSolicitationListItem, status: AdministrativeTransitionStatus, message: string) => void
   onCopySummary: (item: AdministrativeSolicitationListItem) => void
   onOpenSupplier: (item: AdministrativeSolicitationListItem) => void
   onOpenDetail: (idSolicitacao: string) => void
@@ -70,6 +70,7 @@ export function AdminSolicitationsTable({
         onMouseLeave={onCancelDetailPrefetch}
         onFocusCapture={() => onScheduleDetailPrefetch(item.idSolicitacao, 0)}
       >
+        {canAdminister && item.status === 'ENVIADA' && item.triagemConcluida && <Button icon={actionIcon('status:EM_TRIAGEM', 'pi pi-arrow-right')} aria-label="Retomar triagem" title="Retomar triagem" size="small" outlined disabled={busy} onClick={() => onQuickStatus(item, 'EM_TRIAGEM', 'Solicitação retomada para triagem.')} />}
         {canAdminister && item.status === 'EM_TRIAGEM' && <Button icon={actionIcon('status:AGUARDANDO_AJUSTE', 'pi pi-undo')} aria-label="Aguardando ajuste" title="Aguardando ajuste" size="small" outlined disabled={busy} onClick={() => onQuickStatus(item, 'AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} />}
         {canAdminister && item.status === 'EM_TRIAGEM' && item.triagemConcluida && <Button icon={actionIcon('status:ENVIADA_AO_FORNECEDOR', 'pi pi-send')} aria-label="Confirmar envio ao fornecedor" title="Confirmar envio ao fornecedor" size="small" disabled={busy} onClick={() => onQuickStatus(item, 'ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} />}
         {canShare && <Button icon={actionIcon('copy', 'pi pi-copy')} aria-label="Copiar resumo" title="Copiar resumo" size="small" text disabled={busy} onClick={() => onCopySummary(item)} />}
