@@ -29,31 +29,42 @@
 .admin-page .nx-prime-data-panel.p-card{min-width:0;overflow:hidden}
 .admin-page .nx-prime-table{min-width:0}
 .admin-page .nx-prime-table .p-datatable-wrapper{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
-.admin-page .nx-prime-table table{width:115rem!important;min-width:115rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(1),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){width:10.5rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(2),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(2){width:8.5rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(3),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(3){width:9rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(4),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(4){width:8.5rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(5),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(5){width:10rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(6),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(6){width:11.5rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(7),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7){width:8rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(8),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(8){width:9rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(9),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(9){width:8rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(10),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(10){width:8rem!important}
-.admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(11),
-.admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(11){width:24rem!important}
+/* Tabela ajustável (06/10/2026). Antes: largura cravada em 115rem (1840 px) e 11 colunas com
+   largura fixa — não crescia em telas grandes (sobrava espaço) nem encolhia em telas menores
+   (a coluna Ações ficava fora da área visível). Agora:
+   - ocupa 100% do espaço e as colunas se ajustam ao conteúdo (table-layout:auto);
+   - largura mínima = largura natural do conteúdo (~90rem) + folga (92rem), para nada ser cortado;
+   - abaixo disso há rolagem lateral, com a coluna Ações fixa à direita (sempre visível).
+   O modo cartão do celular (≤ 820 px) continua em prime-responsive-records.css. */
+.admin-page .nx-prime-table .p-datatable-thead>tr>th{white-space:nowrap}
+.admin-page .nx-prime-table .p-datatable-tbody>tr>td{white-space:nowrap}
+@media(min-width:821px){
+  .admin-page .nx-prime-table table{
+    width:100%!important;
+    min-width:92rem!important;
+    table-layout:auto!important;
+  }
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th,
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td{width:auto!important}
+  /* Número da solicitação nunca é cortado. */
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(1),
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){min-width:7.5rem}
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(6),
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(6){min-width:11.25rem}
+  /* Ações: 7 botões de 34 px + 6 espaços de 5 px + respiro da célula. */
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{
+    width:18.5rem!important;
+    min-width:18.5rem!important;
+    position:sticky;
+    right:0;
+    z-index:1;
+    background:#fff;
+    box-shadow:-8px 0 12px -10px rgba(18,24,34,.28);
+  }
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child{background:#f8f9fb;z-index:2}
+  .admin-page .nx-prime-table .p-datatable-tbody>tr:hover>td:last-child{background:#fbfcfd}
+}
 .admin-page .nx-prime-table .nx-user-cell{min-width:0;overflow:hidden}
 .admin-page .nx-prime-table .nx-user-cell strong,
 .admin-page .nx-prime-table .nx-user-cell small{display:block;overflow:hidden;text-overflow:ellipsis}
