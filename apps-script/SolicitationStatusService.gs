@@ -36,12 +36,15 @@ const SolicitationStatusService = (() => {
   ];
   const ALL_STATUSES = ACTIVE_OPERATIONAL_STATUSES.concat(LEGACY_FINANCIAL_STATUSES);
 
+  // Fluxo simplificado (06/10/2026): da triagem a solicitação vai para ajuste ou direto para
+  // atendida. "Enviada ao fornecedor" e "Em atendimento" não são mais destinos; registros que já
+  // estão nesses status continuam podendo ser concluídos (ATENDIDA) para não ficarem travados.
   const TRANSITIONS = Object.freeze({
     RASCUNHO: ['ENVIADA'],
     ENVIADA: ['EM_TRIAGEM'],
-    EM_TRIAGEM: ['AGUARDANDO_AJUSTE', 'ENVIADA_AO_FORNECEDOR'],
+    EM_TRIAGEM: ['AGUARDANDO_AJUSTE', 'ATENDIDA'],
     AGUARDANDO_AJUSTE: ['EM_TRIAGEM'],
-    ENVIADA_AO_FORNECEDOR: ['EM_ATENDIMENTO', 'ATENDIDA'],
+    ENVIADA_AO_FORNECEDOR: ['ATENDIDA'],
     EM_ATENDIMENTO: ['ATENDIDA'],
     ATENDIDA: [],
   });
@@ -336,6 +339,9 @@ const SolicitationStatusService = (() => {
       if (type === 'MAO_DE_OBRA' && !hasValue_(record.QTD_COMPARECIDA)) {
         ValidationService.fail('Registre o comparecimento antes de marcar a solicitação de mão de obra como atendida.');
       }
+      if (type === 'MAO_DE_OBRA' && !triageCompleted_(record)) {
+        ValidationService.fail('Conclua a triagem (fornecedor e preço) antes de concluir a solicitação.');
+      }
       if (type === 'ALIMENTACAO_BEBIDA' && !triageCompleted_(record)) {
         ValidationService.fail('Conclua a triagem antes de marcar a solicitação como atendida.');
       }
@@ -407,6 +413,7 @@ const SolicitationStatusService = (() => {
   }
 
   return {
+    triageCompleted: triageCompleted_,
     STATUS,
     ensureSchema,
     resolve,

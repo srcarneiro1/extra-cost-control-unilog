@@ -243,3 +243,34 @@ Se o projeto for retomado, começar por:
 - **iOS:** campos do login com 16 px no celular (`src/app/ios-input-zoom.css`), evitando zoom automático ao tocar.
 - **Build reproduzível:** Next.js 15.5.27, `package-lock.json` versionado e CI com `npm ci`.
 - **CI:** o workflow passa a rodar também em `push` na `main` (antes só em pull request — uploads diretos não eram validados) e bloqueia tons roxos no CSS final.
+
+
+## Fluxo de status simplificado — 06/10/2026
+
+Pedido da operação: remover "Enviada ao fornecedor" e "Em atendimento" das ações; da triagem só "Aguardando ajuste" e concluir.
+
+- novo fluxo: `Rascunho → Enviada → Em triagem → (Aguardando ajuste ↺) → Atendida`;
+- **alimentação/bebida:** botão "Marcar atendida" direto na triagem (exige triagem concluída: fornecedor + preço; valor real = valor previsto);
+- **mão de obra:** o registro de comparecimento passa a ser feito direto na triagem (exige triagem concluída) e conclui a solicitação, como antes;
+- `TRANSITIONS`: `EM_TRIAGEM → [AGUARDANDO_AJUSTE, ATENDIDA]`; `ENVIADA_AO_FORNECEDOR` e `EM_ATENDIMENTO` só aceitam `ATENDIDA` (registros antigos nesses status continuam podendo ser concluídos; nenhum fica travado);
+- "Contato com fornecedor" (copiar resumo/WhatsApp) continua disponível na triagem concluída;
+- indicadores: "Aguardando triagem" = Enviada, Aguardando ajuste ou Em triagem **sem** triagem concluída; "Aguardando realizado" (mão de obra) = Em triagem **com** triagem concluída, ou status antigos de fornecedor/atendimento;
+- status antigos continuam com rótulo e filtro para o histórico;
+- testado com o Apps Script real em simulador: 12 cenários (novos caminhos, bloqueios e registros antigos);
+- arquivos: `SolicitationStatusService.gs`, `AttendanceService.gs`, `AdministrativeSolicitationQueryService.gs`, `AdminSolicitationsTable.tsx`, `SolicitationDetailModal.tsx`;
+- **atenção ao Draft PR #74 (Etapa 3 — Solicitações):** ele reorganiza esses mesmos componentes; ao retomá-lo, incorporar este fluxo.
+
+## Diagnóstico de desempenho — 06/10/2026
+
+Revisão do caminho completo (frontend → Cloudflare → Apps Script → planilha):
+- camada de dados já otimizada: leitura por colunas, janelas do fim da aba, filtro por mês, memo por execução e caches (navegador, Cloudflare, Apps Script);
+- protocolo usa contador em Script Properties (sem varrer a aba);
+- frontend aplica patch otimista e agrupa recargas em segundo plano;
+- conclusão: **não há gargalo evidente no código**; otimizar sem medição contraria a regra do projeto.
+
+Medição adicionada: `functions/api/_middleware.ts` (somente rotas `/api`):
+- cabeçalho `Server-Timing` em cada resposta (DevTools → Network → Timing);
+- log `api-timing` com rota, ação, método, status e ms nos Real-time logs do Cloudflare (sem dados pessoais);
+- validado com Wrangler local: resposta original preservada, páginas estáticas não afetadas.
+
+Próximo passo: coletar 1–2 dias de logs no uso real e atacar a rota mais lenta com base nos números (hipóteses a confirmar: inicialização a frio do Apps Script após inatividade; espera por `LockService` em gravações simultâneas; leituras completas de catálogos na criação).

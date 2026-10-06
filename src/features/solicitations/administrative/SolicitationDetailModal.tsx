@@ -223,7 +223,8 @@ export function SolicitationDetailModal({
     canAdminister &&
     detail?.tipoSolicitacao === 'MAO_DE_OBRA' &&
     !detail.realizadoRegistrado &&
-    ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(detail.status)
+    detail.triagemConcluida &&
+    ['EM_TRIAGEM', 'ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(detail.status)
   )
   const currentStatus = detail ? statusInfo(detail.status) : null
   const isLoading = loading || !detail
@@ -527,10 +528,16 @@ export function SolicitationDetailModal({
 
           {canAdminister && detail.status === 'EM_TRIAGEM' && (
             <section className="workflow-action-box">
-              <SectionHeading icon="pi pi-directions" title="Decisão da triagem" detail="Avance o atendimento ou devolva para ajuste" />
+              <SectionHeading
+                icon="pi pi-directions"
+                title="Decisão da triagem"
+                detail={detail.tipoSolicitacao === 'MAO_DE_OBRA'
+                  ? 'Devolva para ajuste ou registre o comparecimento abaixo para concluir'
+                  : 'Devolva para ajuste ou marque como atendida'}
+              />
               <div className="nx-workflow-actions">
                 <Button label="Aguardando ajuste" icon="pi pi-undo" outlined onClick={() => void handleStatus('AGUARDANDO_AJUSTE', 'Solicitação direcionada para ajuste.')} disabled={actionLoading} />
-                {detail.triagemConcluida && <Button label="Confirmar envio ao fornecedor" icon="pi pi-send" onClick={() => void handleStatus('ENVIADA_AO_FORNECEDOR', 'Solicitação marcada como enviada ao fornecedor.')} disabled={actionLoading} className="nx-primary-button" />}
+                {detail.triagemConcluida && detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && <Button label="Marcar atendida" icon="pi pi-check" onClick={() => void handleStatus('ATENDIDA', 'Solicitação marcada como atendida.')} disabled={actionLoading} className="nx-primary-button" />}
               </div>
             </section>
           )}
@@ -552,17 +559,8 @@ export function SolicitationDetailModal({
             </section>
           )}
 
-          {canAdminister && detail.status === 'ENVIADA_AO_FORNECEDOR' && (
-            <section className="workflow-action-box">
-              <SectionHeading icon="pi pi-hourglass" title="Atendimento do fornecedor" detail="A etapa em atendimento é opcional" />
-              <div className="nx-workflow-actions">
-                <Button label="Marcar em atendimento" icon="pi pi-play" outlined onClick={() => void handleStatus('EM_ATENDIMENTO', 'Solicitação marcada como em atendimento.')} disabled={actionLoading} />
-                {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && <Button label="Marcar atendida" icon="pi pi-check" onClick={() => void handleStatus('ATENDIDA', 'Solicitação marcada como atendida.')} disabled={actionLoading} className="nx-primary-button" />}
-              </div>
-            </section>
-          )}
-
-          {canAdminister && detail.status === 'EM_ATENDIMENTO' && detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && (
+          {/* Registros antigos em "Enviada ao fornecedor"/"Em atendimento": só a conclusão. */}
+          {canAdminister && ['ENVIADA_AO_FORNECEDOR', 'EM_ATENDIMENTO'].includes(detail.status) && detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && (
             <section className="workflow-action-box">
               <SectionHeading icon="pi pi-check-circle" title="Concluir atendimento" detail="Confirme quando alimentação/bebida tiver sido atendida" />
               <div className="nx-workflow-actions"><Button label="Marcar atendida" icon="pi pi-check" onClick={() => void handleStatus('ATENDIDA', 'Solicitação marcada como atendida.')} disabled={actionLoading} className="nx-primary-button" /></div>

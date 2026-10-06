@@ -97,15 +97,8 @@ const AdministrativeSolicitationQueryService = (() => {
     (rows || []).forEach(function (record) {
       const indicators = indicators_(record);
       const status = SolicitationStatusService.resolve(record);
-      if (
-        status === SolicitationStatusService.STATUS.SENT ||
-        status === SolicitationStatusService.STATUS.TRIAGE ||
-        status === SolicitationStatusService.STATUS.ADJUSTMENT
-      ) summary.aguardandoTriagem += 1;
-      if (
-        ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) === TYPE_LABOR &&
-        (status === SolicitationStatusService.STATUS.SUPPLIER_SENT || status === SolicitationStatusService.STATUS.IN_SERVICE)
-      ) summary.aguardandoRealizado += 1;
+      if (awaitingTriage_(status, indicators)) summary.aguardandoTriagem += 1;
+      if (awaitingRealized_(record, status, indicators)) summary.aguardandoRealizado += 1;
       if (indicators.divergencia) summary.divergencias += 1;
     });
     return summary;
@@ -166,16 +159,24 @@ const AdministrativeSolicitationQueryService = (() => {
     return true;
   }
 
+  // Com o fluxo simplificado, uma solicitação em triagem com fornecedor e preço já aplicados
+  // não aguarda mais triagem: aguarda a conclusão (comparecimento, no caso de mão de obra).
+  function awaitingTriage_(status, indicators) {
+    return status === 'ENVIADA' || status === 'AGUARDANDO_AJUSTE' ||
+      (status === 'EM_TRIAGEM' && !indicators.triagemConcluida);
+  }
+
+  function awaitingRealized_(record, status, indicators) {
+    if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) return false;
+    return status === 'ENVIADA_AO_FORNECEDOR' || status === 'EM_ATENDIMENTO' ||
+      (status === 'EM_TRIAGEM' && indicators.triagemConcluida);
+  }
+
   function matchesStatusFilter_(record, indicators, filter) {
     const status = SolicitationStatusService.resolve(record);
     if (filter === status) return true;
-    if (filter === 'AGUARDANDO_TRIAGEM') {
-      return status === 'ENVIADA' || status === 'EM_TRIAGEM' || status === 'AGUARDANDO_AJUSTE';
-    }
-    if (filter === 'AGUARDANDO_REALIZADO') {
-      return ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) === TYPE_LABOR &&
-        (status === 'ENVIADA_AO_FORNECEDOR' || status === 'EM_ATENDIMENTO');
-    }
+    if (filter === 'AGUARDANDO_TRIAGEM') return awaitingTriage_(status, indicators);
+    if (filter === 'AGUARDANDO_REALIZADO') return awaitingRealized_(record, status, indicators);
     if (filter === 'TRIAGEM_CONCLUIDA') {
       return indicators.triagemConcluida && status !== 'ATENDIDA';
     }

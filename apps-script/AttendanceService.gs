@@ -22,13 +22,19 @@ const AttendanceService = (() => {
         ValidationService.fail('Quantidade comparecida só pode ser registrada para solicitação de mão de obra.');
       }
 
+      // Comparecimento conclui a solicitação direto da triagem (fluxo de 06/10/2026).
+      // "Enviada ao fornecedor" e "Em atendimento" seguem aceitos para registros antigos.
       const status = SolicitationStatusService.resolve(record);
       if (
+        status !== SolicitationStatusService.STATUS.TRIAGE &&
         status !== SolicitationStatusService.STATUS.SUPPLIER_SENT &&
         status !== SolicitationStatusService.STATUS.IN_SERVICE &&
         status !== SolicitationStatusService.STATUS.ATTENDED
       ) {
-        ValidationService.fail('A solicitação precisa estar enviada ao fornecedor antes de registrar o comparecimento.');
+        ValidationService.fail('A solicitação precisa estar em triagem para registrar o comparecimento.');
+      }
+      if (!SolicitationStatusService.triageCompleted(record)) {
+        ValidationService.fail('Conclua a triagem (fornecedor e preço) antes de registrar o comparecimento.');
       }
 
       const unitPrice = toMoneyNumber_(record.PRECO_UNITARIO_APLICADO);
