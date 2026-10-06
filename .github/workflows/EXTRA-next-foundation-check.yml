@@ -1,0 +1,32 @@
+name: Next foundation check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Block PrimeReact indigo colors
+        run: |
+          if grep -qiE '#(6366f1|4f46e5|4338ca|c7d2fe|eef2ff|b1b3f8|5457cd|8183f4)|rgba\(99, ?102, ?241' dist/_next/static/css/*.css; then
+            echo "Cor indigo/roxa do tema Lara encontrada no CSS final."
+            exit 1
+          fi
