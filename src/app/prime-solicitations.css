@@ -51,7 +51,8 @@
   .admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){min-width:7.5rem}
   .admin-page .nx-prime-table .p-datatable-thead>tr>th:nth-child(6),
   .admin-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(6){min-width:11.25rem}
-  /* Ações: 7 botões de 34 px + 6 espaços de 5 px + respiro da célula. */
+  /* Ações: 7 botões de 34 px + 6 espaços de 5 px + respiro da célula.
+     Fixa à direita, sem sombra (pedido em 06/10/2026): só uma linha fina igual às bordas da tabela. */
   .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child,
   .admin-page .nx-prime-table .p-datatable-tbody>tr>td:last-child{
     width:18.5rem!important;
@@ -60,10 +61,31 @@
     right:0;
     z-index:1;
     background:#fff;
-    box-shadow:-8px 0 12px -10px rgba(18,24,34,.28);
+    box-shadow:inset 1px 0 0 #edf0f2;
   }
   .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child{background:#f8f9fb;z-index:2}
   .admin-page .nx-prime-table .p-datatable-tbody>tr:hover>td:last-child{background:#fbfcfd}
+
+  /* Solicitação: coluna fixa à esquerda (já marcada como frozen no TSX), com a mesma linha fina,
+     para o conteúdo que rola não parecer "passar por baixo" do número. */
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:first-child,
+  .admin-page .nx-prime-table .p-datatable-tbody>tr>td:first-child{
+    position:sticky;
+    left:0;
+    z-index:1;
+    background:#fff;
+    box-shadow:inset -1px 0 0 #edf0f2;
+  }
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:first-child{background:#f8f9fb;z-index:2}
+  .admin-page .nx-prime-table .p-datatable-tbody>tr:hover>td:first-child{background:#fbfcfd}
+
+  /* Safari: o "quique" elástico do trackpad empurrava a tabela além do início/fim e levava junto
+     as colunas fixas (efeito de "passar um pouco"). overscroll-behavior-x:none desliga o quique
+     lateral só da tabela; a rolagem vertical da página continua normal. */
+  .admin-page .nx-prime-table .p-datatable-wrapper{
+    overscroll-behavior-x:none!important;
+    overscroll-behavior-inline:none!important;
+  }
 }
 .admin-page .nx-prime-table .nx-user-cell{min-width:0;overflow:hidden}
 .admin-page .nx-prime-table .nx-user-cell strong,
