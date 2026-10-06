@@ -3,7 +3,7 @@
   .admin-page:not(.catalog-page) .nx-prime-table .nx-solicitation-row-actions.is-admin,
   .admin-page:not(.catalog-page) .nx-prime-table .nx-solicitation-row-actions.is-readonly{
     display:grid!important;
-    grid-template-columns:repeat(3,44px)!important;
+    grid-template-columns:repeat(4,44px)!important; /* 4 colunas: 7 botões = 4 + 3, sem botão sozinho na última linha */
     grid-auto-flow:row!important;
     grid-auto-rows:44px!important;
     align-items:center!important;
