@@ -62,7 +62,9 @@
 .admin-page .nx-prime-table .nx-solicitation-row-actions{align-items:center;justify-content:flex-start;gap:5px;white-space:nowrap}
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin{
   display:grid;
-  grid-template-columns:repeat(9,34px);
+  /* 7 vagas fixas (fluxo simplificado de 06/10/2026: sem "envio ao fornecedor" e
+     "em atendimento"), para os botões ficarem alinhados entre as linhas sem buracos. */
+  grid-template-columns:repeat(7,34px);
   grid-auto-rows:34px;
 }
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-readonly{display:flex}
@@ -76,15 +78,14 @@
   border-radius:9px;
   transition:background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .14s ease;
 }
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Aguardando ajuste"]{grid-column:1}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Confirmar envio ao fornecedor"]{grid-column:2}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Copiar resumo"]{grid-column:3}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir fornecedor"]{grid-column:4}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar em atendimento"]{grid-column:5}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar atendida"]{grid-column:6}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir detalhes"]{grid-column:7}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Editar solicitação"]{grid-column:8}
-.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Excluir solicitação"]{grid-column:9}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Aguardando ajuste"],
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Retomar triagem"]{grid-column:1}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Copiar resumo"]{grid-column:2}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir fornecedor"]{grid-column:3}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Marcar atendida"]{grid-column:4}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Abrir detalhes"]{grid-column:5}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Editar solicitação"]{grid-column:6}
+.admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Excluir solicitação"]{grid-column:7}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:hover:not(:disabled){transform:translateY(-1px)}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button:focus-visible{box-shadow:0 0 0 3px rgba(218,0,18,.14)}
 .admin-page .nx-prime-table .nx-solicitation-row-actions .p-button .p-button-icon{margin:0!important;font-size:12px}

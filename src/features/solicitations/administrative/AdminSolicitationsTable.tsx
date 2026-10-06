@@ -98,7 +98,7 @@ export function AdminSolicitationsTable({
         <Column header="Qtd. considerada" body={consideredQuantityBody} />
         <Column header="Previsto" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorPrevisto)} />
         <Column header="Valor real" body={(item: AdministrativeSolicitationListItem) => formatMoney(item.valorReal)} />
-        <Column header="Ações" body={actionsBody} style={{ width: canAdminister ? '22rem' : '4rem' }} />
+        <Column header="Ações" body={actionsBody} style={{ width: canAdminister ? '17.5rem' : '4rem' }} />
       </DataTable>
     </>
   )
