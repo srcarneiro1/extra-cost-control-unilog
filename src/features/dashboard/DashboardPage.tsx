@@ -13,6 +13,7 @@ import { CompetenceComparison } from '@/features/dashboard/executive/CompetenceC
 import { DailyEvolution } from '@/features/dashboard/executive/DailyEvolution'
 import { ExecutiveMetrics } from '@/features/dashboard/executive/ExecutiveMetrics'
 import { MetaStatusAlert } from '@/features/dashboard/executive/MetaStatusAlert'
+import { ThirdPartyHistory } from '@/features/dashboard/executive/ThirdPartyHistory'
 import {
   monthName,
   shortDate,
@@ -138,6 +139,7 @@ export function DashboardPage() {
         <div className="dashboard-view">
           <ExecutiveMetrics kpis={kpis} />
           <CompetenceComparison comparison={data.comparativoCompetencia} />
+          <ThirdPartyHistory months={data.historicoTerceiros} />
           <MetaStatusAlert data={data} />
           <ProjectionChart points={data.evolucaoMetaProjecao} />
           <div className="dashboard-two-columns"><HorizontalRanking title="Custo por operação" subtitle="Ranking do realizado com referência do previsto." items={data.porOperacao} /><HorizontalRanking title="Custo por fornecedor" subtitle="Concentração financeira entre fornecedores no período." items={data.porFornecedor} /></div>

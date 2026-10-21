@@ -204,3 +204,18 @@ body{background:var(--unilog-canvas)!important;color:var(--unilog-ink-2)}
   .nx-opportunity-card{grid-template-columns:30px minmax(0,1fr)!important;padding:12px!important;gap:10px!important}
   .nx-opportunity-title-row{align-items:flex-start;display:grid;gap:6px}
 }
+
+
+/* Gasto com terceiros — últimos 6 meses (21/10/2026) */
+.dashboard-third-party-stage{height:280px}
+.dashboard-third-party-card .dashboard-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.dashboard-third-party-summary{display:flex;gap:10px}
+.dashboard-third-party-summary span{display:grid;gap:2px;min-width:132px;padding:9px 12px;border:1px solid var(--nx-border,#e2e5e9);border-radius:10px;background:#f8f9fb}
+.dashboard-third-party-summary small{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#858a93}
+.dashboard-third-party-summary strong{font-size:14px;color:#242a36}
+.dashboard-third-party-note{margin:8px 0 0;font-size:10px;color:#858a93}
+@media(max-width:760px){
+  .dashboard-third-party-stage{height:240px}
+  .dashboard-third-party-summary{width:100%}
+  .dashboard-third-party-summary span{flex:1 1 0;min-width:0}
+}

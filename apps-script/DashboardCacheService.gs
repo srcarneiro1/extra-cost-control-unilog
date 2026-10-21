@@ -1,6 +1,7 @@
 const DashboardCacheService = (() => {
   const VERSION_KEY = 'dashboard_cache_version_v1';
-  const CACHE_PREFIX = 'dashboard_response_v1_';
+  // v2 (21/10/2026): resposta inclui historicoTerceiros; evita reaproveitar respostas antigas sem o campo.
+  const CACHE_PREFIX = 'dashboard_response_v2_';
   const CACHE_SECONDS = 120;
 
   function get(payload) {

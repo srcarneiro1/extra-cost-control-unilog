@@ -9,7 +9,9 @@ const DashboardService = (() => {
     const input = payload || {};
     const selectedCompetence = selectedCompetence_(input);
     const previousCompetence = previousCompetence_(selectedCompetence);
-    const readModel = readDashboardRows_(selectedCompetence, previousCompetence);
+    // Competências do histórico de terceiros: a selecionada e as 5 anteriores (inclui a anterior).
+    const historyCompetences = historyCompetences_(selectedCompetence, HISTORY_MONTHS);
+    const readModel = readDashboardRows_(historyCompetences);
     const relevantRows = readModel.rows;
     const periodRows = relevantRows.filter(function (record) {
       return competenceOf_(record) === selectedCompetence;
@@ -50,7 +52,45 @@ const DashboardService = (() => {
       evolucaoDiaria: daily_(filteredRows),
       evolucaoMetaProjecao: projectionSeries_(filteredRows, metaValue, projection, period),
       analytics: DashboardAnalyticsService.build(filteredRows, period),
+      historicoTerceiros: thirdPartyHistory_(relevantRows, historyCompetences, filters),
     };
+  }
+
+  // Histórico de gasto com terceiros (mão de obra) nas últimas competências — 21/10/2026.
+  // Mesma regra do card "Realizado mão de obra" (VALOR_REAL), por competência 21–20, respeitando
+  // os filtros da tela, exceto "tipo" (o gráfico é sempre de mão de obra).
+  const HISTORY_MONTHS = 6;
+
+  function historyCompetences_(selected, months) {
+    const list = [selected];
+    while (list.length < months) list.unshift(previousCompetence_(list[0]));
+    return list; // ordem cronológica
+  }
+
+  function thirdPartyHistory_(rows, competences, filters) {
+    const laborFilters = Object.assign({}, filters, { tipo: '' });
+    const current = DateService.competence(new Date());
+    const totals = {};
+    competences.forEach(function (competence) {
+      totals[competence] = { realizado: 0, previsto: 0, solicitacoes: 0 };
+    });
+    (rows || []).forEach(function (record) {
+      if (ValidationService.normalizeUpper(record.TIPO_SOLICITACAO) !== TYPE_LABOR) return;
+      const bucket = totals[competenceOf_(record)];
+      if (!bucket || !matchesFilters_(record, laborFilters)) return;
+      bucket.realizado += realizedValue_(record);
+      bucket.previsto += number_(record.VALOR_PREVISTO);
+      bucket.solicitacoes += 1;
+    });
+    return competences.map(function (competence) {
+      return {
+        competencia: competence,
+        valorRealizado: round2_(totals[competence].realizado),
+        valorPrevisto: round2_(totals[competence].previsto),
+        solicitacoes: totals[competence].solicitacoes,
+        parcial: competence >= current,
+      };
+    });
   }
 
   function selectedCompetence_(input) {
@@ -65,11 +105,10 @@ const DashboardService = (() => {
     return year + '-' + month;
   }
 
-  function readDashboardRows_(selectedCompetence, previousCompetence) {
+  function readDashboardRows_(competences) {
     const indexRows = solicitationIndexRows_();
     const targetCompetences = {};
-    targetCompetences[selectedCompetence] = true;
-    targetCompetences[previousCompetence] = true;
+    competences.forEach(function (competence) { targetCompetences[competence] = true; });
 
     const hasLegacyTargetRows = indexRows.some(function (record) {
       const stored = ValidationService.normalizeText(record.COMPETENCIA);
@@ -85,7 +124,7 @@ const DashboardService = (() => {
         : SheetRepository.readObjectsByFieldValues(
             SOLICITATIONS_SHEET,
             'COMPETENCIA',
-            [selectedCompetence, previousCompetence]
+            competences
           ),
     };
   }

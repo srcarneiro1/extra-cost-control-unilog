@@ -187,4 +187,15 @@ export interface DashboardResponse {
   evolucaoDiaria: DashboardDailyItem[]
   evolucaoMetaProjecao: DashboardProjectionPoint[]
   analytics?: DashboardAnalytics
+  /** Gasto com terceiros (mão de obra) nas últimas 6 competências, em ordem cronológica. */
+  historicoTerceiros?: DashboardThirdPartyMonth[]
+}
+
+export type DashboardThirdPartyMonth = {
+  competencia: string
+  valorRealizado: number
+  valorPrevisto: number
+  solicitacoes: number
+  /** Competência ainda em andamento (valor parcial). */
+  parcial: boolean
 }

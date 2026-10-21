@@ -290,3 +290,15 @@ Pedido: o filtro Ano/Mês/Data da aba Solicitações deve usar a **data operacio
 - Testes no simulador do Apps Script (planilha com solicitações fora de ordem): 9 cenários, resultado idêntico à checagem linha a linha (registrada 4 meses antes, registrada no mês anterior, atrasadas, dia específico, ano, datas do filtro).
 - **Ordem do menu (09/10/2026):** Solicitações passou a ser o primeiro item, antes de Visão geral (`src/features/shell/shellNavigation.ts`, array `NAV_ITEMS`). A tela inicial e a memória da tela foram tratadas em 21/10/2026 (abaixo).
 - **Tela inicial e recarregamento (21/10/2026):** antes a tela inicial era fixa em Visão geral (`useState('dashboard')`) e, ao recarregar, o usuário sempre voltava para ela. Agora (`FunctionalShell.tsx`): abre em **Solicitações**; a tela atual fica no endereço (`#solicitacoes`, `#dashboard`, `#fechamentos`…) e no navegador (`localStorage` `extra-cost:secao`), então F5 mantém a tela; endereço inválido ou tela sem permissão para o perfil cai na última tela válida, depois em Solicitações. Testado: primeiro acesso, F5 em Visão geral e em Solicitações, endereço sem # e com # inválido, perfil Operacional com tela sem permissão guardada.
+
+## Gráfico de gasto com terceiros — últimos 6 meses (21/10/2026)
+
+Visão Executiva ganhou o cartão **"Gasto com mão de obra terceirizada"** (logo após o comparativo com a competência anterior).
+
+- Barras do **valor realizado de mão de obra** (`VALOR_REAL`, mesma regra do card "Realizado mão de obra") por competência 21–20: a selecionada e as 5 anteriores.
+- Respeita os filtros da tela (operação, supervisor, fornecedor, responsável, atividade); o filtro **tipo** é ignorado, pois o gráfico é sempre de terceiros.
+- Competência em andamento: barra mais clara, rótulo com `*` e nota; a **média mensal** considera só competências encerradas; **total no período** soma as 6.
+- Tooltip: realizado, previsto e quantidade de solicitações.
+- Backend (`DashboardService.gs`): `historicoTerceiros` na resposta; `readDashboardRows_` passou a receber a lista de competências (6 em vez de 2). Cache do dashboard: prefixo `dashboard_response_v2_` para não reaproveitar respostas antigas sem o campo.
+- Frontend: `executive/ThirdPartyHistory.tsx` (Chart do PrimeReact, paleta da marca), tipo `DashboardThirdPartyMonth` em `types/dashboard.ts`, estilos em `prime-design-system.css`.
+- Testes no simulador do Apps Script (7 competências, mão de obra + lanches, 2 operações): 9 cenários — soma exata por mês sem lanches, 6 competências em ordem, outubro igual ao card do realizado, filtro de operação, filtro tipo ignorado, outra competência selecionada, competência em andamento marcada como parcial, comparativo intacto. Gráfico conferido no navegador (computador e celular) com a resposta real do backend.
