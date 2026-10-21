@@ -11,8 +11,8 @@ export type NavItem = {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', label: 'Visão geral', icon: 'pi pi-chart-bar' },
   { key: 'solicitacoes', label: 'Solicitações', icon: 'pi pi-receipt' },
+  { key: 'dashboard', label: 'Visão geral', icon: 'pi pi-chart-bar' },
   { key: 'fechamentos', label: 'Fechamentos', icon: 'pi pi-wallet', administrative: true },
   { key: 'cadastros', label: 'Cadastros', icon: 'pi pi-sliders-h', administrative: true },
   { key: 'usuarios', label: 'Usuários', icon: 'pi pi-users', administrative: true, ownerOnly: true },
