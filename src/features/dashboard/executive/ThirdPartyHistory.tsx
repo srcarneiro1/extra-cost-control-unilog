@@ -89,6 +89,10 @@ export function ThirdPartyHistory({ months }: { months: DashboardThirdPartyMonth
     },
   }
 
+  // months === undefined: o backend (Apps Script) ainda não envia o histórico — versão anterior publicada.
+  // Mensagem própria para não confundir com "não houve gasto".
+  const backendDesatualizado = months === undefined
+
   return (
     <Card className="dashboard-card nx-dashboard-section-card nx-chart-card dashboard-third-party-card">
       <div className="dashboard-card-header">
@@ -104,7 +108,9 @@ export function ThirdPartyHistory({ months }: { months: DashboardThirdPartyMonth
           </div>
         )}
       </div>
-      {hasData ? (
+      {backendDesatualizado ? (
+        <div className="ui-empty-state"><div><strong>Histórico indisponível no servidor</strong><p>O serviço de dados ainda não envia o histórico de terceiros. Publique a nova versão do Apps Script (DashboardService.gs) para exibir o gráfico.</p></div></div>
+      ) : hasData ? (
         <>
           <div className="nx-chart-stage dashboard-third-party-stage"><Chart type="bar" data={chartData} options={options} /></div>
           {items.some((item) => item.parcial) && (
