@@ -566,9 +566,10 @@ export function AdminSolicitationsPageCurrentPeriod({ canAdminister }: Props) {
   const pageSizeOptions = allPageSizeOptions.filter((size) => size <= pageSizeLimit)
   useEffect(() => { if (pageSize > pageSizeLimit) setPageSize(pageSizeLimit) }, [pageSize, pageSizeLimit])
 
-  const yearOptions = [{ label: 'Ano: todos', value: 'TODOS' }, ...registrationYears.map((value) => ({ label: value, value }))]
+  // O filtro de período usa a data operacional (o backend filtra por DATA_OPERACIONAL).
+  const yearOptions = [{ label: 'Ano operacional: todos', value: 'TODOS' }, ...registrationYears.map((value) => ({ label: value, value }))]
   const monthOptions = [{ label: registrationYear === 'TODOS' ? 'Mês: selecione o ano' : 'Mês: todos', value: 'TODOS' }, ...registrationMonths.map((value) => ({ label: monthLabels[Number(value) - 1], value }))]
-  const dateOptions = [{ label: registrationMonth === 'TODOS' ? 'Data: selecione o mês' : 'Data: todas', value: 'TODOS' }, ...registrationDates.map((value) => ({ label: formatDate(value), value }))]
+  const dateOptions = [{ label: registrationMonth === 'TODOS' ? 'Data operacional: selecione o mês' : 'Data operacional: todas', value: 'TODOS' }, ...registrationDates.map((value) => ({ label: formatDate(value), value }))]
   const typeOptions = [
     { label: 'Todos os tipos', value: 'TODOS' },
     { label: 'Mão de obra', value: 'MAO_DE_OBRA' },

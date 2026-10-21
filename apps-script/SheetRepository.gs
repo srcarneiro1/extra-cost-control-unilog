@@ -360,6 +360,54 @@ const SheetRepository = (() => {
     }
   }
 
+  // Lê de baixo para cima os registros cujo matchField cai no mês informado.
+  // Diferente de readObjectsForMonthFromEnd, o campo filtrado NÃO precisa estar em ordem na aba
+  // (ex.: data operacional). A parada antecipada usa orderField (ex.: data de criação, que cresce com
+  // as linhas): para quando orderField fica marginMonths meses antes do mês alvo.
+  function readObjectsForMonthFromEndBy(sheetName, matchField, orderField, year, month, marginMonths) {
+    const sheet = getSheet_(sheetName);
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    if (lastRow <= 1 || lastColumn <= 0) return [];
+
+    const headers = headers_(sheet);
+    [matchField, orderField].forEach(function (field) {
+      if (headers.indexOf(field) < 0) throw new Error('Campo não encontrado na aba ' + sheetName + ': ' + field);
+    });
+
+    const y = Number(year);
+    const m = Number(month);
+    const targetMonth = String(y).padStart(4, '0') + '-' + String(m).padStart(2, '0');
+    const stopIndex = y * 12 + (m - 1) - Number(marginMonths || 12);
+    const stopMonth = String(Math.floor(stopIndex / 12)).padStart(4, '0') + '-' + String((stopIndex % 12) + 1).padStart(2, '0');
+
+    const chunkSize = 1000;
+    const result = [];
+    let endRow = lastRow;
+    let finished = false;
+
+    while (endRow >= 2 && !finished) {
+      const startRow = Math.max(2, endRow - chunkSize + 1);
+      const values = sheet.getRange(startRow, 1, endRow - startRow + 1, lastColumn).getValues();
+
+      for (let index = values.length - 1; index >= 0; index -= 1) {
+        const record = rowToObject_(headers, values[index]);
+        if (!hasRecordValue_(record)) continue;
+
+        const orderMonth = monthKey_(record[orderField]);
+        if (orderMonth && orderMonth < stopMonth) {
+          finished = true;
+          break;
+        }
+        if (monthKey_(record[matchField]) === targetMonth) result.push(record);
+      }
+
+      endRow = startRow - 1;
+    }
+
+    return result;
+  }
+
   function readObjectsForMonthFromEnd(sheetName, dateField, year, month) {
     const sheet = getSheet_(sheetName);
     const lastRow = sheet.getLastRow();
@@ -548,6 +596,7 @@ const SheetRepository = (() => {
     readLastObjects,
     readObjectsWindowFromEnd,
     readObjectsForMonthFromEnd,
+    readObjectsForMonthFromEndBy,
     getDataRowCount,
     appendObject,
     findRowByField,

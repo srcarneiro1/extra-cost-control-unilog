@@ -2,10 +2,18 @@ const AdministrativeSolicitationQueryService = (() => {
   const SHEET_SOLICITACOES = 'SOLICITACOES';
   const ACTIONS = Object.freeze({ LIST: 'LISTAR', DETAIL: 'DETALHAR', METADATA: 'METADADOS' });
   const TYPE_LABOR = 'MAO_DE_OBRA';
+  // Filtro de período (ano/mês/data) da aba Solicitações: pela DATA OPERACIONAL (09/10/2026).
+  // Os parâmetros continuam com o nome "registro" (anoRegistro, mesRegistro, dataRegistro,
+  // datasRegistro) para não exigir mudança no gateway nem nos serviços do frontend.
+  const PERIOD_FIELD = 'DATA_OPERACIONAL';
+  // Uma solicitação pode ser registrada antes ou depois da data operacional; ao filtrar um mês,
+  // a leitura de baixo para cima só para em registros criados 12 meses antes do mês filtrado.
+  const PERIOD_MARGIN_MONTHS = 12;
   // Campos usados por summarize_, indicators_, SolicitationStatusService.resolve e dateOnly_.
   const METADATA_FIELDS = [
     'ID_SOLICITACAO',
     'DATA_CRIACAO',
+    'DATA_OPERACIONAL',
     'OPERACAO',
     'STATUS',
     'TIPO_SOLICITACAO',
@@ -44,11 +52,13 @@ const AdministrativeSolicitationQueryService = (() => {
     }
 
     if (isMonthFilter_(filters)) {
-      sourceRows = SheetRepository.readObjectsForMonthFromEnd(
+      sourceRows = SheetRepository.readObjectsForMonthFromEndBy(
         SHEET_SOLICITACOES,
+        PERIOD_FIELD,
         'DATA_CRIACAO',
         filters.anoRegistro,
-        filters.mesRegistro
+        filters.mesRegistro,
+        PERIOD_MARGIN_MONTHS
       );
     } else {
       sourceRows = SheetRepository.readObjects(SHEET_SOLICITACOES).filter(function (record) {
@@ -86,7 +96,7 @@ const AdministrativeSolicitationQueryService = (() => {
     );
     const dates = {};
     rows.forEach(function (record) {
-      const date = dateOnly_(record.DATA_CRIACAO);
+      const date = dateOnly_(record[PERIOD_FIELD]);
       if (date) dates[date] = true;
     });
     return { resumo: summarize_(rows), datasRegistro: Object.keys(dates).sort().reverse() };
@@ -135,7 +145,7 @@ const AdministrativeSolicitationQueryService = (() => {
   }
 
   function matchesPeriod_(record, filters) {
-    const date = dateOnly_(record.DATA_CRIACAO);
+    const date = dateOnly_(record[PERIOD_FIELD]);
     const year = date ? date.slice(0, 4) : '';
     const month = date ? date.slice(5, 7) : '';
     if (filters.anoRegistro && year !== filters.anoRegistro) return false;
