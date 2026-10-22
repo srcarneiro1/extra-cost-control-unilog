@@ -46,3 +46,22 @@
 .analytics-pareto-card .pareto-rest{margin:0;padding-top:8px;border-top:1px solid #eceef1;display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#6e747e}
 .analytics-pareto-card .pareto-rest strong{color:#494a56;white-space:nowrap}
 .analytics-pareto-card .pareto-rest small{font-weight:400;color:#9aa0a8}
+
+/* Linha "Dia da semana · Pareto · Supervisão" com cartões sempre da mesma altura (22/10/2026).
+   A regra global de prime-polish.css (cartões não esticam) continua valendo no resto do dashboard;
+   aqui ela é sobreposta com seletor mais específico, porque a altura do Pareto varia com a
+   quantidade de depositantes e a linha ficava desnivelada para cima ou para baixo. */
+.advanced-analytics-grid .analytics-three-columns{align-items:stretch!important}
+.advanced-analytics-grid .analytics-three-columns>.nx-analytics-card{
+  height:auto!important;
+  align-self:stretch!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+.advanced-analytics-grid .analytics-three-columns>.nx-analytics-card>.p-card-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.advanced-analytics-grid .analytics-three-columns>.nx-analytics-card>.p-card-body>.p-card-content{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+/* Gráficos ocupam a altura que sobrar (mínimo igual ao de antes). */
+.advanced-analytics-grid .analytics-three-columns .nx-chart-stage{flex:1 1 auto;min-height:300px}
+/* Pareto: lista no topo, "Demais" no rodapé do cartão. */
+.advanced-analytics-grid .analytics-three-columns .pareto-body{flex:1 1 auto;align-content:start}
+.advanced-analytics-grid .analytics-three-columns .pareto-rest{margin-top:auto}
