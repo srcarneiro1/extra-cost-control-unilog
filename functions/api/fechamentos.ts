@@ -495,9 +495,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ...(competencia ? { competencia } : {}),
         ...(fornecedor ? { fornecedor } : {}),
       }, 'excecoes_financeiras')
-    : await proxyRead_(env, metadata
-      ? { acao: 'METADADOS' }
-      : { acao: 'LISTAR', competencia }, 'fechamentos');
+    : await proxyRead_(env, {
+        ...(metadata ? { acao: 'METADADOS' } : { acao: 'LISTAR', competencia }),
+        // Botão "Atualizar": também ignora o cache do Apps Script (22/10/2026).
+        ...(fresh ? { fresh: '1' } : {}),
+      }, 'fechamentos');
 
   if (!fresh) cacheSuccessful_(context, request, identity, response);
   return response;

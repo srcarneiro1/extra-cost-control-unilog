@@ -28,7 +28,7 @@ const DashboardCacheService = (() => {
 
   function clear() {
     try {
-      CacheService.getScriptCache().put(VERSION_KEY, String(Date.now()), 21600);
+      CacheService.getScriptCache().put(VERSION_KEY, Date.now() + '-' + Math.random().toString(36).slice(2, 10), 21600);
     } catch (error) {
       // Falha de cache não pode bloquear uma gravação operacional.
     }

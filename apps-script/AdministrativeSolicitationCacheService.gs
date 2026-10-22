@@ -91,7 +91,7 @@ const AdministrativeSolicitationCacheService = (() => {
 
   function bumpVersion_(versionKey) {
     try {
-      CacheService.getScriptCache().put(versionKey, String(Date.now()), 21600);
+      CacheService.getScriptCache().put(versionKey, Date.now() + '-' + Math.random().toString(36).slice(2, 10), 21600);
     } catch (error) {
       // Falha de cache nunca pode bloquear uma gravação operacional.
     }

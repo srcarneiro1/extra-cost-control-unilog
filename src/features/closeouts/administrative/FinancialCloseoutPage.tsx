@@ -76,7 +76,9 @@ function pendingLabel(group: FinancialCloseoutGroup) {
 
 export function FinancialCloseoutPage() {
   const [metadata, setMetadata] = useState<FinancialCloseoutMetadata | null>(null)
-  const [competence, setCompetence] = useState('')
+  // Começa pela competência atual (21–20) já no primeiro render: o fechamento é buscado em paralelo
+  // com a lista de competências, em vez de esperar por ela (antes eram duas chamadas em fila).
+  const [competence, setCompetence] = useState<string>(() => currentCompetence())
   const [data, setData] = useState<FinancialCloseoutListResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -90,7 +92,13 @@ export function FinancialCloseoutPage() {
     void fetchFinancialCloseoutMetadata(controller.signal)
       .then((loaded) => {
         setMetadata(loaded)
-        setCompetence((current) => current || loaded.competenciaAtual || loaded.competencias[0] || '')
+        setCompetence((current) => {
+          // Se a competência calculada no navegador divergir da do servidor (virada do dia 20 para 21,
+          // fuso horário), vale a do servidor; uma escolha feita pelo usuário é mantida.
+          if (!current) return loaded.competenciaAtual || loaded.competencias[0] || ''
+          if (current === currentCompetence() && loaded.competenciaAtual && loaded.competenciaAtual !== current) return loaded.competenciaAtual
+          return current
+        })
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return
@@ -257,4 +265,10 @@ export function FinancialCloseoutPage() {
       </Modal>
     </section>
   )
+}
+
+// Competência vigente pela regra do Extra: do dia 21 de um mês ao dia 20 do mês seguinte.
+function currentCompetence(today: Date = new Date()): string {
+  const base = new Date(today.getFullYear(), today.getMonth() + (today.getDate() >= 21 ? 1 : 0), 1)
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}`
 }

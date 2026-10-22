@@ -6,7 +6,7 @@ const Api = (() => {
       const route = normalizeRoute_(e && e.parameter && e.parameter.route);
 
       if (route === 'health') {
-        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.10.21.1', recursos: ['historicoTerceiros', 'filtroDataOperacional'] });
+        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.10.22.1', recursos: ['historicoTerceiros', 'filtroDataOperacional', 'cacheFechamentos'] });
       }
       if (route === 'auth') return JsonResponse.unauthorized('Autenticação disponível somente pelo gateway protegido.');
       if (route === 'usuarios') return JsonResponse.unauthorized('Administração de usuários disponível somente pelo gateway protegido.');
@@ -78,13 +78,18 @@ const Api = (() => {
 
       if (route === 'fechamentos') {
         const servicePayload = authorizeGateway_(payload);
-        const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
-        if (action === FinancialCloseoutService.ACTIONS.CLOSE) {
-          return JsonResponse.ok(writeAndInvalidate_(function () {
-            return FinancialCloseoutPhase2CService.execute(servicePayload);
+        const action = ValidationService.normalizeUpper(
+          (servicePayload && servicePayload.acao) || FinancialCloseoutService.ACTIONS.LIST
+        );
+        // Leituras com cache (22/10/2026); todas as gravações invalidam (antes só CLOSE invalidava).
+        if (action === FinancialCloseoutService.ACTIONS.LIST || action === FinancialCloseoutService.ACTIONS.METADATA) {
+          return JsonResponse.ok(FinancialCloseoutCacheService.get(servicePayload, function (input) {
+            return FinancialCloseoutPhase2CService.execute(input);
           }));
         }
-        return JsonResponse.ok(FinancialCloseoutPhase2CService.execute(servicePayload));
+        return JsonResponse.ok(writeAndInvalidate_(function () {
+          return FinancialCloseoutPhase2CService.execute(servicePayload);
+        }));
       }
 
       if (route === 'excecoes_financeiras') {
@@ -152,6 +157,7 @@ const Api = (() => {
     const result = operation();
     DashboardCacheService.clear();
     AdministrativeSolicitationCacheService.clear(options || {});
+    FinancialCloseoutCacheService.clear();
     return result;
   }
 

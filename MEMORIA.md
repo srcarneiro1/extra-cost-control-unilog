@@ -304,3 +304,18 @@ Visão Executiva ganhou o cartão **"Gasto com mão de obra terceirizada"** (log
 - Testes no simulador do Apps Script (7 competências, mão de obra + lanches, 2 operações): 9 cenários — soma exata por mês sem lanches, 6 competências em ordem, outubro igual ao card do realizado, filtro de operação, filtro tipo ignorado, outra competência selecionada, competência em andamento marcada como parcial, comparativo intacto. Gráfico conferido no navegador (computador e celular) com a resposta real do backend.
 - **Diagnóstico do gráfico vazio (21/10/2026):** com o Apps Script na versão anterior, a resposta não traz `historicoTerceiros` e o cartão mostrava "Sem gasto com terceiros", o que parecia ausência de gasto. Agora mostra "Histórico indisponível no servidor" nesse caso. O health do Apps Script (`doGet`) passou a informar `version: '2026.10.21.1'` e `recursos` (antes era fixo em `mvp1`), para conferir rapidamente qual código está publicado.
 - **Ajustes visuais (21/10/2026):** nota do gráfico de terceiros com margem alinhada ao título do cartão (antes a 1 px da borda), linha divisória e ícone de informação. Campo de busca (`SearchField` em `components/ui/Primitives.tsx`, usado em Solicitações, Cadastros e Usuários): o "x" nativo do `type="search"` (azul no Chrome, cinza no Safari) foi escondido e substituído por botão próprio (26 px, 32 px no celular, cinza `#858a93`, hover `#eef0f3`), que aparece só com texto, limpa ao clicar e também com Esc. Estilos em `prime-design-system.css`.
+
+## Desempenho da aba Fechamentos — 22/10/2026 (API 2026.10.22.1)
+
+Diagnóstico (por que era mais lenta que as outras abas):
+1. **Duas chamadas em fila:** a tela buscava as competências e só depois o fechamento (duas viagens ao Apps Script em sequência).
+2. **Leituras completas de abas que crescem:** o fechamento de uma competência lê inteiras as abas de fechamentos, notas, itens (1 linha por solicitação fechada) e destinos (2×), mais uma busca por solicitação reclassificada. **Não otimizado ainda** (item 3 do plano; mexe no cálculo, fazer com testes no simulador após medir).
+3. **Sem cache no Apps Script** (Solicitações e Visão geral tinham).
+
+Implementado:
+- **Tela** (`FinancialCloseoutPage.tsx`): competência inicial calculada no navegador (regra 21–20) para buscar o fechamento **em paralelo** com as competências; se divergir da competência do servidor (virada do dia 20/21, fuso), vale a do servidor. Medido com servidor de teste de 1,5 s por chamada: **3,5 s → 2,0 s** para o fechamento aparecer.
+- **Cache no Apps Script** (`FinancialCloseoutCacheService.gs`, novo): fechamento 30 s e competências 5 min, chave versionada. Antes só `FECHAR` invalidava; agora **todas** as gravações da rota (fechar, salvar NF, conciliar, encerrar) passam por `writeAndInvalidate_`, que também limpa este cache — assim como qualquer gravação de outras rotas (solicitações, triagem, exceções), pois o fechamento depende das solicitações.
+- **Atualizar:** o gateway (`functions/api/fechamentos.ts`) repassa `fresh=1` ao Apps Script, que ignora o cache.
+- **Versão única de cache:** a invalidação usava `Date.now()` como versão; duas gravações no mesmo milissegundo não invalidavam. Corrigido (horário + sufixo aleatório) nos três caches: fechamentos, solicitações e dashboard.
+- Health do Apps Script: `2026.10.22.1` com recurso `cacheFechamentos`.
+- Testes: 10 cenários com o `Api.gs` real (cache por competência, cache de competências, invalidação por cada gravação, Atualizar, invalidação por outras rotas) e medição de tempo no navegador.
