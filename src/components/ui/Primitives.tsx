@@ -49,8 +49,10 @@ export function SearchField({
   placeholder?: string
   ariaLabel: string
 }) {
+  // Botão de limpar próprio (21/10/2026): o "x" nativo do type="search" (Safari/Chrome) é escondido
+  // no CSS por destoar da identidade; este aparece só com texto e também limpa com Esc.
   return (
-    <span className="p-input-icon-left ui-search-field nx-prime-search">
+    <span className={`p-input-icon-left ui-search-field nx-prime-search${value ? ' has-value' : ''}`}>
       <i className="pi pi-search" aria-hidden="true" />
       <InputText
         type="search"
@@ -58,7 +60,18 @@ export function SearchField({
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && value) {
+            event.preventDefault()
+            onChange('')
+          }
+        }}
       />
+      {value && (
+        <button type="button" className="ui-search-clear" aria-label="Limpar busca" title="Limpar busca" onClick={() => onChange('')}>
+          <i className="pi pi-times" aria-hidden="true" />
+        </button>
+      )}
     </span>
   )
 }

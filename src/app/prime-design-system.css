@@ -213,9 +213,35 @@ body{background:var(--unilog-canvas)!important;color:var(--unilog-ink-2)}
 .dashboard-third-party-summary span{display:grid;gap:2px;min-width:132px;padding:9px 12px;border:1px solid var(--nx-border,#e2e5e9);border-radius:10px;background:#f8f9fb}
 .dashboard-third-party-summary small{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#858a93}
 .dashboard-third-party-summary strong{font-size:14px;color:#242a36}
-.dashboard-third-party-note{margin:8px 0 0;font-size:10px;color:#858a93}
+.dashboard-third-party-note{
+  display:flex;align-items:flex-start;gap:7px;
+  margin:6px 18px 16px;padding-top:11px;
+  border-top:1px dashed #e2e5e9;
+  font-size:10.5px;line-height:1.45;color:#6e747e;
+}
+.dashboard-third-party-note .pi{font-size:12px;margin-top:1px;color:#9aa0a8}
+.dashboard-third-party-note strong{color:#494a56}
 @media(max-width:760px){
   .dashboard-third-party-stage{height:240px}
   .dashboard-third-party-summary{width:100%}
   .dashboard-third-party-summary span{flex:1 1 0;min-width:0}
+}
+
+
+/* Campo de busca: botão de limpar próprio (21/10/2026) */
+.ui-search-field.nx-prime-search{position:relative}
+.ui-search-field.nx-prime-search input[type="search"]::-webkit-search-cancel-button,
+.ui-search-field.nx-prime-search input[type="search"]::-webkit-search-decoration{-webkit-appearance:none;appearance:none;display:none}
+.ui-search-field.nx-prime-search.has-value .p-inputtext{padding-right:42px!important}
+.ui-search-field.nx-prime-search .ui-search-clear{
+  position:absolute;top:50%;right:9px;transform:translateY(-50%);
+  width:26px;height:26px;display:grid;place-items:center;
+  border:0;border-radius:999px;background:transparent;color:#858a93;cursor:pointer;
+  transition:background-color .14s ease,color .14s ease;
+}
+.ui-search-field.nx-prime-search .ui-search-clear .pi{font-size:11px;font-weight:700}
+.ui-search-field.nx-prime-search .ui-search-clear:hover{background:#eef0f3;color:#242a36}
+.ui-search-field.nx-prime-search .ui-search-clear:focus-visible{outline:2px solid rgba(214,0,22,.35);outline-offset:1px}
+@media(max-width:760px){
+  .ui-search-field.nx-prime-search .ui-search-clear{width:32px;height:32px;right:7px}
 }

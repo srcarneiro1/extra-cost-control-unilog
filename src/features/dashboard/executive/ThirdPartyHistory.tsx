@@ -114,7 +114,10 @@ export function ThirdPartyHistory({ months }: { months: DashboardThirdPartyMonth
         <>
           <div className="nx-chart-stage dashboard-third-party-stage"><Chart type="bar" data={chartData} options={options} /></div>
           {items.some((item) => item.parcial) && (
-            <p className="dashboard-third-party-note">* Competência em andamento: valor parcial. A média considera só competências encerradas.</p>
+            <p className="dashboard-third-party-note">
+              <i className="pi pi-info-circle" aria-hidden="true" />
+              <span><strong>*</strong> Competência em andamento: valor parcial. A média considera só competências encerradas.</span>
+            </p>
           )}
         </>
       ) : (
