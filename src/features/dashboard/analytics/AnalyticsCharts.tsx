@@ -64,91 +64,67 @@ export function WeekdayChart({ analytics }: { analytics: DashboardAnalytics }) {
   )
 }
 
+// Pareto em lista horizontal (22/10/2026). O cartão ocupa 1/3 da largura: com barras verticais os
+// nomes ficavam cortados e inclinados (dois "CAFFEINE B…" indistinguíveis), sem valores visíveis e a
+// linha acumulada sem o primeiro ponto. Agora: nome completo, valor, participação e acumulado em
+// cada linha; destaque dos depositantes que somam 80% do custo; demais agrupados.
+// Top 5 (mesmo recorte do selo "Top 5"): mantém o cartão na altura dos vizinhos; o restante vai em "Demais".
+const PARETO_LIMIT = 5
+const PARETO_CUT = 80
+
 export function ParetoChart({ analytics }: { analytics: DashboardAnalytics }) {
-  const items = analytics.paretoOperacao.slice(0, 8)
-  const chartData = {
-    labels: items.map((item) => item.chave),
-    datasets: [
-      {
-        type: 'bar' as const,
-        label: 'Custo realizado',
-        data: items.map((item) => item.realizado),
-        backgroundColor: PALETTE.graphite,
-        borderRadius: 6,
-        borderSkipped: false,
-        maxBarThickness: 24,
-        yAxisID: 'y',
-      },
-      {
-        type: 'line' as const,
-        label: 'Participação acumulada',
-        data: items.map((item) => item.acumulado),
-        borderColor: PALETTE.red,
-        backgroundColor: PALETTE.red,
-        pointBackgroundColor: PALETTE.red,
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 5,
-        tension: .28,
-        yAxisID: 'y1',
-      },
-    ],
-  }
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: false as const,
-    interaction: { mode: 'index' as const, intersect: false },
-    layout: { padding: { top: 4, right: 6, bottom: 10, left: 4 } },
-    plugins: {
-      legend: baseLegend,
-      tooltip: {
-        backgroundColor: PALETTE.ink,
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        padding: 10,
-        callbacks: {
-          title: (contexts: any[]) => items[contexts[0]?.dataIndex]?.chave || '',
-          label: (context: any) => context.datasetIndex === 0 ? ` ${currency(context.raw)}` : ` ${percent(context.raw)}`,
-        },
-      },
-    },
-    scales: {
-      x: {
-        offset: true,
-        grid: { display: false },
-        border: { display: false },
-        ticks: {
-          ...axisTicks,
-          autoSkip: false,
-          minRotation: 22,
-          maxRotation: 32,
-          padding: 8,
-          callback: (_value: any, index: number) => shortLabel(items[index]?.chave || '', 11),
-        },
-      },
-      y: {
-        beginAtZero: true,
-        grid: { color: PALETTE.grid },
-        border: { display: false },
-        ticks: { ...axisTicks, padding: 5, callback: (value: any) => currency(Number(value)) },
-      },
-      y1: {
-        beginAtZero: true,
-        max: 100,
-        position: 'right' as const,
-        grid: { drawOnChartArea: false },
-        border: { display: false },
-        ticks: { ...axisTicks, padding: 5, callback: (value: any) => `${value}%` },
-      },
-    },
-  }
+  const all = analytics.paretoOperacao || []
+  const items = all.slice(0, PARETO_LIMIT)
+  const rest = all.slice(PARETO_LIMIT)
+  const restValue = rest.reduce((sum, item) => sum + item.realizado, 0)
+  const restShare = rest.reduce((sum, item) => sum + item.percentual, 0)
+  const maxValue = Math.max(...items.map((item) => item.realizado), 0)
+  // Primeiro depositante em que o acumulado alcança 80%: ele e os anteriores são os "poucos que mais pesam".
+  const cutIndex = items.findIndex((item) => item.acumulado >= PARETO_CUT)
+  const vitalCount = cutIndex >= 0 ? cutIndex + 1 : items.length
 
   return (
-    <Card className="dashboard-card analytics-viz-card nx-analytics-card nx-chart-card">
-      <AnalyticsCardHeader eyebrow="PARETO" title="Custo por depositante" description="Custo realizado e participação acumulada." trailing={<strong className="analytics-highlight">Top 5 {percent(analytics.concentracaoTop5Percentual)}</strong>} />
-      {items.length ? <div className="nx-chart-stage nx-chart-stage-pareto"><Chart type="bar" data={chartData} options={options} /></div> : <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}
+    <Card className="dashboard-card analytics-viz-card nx-analytics-card nx-chart-card analytics-pareto-card">
+      <AnalyticsCardHeader
+        eyebrow="PARETO"
+        title="Custo por depositante"
+        description={cutIndex >= 0
+          ? `${vitalCount} ${vitalCount === 1 ? 'depositante concentra' : 'depositantes concentram'} ${PARETO_CUT}% do custo realizado.`
+          : 'Custo realizado, participação e acumulado.'}
+        trailing={<strong className="analytics-highlight">Top 5 {percent(analytics.concentracaoTop5Percentual)}</strong>} />
+      {items.length ? (
+        <div className="pareto-body">
+          <ol className="pareto-list">
+            {items.map((item, index) => {
+              const vital = index < vitalCount
+              const width = maxValue > 0 ? Math.max(2, (item.realizado / maxValue) * 100) : 0
+              return (
+                <li key={item.chave} className={`pareto-row${vital ? ' is-vital' : ''}`}>
+                  <div
+                    className="pareto-row-main"
+                    title={`${item.chave}\nRealizado: ${currency(item.realizado)}\nPrevisto: ${currency(item.previsto)}\nSolicitações: ${item.solicitacoes}`}
+                  >
+                    <span className="pareto-rank">{index + 1}</span>
+                    <span className="pareto-name">{item.chave}</span>
+                    <strong className="pareto-value">{currency(item.realizado)}</strong>
+                  </div>
+                  <div className="pareto-row-bar">
+                    <span className="pareto-track"><span className="pareto-fill" style={{ width: `${width}%` }} /></span>
+                    <span className="pareto-share">{percent(item.percentual)} <small>· acum. {percent(item.acumulado)}</small></span>
+                  </div>
+                  {index === cutIndex && index < items.length - 1 && <div className="pareto-cut" aria-hidden="true"><span>{PARETO_CUT}% do custo</span></div>}
+                </li>
+              )
+            })}
+          </ol>
+          {rest.length > 0 && (
+            <p className="pareto-rest">
+              <span>Demais {rest.length} {rest.length === 1 ? 'depositante' : 'depositantes'}</span>
+              <strong>{currency(restValue)} <small>· {percent(restShare)}</small></strong>
+            </p>
+          )}
+        </div>
+      ) : <div className="ui-empty-state"><div><strong>Sem dados para Pareto</strong></div></div>}
     </Card>
   )
 }

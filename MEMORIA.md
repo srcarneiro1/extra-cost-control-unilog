@@ -332,3 +332,12 @@ Divergência corrigida: na saída antecipada o Extra calculava **diária ÷ 9 h*
 Correção dos lançamentos antigos: `apps-script/ManutencaoJornadaParcial.gs` — `simularRecalculoJornadaParcial8h()` (não altera nada, lista o que mudaria) e `aplicarRecalculoJornadaParcial8h()` (recalcula `VALOR_REGISTRADO` das exceções ativas e `VALOR_REAL` das solicitações com comparecimento; **não altera** solicitações já em `FECHAMENTO_SOLICITACOES`, que são listadas para análise; auditoria `RECALCULO_JORNADA_PARCIAL_8H` em `AUDITORIA_SOLICITACOES`; idempotente; com bloqueio; limpa caches). Testado em simulador: 11 cenários.
 
 Pendente: **hora extra** (a fatura tem colunas HE e valor HE; o Extra não registra) — aguardando a regra do fornecedor.
+
+## Pareto "Custo por depositante" em lista horizontal — 22/10/2026
+
+O cartão ocupa 1/3 da linha na aba Analytics. Com barras verticais: nomes cortados e inclinados (dois "CAFFEINE B…" indistinguíveis), valores só no tooltip, linha acumulada sem o primeiro ponto e área de gráfico 50 px mais alta que os vizinhos.
+Agora (`analytics/AnalyticsCharts.tsx` → `ParetoChart`, estilos `.analytics-pareto-card` em `prime-analytics.css`):
+- lista do **Top 5** (mesmo recorte do selo "Top 5"), cada linha com posição, nome completo (até 2 linhas), valor, barra proporcional, participação e acumulado; tooltip com previsto e quantidade de solicitações;
+- destaque (grafite) dos depositantes que somam **80%** do custo, marcação tracejada "80% do custo" e subtítulo "N depositantes concentram 80% do custo realizado"; os demais em cinza;
+- linha "Demais N depositantes" com valor e participação do restante;
+- a regra global de `prime-polish.css` que impede cartões de esticar foi mantida; o cartão ficou 37 px mais alto que os vizinhos (antes ~100 px).
