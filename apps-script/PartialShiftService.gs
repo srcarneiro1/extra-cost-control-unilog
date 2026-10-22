@@ -1,7 +1,9 @@
 const PartialShiftService = (() => {
   const SHEET_SOLICITACOES = 'SOLICITACOES';
   const SHEET_EXCECOES = 'EXCECOES_JORNADA_MO';
-  const FULL_SHIFT_HOURS = 9;
+  // Jornada paga (22/10/2026): 8 h, igual à fatura do fornecedor (valor da hora = diária ÷ 8).
+  // Antes era 9 h, o que deixava a hora parcial 11% abaixo do cobrado.
+  const FULL_SHIFT_HOURS = 8;
   const ROW_CACHE_PREFIX = 'partial_shift_rows_v1_';
   const ROW_CACHE_SECONDS = 20;
   const HEADERS = [
@@ -291,10 +293,11 @@ const PartialShiftService = (() => {
     const fullShiftQuantity = attendedQuantity - exceptions.length;
     const partialTotal = exceptions.reduce(function (total, row) {
       const hours = Number(row.HORAS_TRABALHADAS);
-      if (!Number.isFinite(hours) || hours <= 0 || hours >= FULL_SHIFT_HOURS) {
+      if (!Number.isFinite(hours) || hours <= 0) {
         ValidationService.fail('Existe uma exceção de jornada com quantidade de horas inválida.');
       }
-      return total + proportionalValue_(unitPrice, hours);
+      // Exceções antigas com 8 h ou mais (aceitas quando a jornada era de 9 h) valem como dia completo.
+      return total + proportionalValue_(unitPrice, Math.min(hours, FULL_SHIFT_HOURS));
     }, 0);
 
     return roundMoney_((fullShiftQuantity * unitPrice) + partialTotal);
@@ -433,6 +436,7 @@ const PartialShiftService = (() => {
 
   return {
     FULL_SHIFT_HOURS,
+    clearRowsCache: clearRowsCache_,
     register,
     listBySolicitation,
     calculateRealValue,

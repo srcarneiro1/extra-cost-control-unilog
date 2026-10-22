@@ -351,7 +351,7 @@ export function SolicitationDetailModal({
       return
     }
 
-    const standardHours = detail.jornadaPadraoHoras || 9
+    const standardHours = detail.jornadaPadraoHoras || 8
     const seen = new Set<string>()
     const payload: PartialShiftEntryInput[] = []
 
@@ -577,14 +577,14 @@ export function SolicitationDetailModal({
 
           {detail.tipoSolicitacao === 'MAO_DE_OBRA' && detail.realizadoRegistrado && (
             <section className="workflow-action-box partial-shift-box">
-              <SectionHeading icon="pi pi-clock" title="Jornada parcial" detail={`Diária padrão de ${detail.jornadaPadraoHoras || 9}h · registre somente quem saiu antes.`} />
+              <SectionHeading icon="pi pi-clock" title="Jornada parcial" detail={`Diária padrão de ${detail.jornadaPadraoHoras || 8}h · registre somente quem saiu antes.`} />
               <div className="partial-shift-capacity"><strong>{attendedCount} compareceram</strong><span>{registeredPartialCount} jornada(s) parcial(is) registrada(s)</span><span>{availablePartialCount} disponível(is) para lançamento</span></div>
               {detail.excecoesJornada.length > 0 && <div className="partial-shift-list" aria-label="Jornadas parciais registradas">{detail.excecoesJornada.map((exception) => <div className="partial-shift-item" key={exception.idExcecao}><div className="partial-shift-item-main"><strong>{exception.nomeColaborador}</strong><span>{exception.horasTrabalhadas ?? '—'}h{exception.horarioSaida ? ` · saída ${exception.horarioSaida}` : ''}</span></div><div className="partial-shift-item-value"><strong>{formatMoney(exception.valorProporcional)}</strong><small>{exception.motivo}</small></div></div>)}</div>}
 
               {canRegisterPartialShift && (
                 <>
                   <label className="partial-shift-count nx-workflow-field nx-partial-count-field"><span>Quantas pessoas saíram antes?</span><Dropdown value={String(partialCount)} options={partialCountOptions} onChange={(event) => handlePartialCountChange(event.value || '0')} /><small>Máximo permitido neste momento: {availablePartialCount}.</small></label>
-                  {partialDrafts.length > 0 && <div className="partial-shift-batch">{partialDrafts.map((entry, index) => <fieldset className="partial-shift-entry nx-partial-entry" key={index}><legend>Jornada parcial #{index + 1}</legend><div className="partial-shift-form-grid nx-workflow-grid"><label className="nx-workflow-field"><span>Colaborador</span><InputText value={entry.nomeColaborador} onChange={(event) => updatePartialDraft(index, 'nomeColaborador', event.target.value)} /></label><label className="nx-workflow-field"><span>Horas trabalhadas</span><InputText type="number" min="0.01" max={(detail.jornadaPadraoHoras || 9) - 0.01} step="0.25" value={entry.horasTrabalhadas} onChange={(event) => updatePartialDraft(index, 'horasTrabalhadas', event.target.value)} /></label><label className="nx-workflow-field"><span>Horário de saída</span><InputText type="time" value={entry.horarioSaida} onChange={(event) => updatePartialDraft(index, 'horarioSaida', event.target.value)} /></label><label className="nx-workflow-field nx-workflow-field-wide"><span>Motivo</span><InputTextarea value={entry.motivo} onChange={(event) => updatePartialDraft(index, 'motivo', event.target.value)} rows={2} autoResize /></label></div></fieldset>)}</div>}
+                  {partialDrafts.length > 0 && <div className="partial-shift-batch">{partialDrafts.map((entry, index) => <fieldset className="partial-shift-entry nx-partial-entry" key={index}><legend>Jornada parcial #{index + 1}</legend><div className="partial-shift-form-grid nx-workflow-grid"><label className="nx-workflow-field"><span>Colaborador</span><InputText value={entry.nomeColaborador} onChange={(event) => updatePartialDraft(index, 'nomeColaborador', event.target.value)} /></label><label className="nx-workflow-field"><span>Horas trabalhadas</span><InputText type="number" min="0.01" max={(detail.jornadaPadraoHoras || 8) - 0.01} step="0.25" value={entry.horasTrabalhadas} onChange={(event) => updatePartialDraft(index, 'horasTrabalhadas', event.target.value)} /></label><label className="nx-workflow-field"><span>Horário de saída</span><InputText type="time" value={entry.horarioSaida} onChange={(event) => updatePartialDraft(index, 'horarioSaida', event.target.value)} /></label><label className="nx-workflow-field nx-workflow-field-wide"><span>Motivo</span><InputTextarea value={entry.motivo} onChange={(event) => updatePartialDraft(index, 'motivo', event.target.value)} rows={2} autoResize /></label></div></fieldset>)}</div>}
                   {partialCount > 0 && <div className="nx-workflow-actions"><Button label={actionLoading ? 'Salvando…' : partialCount > 1 ? `Registrar ${partialCount} jornadas parciais` : 'Registrar jornada parcial'} icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-save'} onClick={() => void handlePartialShifts()} disabled={actionLoading} className="nx-primary-button" /></div>}
                 </>
               )}

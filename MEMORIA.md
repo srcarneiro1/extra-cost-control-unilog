@@ -319,3 +319,16 @@ Implementado:
 - **Versão única de cache:** a invalidação usava `Date.now()` como versão; duas gravações no mesmo milissegundo não invalidavam. Corrigido (horário + sufixo aleatório) nos três caches: fechamentos, solicitações e dashboard.
 - Health do Apps Script: `2026.10.22.1` com recurso `cacheFechamentos`.
 - Testes: 10 cenários com o `Api.gs` real (cache por competência, cache de competências, invalidação por cada gravação, Atualizar, invalidação por outras rotas) e medição de tempo no navegador.
+
+## Jornada paga de 8 h — 22/10/2026 (API 2026.10.22.2)
+
+Validação contra a fatura do fornecedor: cobrança por colaborador e por dia = horas × valor da hora, com dia completo de **8 h** (ex.: 8 × R$ 22,50 = R$ 180,00; motorista 8 × R$ 37,50 = R$ 300,00). O Extra cobra diária (`PRECOS_MO` por fornecedor, função, turno, tipo de dia e vigência) — dia completo bate se a diária cadastrada = 8 × valor da hora.
+
+Divergência corrigida: na saída antecipada o Extra calculava **diária ÷ 9 h** × horas (hora 11% abaixo da fatura; ex.: 4 h de R$ 180 = R$ 80 contra R$ 90 cobrados). Agora `PartialShiftService.FULL_SHIFT_HOURS = 8`:
+- exceção aceita só com menos de 8 h (8 h ou mais é dia completo);
+- exceções antigas com 8 h a 9 h passam a valer como dia completo no cálculo (antes travariam);
+- tela: padrão 8 h (`SolicitationDetailModal.tsx`, `solicitationService.ts`).
+
+Correção dos lançamentos antigos: `apps-script/ManutencaoJornadaParcial.gs` — `simularRecalculoJornadaParcial8h()` (não altera nada, lista o que mudaria) e `aplicarRecalculoJornadaParcial8h()` (recalcula `VALOR_REGISTRADO` das exceções ativas e `VALOR_REAL` das solicitações com comparecimento; **não altera** solicitações já em `FECHAMENTO_SOLICITACOES`, que são listadas para análise; auditoria `RECALCULO_JORNADA_PARCIAL_8H` em `AUDITORIA_SOLICITACOES`; idempotente; com bloqueio; limpa caches). Testado em simulador: 11 cenários.
+
+Pendente: **hora extra** (a fatura tem colunas HE e valor HE; o Extra não registra) — aguardando a regra do fornecedor.

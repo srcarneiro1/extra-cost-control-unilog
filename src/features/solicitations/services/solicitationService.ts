@@ -371,7 +371,7 @@ export async function fetchAdministrativeSolicitationDetail(
 
   return {
     ...detail,
-    jornadaPadraoHoras: detail.jornadaPadraoHoras ?? 9,
+    jornadaPadraoHoras: detail.jornadaPadraoHoras ?? 8,
     excecoesJornada: Array.isArray(detail.excecoesJornada) ? detail.excecoesJornada : [],
   }
 }
