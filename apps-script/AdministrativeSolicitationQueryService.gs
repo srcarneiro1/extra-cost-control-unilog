@@ -46,8 +46,16 @@ const AdministrativeSolicitationQueryService = (() => {
     let summary = null;
 
     if (!hasFilters_(filters)) {
+      // Sem filtro (23/10/2026): ordem pela data operacional. Lê só a coluna DATA_OPERACIONAL,
+      // ordena e busca apenas as linhas da página (a aba está em ordem de registro, não operacional).
+      const operationalDates = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'DATA_OPERACIONAL');
+      const order = operationalDates.map(function (value, index) {
+        return { row: index + 2, time: hasValue_(value) ? sortTimestamp_(value) : 0 };
+      });
+      order.sort(compareOrderEntries_);
+      const pageRows = order.slice(offset, offset + pageSize).map(function (entry) { return entry.row; });
+      const rows = SheetRepository.readObjectsByRowNumbers(SHEET_SOLICITACOES, pageRows);
       const total = SheetRepository.getDataRowCount(SHEET_SOLICITACOES);
-      const rows = SheetRepository.readObjectsWindowFromEnd(SHEET_SOLICITACOES, offset, pageSize);
       return response_(rows, total, page, pageSize, null);
     }
 
@@ -70,7 +78,7 @@ const AdministrativeSolicitationQueryService = (() => {
     summary = summarize_(scopedRows);
     const filteredRows = scopedRows
       .filter(function (record) { return matchesNonPeriodFilters_(record, filters); })
-      .sort(function (left, right) { return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO); });
+      .sort(compareByOperationalDate_);
 
     return response_(filteredRows.slice(offset, offset + pageSize), filteredRows.length, page, pageSize, summary);
   }
@@ -330,6 +338,21 @@ const AdministrativeSolicitationQueryService = (() => {
     }
     return text_(value);
   }
+  // Ordem da lista (23/10/2026): data operacional da mais recente para a mais antiga; no mesmo dia,
+  // a registrada por último primeiro. Sem data operacional vai para o fim.
+  function compareByOperationalDate_(left, right) {
+    const diff = sortTimestamp_(right.DATA_OPERACIONAL) - sortTimestamp_(left.DATA_OPERACIONAL);
+    if (diff) return diff;
+    return sortTimestamp_(right.DATA_CRIACAO) - sortTimestamp_(left.DATA_CRIACAO);
+  }
+
+  // Mesmo critério para a lista sem filtro, onde só a coluna operacional é lida:
+  // no mesmo dia, a linha mais abaixo na aba (registrada por último) vem primeiro.
+  function compareOrderEntries_(left, right) {
+    if (right.time !== left.time) return right.time - left.time;
+    return right.row - left.row;
+  }
+
   function sortTimestamp_(value) {
     if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) return value.getTime();
     const parsed = new Date(value);

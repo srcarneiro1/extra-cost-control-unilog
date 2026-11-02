@@ -341,3 +341,10 @@ Agora (`analytics/AnalyticsCharts.tsx` → `ParetoChart`, estilos `.analytics-pa
 - destaque (grafite) dos depositantes que somam **80%** do custo, marcação tracejada "80% do custo" e subtítulo "N depositantes concentram 80% do custo realizado"; os demais em cinza;
 - linha "Demais N depositantes" com valor e participação do restante;
 - altura: a do Pareto varia com a quantidade de depositantes (ficava acima ou abaixo dos vizinhos). A linha "Dia da semana · Pareto · Supervisão" passou a ter cartões **sempre da mesma altura** (`prime-analytics.css`, seletor `.advanced-analytics-grid .analytics-three-columns`, sobrepondo só ali a regra global de `prime-polish.css` que impede cartões de esticar): gráficos ocupam o espaço que sobra (mínimo 300 px) e, no Pareto, "Demais" fica no rodapé. Testado com 1, 4 e 11 depositantes em 1920, 1600, 1366, 900 e 390 px.
+
+## Ordem da lista de Solicitações pela data operacional — 23/10/2026 (API 2026.10.23.1)
+
+A lista passou a ser ordenada pela **data operacional, da mais recente para a mais antiga** (antes: data de registro). No mesmo dia, a registrada por último vem primeiro; sem data operacional vai para o fim.
+- Com filtro (mês, status, busca…): `compareByOperationalDate_` em `AdministrativeSolicitationQueryService.gs`.
+- Sem filtro: a leitura rápida antiga (`readObjectsWindowFromEnd`) pegava as últimas linhas da aba, que estão em ordem de registro — não serve para ordem operacional. Agora lê só a coluna `DATA_OPERACIONAL`, ordena e busca apenas as linhas da página com a nova `SheetRepository.readObjectsByRowNumbers` (linhas próximas lidas num único bloco).
+- Testes no simulador (60 solicitações com datas operacionais embaralhadas, empates e uma sem data): as 6 páginas juntas iguais à ordenação feita à mão; filtro de mês e busca na mesma ordem; página sem filtro com 2 leituras da planilha.

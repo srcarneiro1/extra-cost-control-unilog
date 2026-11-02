@@ -253,6 +253,38 @@ const SheetRepository = (() => {
       .map(function (row) { return row[0]; });
   }
 
+  // Lê linhas específicas (números de linha da aba) devolvendo os registros NA ORDEM pedida.
+  // Linhas próximas são lidas juntas num único bloco (menos chamadas à planilha). 23/10/2026.
+  function readObjectsByRowNumbers(sheetName, rowNumbers) {
+    const wanted = (rowNumbers || []).filter(function (n) { return Number(n) >= 2; });
+    if (!wanted.length) return [];
+    const sheet = getSheet_(sheetName);
+    const headers = headers_(sheet);
+    const lastColumn = sheet.getLastColumn();
+    const MAX_GAP = 40;
+    const sorted = wanted.slice().sort(function (a, b) { return a - b; });
+    const byRow = {};
+    let start = sorted[0];
+    let end = sorted[0];
+    const flush = function () {
+      const values = sheet.getRange(start, 1, end - start + 1, lastColumn).getValues();
+      for (let row = start; row <= end; row += 1) byRow[row] = values[row - start];
+    };
+    for (let index = 1; index < sorted.length; index += 1) {
+      if (sorted[index] - end <= MAX_GAP) {
+        end = sorted[index];
+      } else {
+        flush();
+        start = sorted[index];
+        end = sorted[index];
+      }
+    }
+    flush();
+    return wanted
+      .map(function (row) { return byRow[row] ? rowToObject_(headers, byRow[row]) : null; })
+      .filter(function (record) { return record && hasRecordValue_(record); });
+  }
+
   function readObjectsByFieldValues(sheetName, fieldName, values) {
     const sheet = getSheet_(sheetName);
     const lastRow = sheet.getLastRow();
@@ -593,6 +625,7 @@ const SheetRepository = (() => {
     readFieldValues,
     readColumns,
     readObjectsByFieldValues,
+    readObjectsByRowNumbers,
     readLastObjects,
     readObjectsWindowFromEnd,
     readObjectsForMonthFromEnd,
