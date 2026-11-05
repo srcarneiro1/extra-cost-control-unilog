@@ -269,6 +269,9 @@ const AdministrativeSolicitationQueryService = (() => {
       volumeReferencia: record.VOLUME_REFERENCIA === '' || record.VOLUME_REFERENCIA == null ? null : record.VOLUME_REFERENCIA,
       unidadeVolume: text_(record.UNIDADE_VOLUME),
       precoUnitarioAplicado: unitPrice,
+      // Rastreabilidade (05/11/2026): registros antigos sem origem são da tabela.
+      origemPreco: text_(record.ORIGEM_PRECO) || (unitPrice == null ? '' : 'TABELA'),
+      idAcordoAplicado: text_(record.ID_ACORDO_APLICADO),
       produtoAlimentacao: text_(record.PRODUTO_ALIMENTACAO),
       qtdAlimentacao: numberOrNull_(record.QTD_ALIMENTACAO),
       precoAlimentacaoAplicado: numberOrNull_(record.PRECO_ALIMENTACAO_APLICADO),

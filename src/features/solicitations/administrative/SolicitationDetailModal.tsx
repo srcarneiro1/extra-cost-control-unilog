@@ -51,6 +51,8 @@ type TriageMutationResult = {
   fornecedor: string
   status: SolicitationStatus
   precoUnitarioAplicado?: number
+  origemPreco?: string
+  idAcordoAplicado?: string
   valorPrevisto: number
   produtoAlimentacaoAplicado?: string
   produtoBebidaAplicado?: string
@@ -291,6 +293,8 @@ export function SolicitationDetailModal({
 
       if (detail.tipoSolicitacao === 'MAO_DE_OBRA') {
         patch.precoUnitarioAplicado = result.precoUnitarioAplicado ?? detail.precoUnitarioAplicado
+        if (result.origemPreco) patch.origemPreco = result.origemPreco
+        if (result.origemPreco) patch.idAcordoAplicado = result.idAcordoAplicado || ''
       } else {
         patch.produtoAlimentacaoAplicado = result.produtoAlimentacaoAplicado ?? detail.produtoAlimentacaoAplicado
         patch.produtoBebidaAplicado = result.produtoBebidaAplicado ?? detail.produtoBebidaAplicado
@@ -487,6 +491,9 @@ export function SolicitationDetailModal({
                 <DetailField label="Qtd. solicitada" value={detail.qtdSolicitada} />
                 <DetailField label="Qtd. comparecida" value={detail.qtdComparecida} />
                 <DetailField label="Preço unitário" value={formatMoney(detail.precoUnitarioAplicado)} />
+                {detail.precoUnitarioAplicado != null && (
+                  <DetailField label="Origem do preço" value={detail.origemPreco === 'ACORDO' ? `Acordo comercial ${detail.idAcordoAplicado || ''}`.trim() : 'Tabela de preços'} />
+                )}
               </div>
             </section>
           ) : (

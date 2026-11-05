@@ -6,7 +6,7 @@ const Api = (() => {
       const route = normalizeRoute_(e && e.parameter && e.parameter.route);
 
       if (route === 'health') {
-        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.10.23.1', recursos: ['historicoTerceiros', 'filtroDataOperacional', 'cacheFechamentos', 'jornadaPaga8h', 'ordemDataOperacional'] });
+        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.11.05.1', recursos: ['historicoTerceiros', 'filtroDataOperacional', 'cacheFechamentos', 'jornadaPaga8h', 'ordemDataOperacional', 'acordosComerciais'] });
       }
       if (route === 'auth') return JsonResponse.unauthorized('Autenticação disponível somente pelo gateway protegido.');
       if (route === 'usuarios') return JsonResponse.unauthorized('Administração de usuários disponível somente pelo gateway protegido.');
@@ -46,6 +46,12 @@ const Api = (() => {
         const servicePayload = authorizeGateway_(payload);
         const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
         const mode = ValidationService.normalizeUpper(servicePayload && servicePayload.modo);
+
+        // Acordos comerciais (05/11/2026): listagem sem limpar caches; cadastro e inativação no AgreementService.
+        if (action === AgreementService.ACTIONS.LIST) return JsonResponse.ok(AgreementService.execute(servicePayload));
+        if (action === AgreementService.ACTIONS.SAVE || action === AgreementService.ACTIONS.INACTIVATE) {
+          return JsonResponse.ok(writeAndInvalidate_(function () { return AgreementService.execute(servicePayload); }));
+        }
 
         if (action) {
           const isNamedCatalogAction = ['SALVAR_OPERACAO', 'SALVAR_SUPERVISOR', 'SALVAR_FUNCAO', 'SALVAR_ATIVIDADE'].indexOf(action) >= 0;

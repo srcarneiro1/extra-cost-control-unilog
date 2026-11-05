@@ -116,6 +116,8 @@ export interface AdministrativeSolicitationDetail {
   volumeReferencia: unknown | null
   unidadeVolume: string
   precoUnitarioAplicado: number | null
+  origemPreco?: string
+  idAcordoAplicado?: string
   produtoAlimentacao: string
   qtdAlimentacao: number | null
   precoAlimentacaoAplicado: number | null

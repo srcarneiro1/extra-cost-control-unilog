@@ -1,5 +1,7 @@
 import { invalidateDashboardCache } from '@/services/dashboardService'
 import type {
+  AcordoComercialDto,
+  SaveAcordoComercialInput,
   CatalogAdminScope,
   CatalogAdminScopeQuery,
   CatalogoAdminNomeApiResponse,
@@ -83,7 +85,7 @@ function invalidateCatalogCaches() {
   adminScopeCache.clear()
 }
 
-async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
+async function postAdmin<T>(body: Record<string, unknown>, invalidate = true): Promise<T> {
   let response: Response
   try {
     response = await fetch(CATALOGS_ENDPOINT, {
@@ -104,8 +106,10 @@ async function postAdmin<T>(body: Record<string, unknown>): Promise<T> {
   >(response)
   if (!response.ok || !payload.ok) throwApiError(response, payload)
 
-  invalidateCatalogCaches()
-  invalidateDashboardCache()
+  if (invalidate) {
+    invalidateCatalogCaches()
+    invalidateDashboardCache()
+  }
   return payload.data
 }
 
@@ -350,3 +354,18 @@ export type _CatalogResponseGuards =
   | ProdutoAdminApiResponse
   | PrecoMaoObraAdminApiResponse
   | PrecoProdutoAdminApiResponse
+// Acordos comerciais (05/11/2026): mesma rota protegida de Cadastros (OWNER/ADMINISTRATIVO).
+export async function fetchAcordosAdmin(): Promise<AcordoComercialDto[]> {
+  const data = await postAdmin<{ acordos: AcordoComercialDto[] }>({ acao: 'LISTAR_ACORDOS_MO' }, false)
+  return data.acordos || []
+}
+
+export async function saveAcordoAdmin(input: SaveAcordoComercialInput): Promise<AcordoComercialDto> {
+  const data = await postAdmin<{ acordo: AcordoComercialDto }>({ acao: 'SALVAR_ACORDO_MO', ...input })
+  return data.acordo
+}
+
+export async function inactivateAcordoAdmin(id: string, versao: number, motivo: string): Promise<AcordoComercialDto> {
+  const data = await postAdmin<{ acordo: AcordoComercialDto }>({ acao: 'INATIVAR_ACORDO_MO', id, versao, motivo })
+  return data.acordo
+}

@@ -273,5 +273,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const denied = validateAreaAccess(identity, 'CADASTROS');
   if (denied) return denied;
 
-  return proxyCatalogRequest(context.env, payload);
+  // Autor da ação vem da sessão autenticada (nunca do corpo enviado pela tela) — usado na
+  // rastreabilidade dos acordos comerciais (05/11/2026).
+  const author = 'email' in identity && identity.email ? String(identity.email) : ''
+  return proxyCatalogRequest(context.env, { ...payload, usuarioAdministrativo: author });
 };

@@ -70,9 +70,18 @@ const TriageService = (() => {
     const role = ValidationService.requiredText(record.FUNCAO, 'Função');
     const shift = ValidationService.enumValue(record.TURNO, 'Turno', ['DIURNO', 'NOTURNO']);
     const requestedQuantity = ValidationService.positiveInteger(record.QTD_SOLICITADA, 'Quantidade solicitada');
-    const priceResult = PricingService.resolveLaborPrice({ provider: provider, role: role, shift: shift, date: operationalDate });
+    const priceResult = PricingService.resolveLaborPrice({
+      provider: provider, role: role, shift: shift, date: operationalDate,
+      operation: record.OPERACAO, supervisor: record.SUPERVISOR,
+    });
+    PricingService.ensureOriginColumns();
     const unitPrice = roundMoney_(priceResult.price);
-    return { PRECO_UNITARIO_APLICADO: unitPrice, VALOR_PREVISTO: roundMoney_(requestedQuantity * unitPrice) };
+    return {
+      PRECO_UNITARIO_APLICADO: unitPrice,
+      VALOR_PREVISTO: roundMoney_(requestedQuantity * unitPrice),
+      ORIGEM_PRECO: priceResult.origem,
+      ID_ACORDO_APLICADO: priceResult.idAcordo,
+    };
   }
 
   function foodUpdates_(record, provider, operationalDate, input) {
@@ -122,7 +131,7 @@ const TriageService = (() => {
 
   function responseSummary_(type, updates) {
     return type === TYPES.LABOR
-      ? { precoUnitarioAplicado: updates.PRECO_UNITARIO_APLICADO, valorPrevisto: updates.VALOR_PREVISTO }
+      ? { precoUnitarioAplicado: updates.PRECO_UNITARIO_APLICADO, valorPrevisto: updates.VALOR_PREVISTO, origemPreco: updates.ORIGEM_PRECO, idAcordoAplicado: updates.ID_ACORDO_APLICADO }
       : {
           produtoAlimentacaoAplicado: updates.PRODUTO_ALIMENTACAO_APLICADO,
           produtoBebidaAplicado: updates.PRODUTO_BEBIDA_APLICADO,

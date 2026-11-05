@@ -65,6 +65,8 @@ const SolicitationCorrectionService = (() => {
         ? normalizeLabor_(record, data, common)
         : normalizeFood_(record, data, common);
 
+      // Colunas de origem do preço precisam existir antes da gravação (updateFields recusa campo ausente).
+      if (type === TYPES.LABOR) PricingService.ensureOriginColumns();
       const updates = Object.assign({}, common.updates, specific);
       const changedFields = changedFields_(record, updates);
 
@@ -232,6 +234,8 @@ const SolicitationCorrectionService = (() => {
     let unitPrice = '';
     let expectedValue = '';
     let realValue = '';
+    let priceOrigin = '';
+    let agreementId = '';
 
     if (common.provider) {
       const priceResult = PricingService.resolveLaborPrice({
@@ -239,7 +243,13 @@ const SolicitationCorrectionService = (() => {
         role: role,
         shift: shift,
         date: common.operationalDate,
+        operation: common.updates.OPERACAO,
+        supervisor: common.updates.SUPERVISOR,
       });
+      // Registro antigo sem origem continua vazio (= tabela) quando o preço segue da tabela:
+      // evita uma "alteração" falsa na auditoria de uma correção que não mudou nada.
+      priceOrigin = priceResult.origem === 'TABELA' && !String(record.ORIGEM_PRECO || '').trim() ? '' : priceResult.origem;
+      agreementId = priceResult.idAcordo;
       unitPrice = roundMoney_(priceResult.price);
       expectedValue = roundMoney_(requestedQuantity * unitPrice);
       if (attendedQuantity !== '' && attendedQuantity != null) {
@@ -260,6 +270,8 @@ const SolicitationCorrectionService = (() => {
       PRECO_UNITARIO_APLICADO: unitPrice,
       VALOR_PREVISTO: expectedValue,
       VALOR_REAL: realValue,
+      ORIGEM_PRECO: priceOrigin,
+      ID_ACORDO_APLICADO: agreementId,
     };
   }
 

@@ -23,6 +23,7 @@ export function pageActionLabel(section: CatalogSection) {
               : section === 'FORNECEDORES' ? 'Novo fornecedor'
                 : section === 'PRODUTOS' ? 'Novo produto'
                   : section === 'PRECOS_MO' ? 'Novo preço de mão de obra'
+                    : section === 'ACORDOS_MO' ? 'Novo acordo'
                     : 'Novo preço de produto'
 }
 

@@ -232,3 +232,47 @@ export type PrecoMaoObraAdminApiResponse =
 export type PrecoProdutoAdminApiResponse =
   | { ok: true; data: PrecoProdutoAdminDto }
   | { ok: false; error: ApiErrorDto }
+
+// Acordos comerciais de mão de obra (05/11/2026)
+export type AcordoSituacao = 'VIGENTE' | 'FUTURO' | 'ENCERRADO' | 'INATIVO' | 'PENDENTE'
+export interface AcordoComercialDto {
+  id: string
+  status: string
+  situacao: AcordoSituacao
+  fornecedor: string
+  operacao: string
+  funcao: string
+  turno: string
+  tipoDia: string
+  supervisores: string[]
+  todosSupervisores: boolean
+  vigenciaInicio: string
+  vigenciaFim: string
+  precoUnitario: number
+  qtdReferenciaDia: number | null
+  justificativa: string
+  responsavelNegociacao: string
+  referenciaDocumento: string
+  criadoEm: string
+  criadoPor: string
+  atualizadoEm: string
+  atualizadoPor: string
+  motivoInativacao: string
+  versao: number
+}
+export interface SaveAcordoComercialInput {
+  fornecedor: string
+  operacao: string
+  funcao: string
+  turno: string
+  tipoDia: string
+  todosSupervisores: boolean
+  supervisores: string[]
+  vigenciaInicio: string
+  vigenciaFim: string
+  precoUnitario: number
+  qtdReferenciaDia: number | null
+  justificativa: string
+  responsavelNegociacao: string
+  referenciaDocumento: string
+}

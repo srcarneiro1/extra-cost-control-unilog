@@ -60,6 +60,7 @@ import {
 import { CatalogAdminSummary } from '@/features/catalogs/administrative/CatalogAdminSummary'
 import { CatalogAdminNavigation } from '@/features/catalogs/administrative/CatalogAdminNavigation'
 import { GoalPanel, HolidayPanel, LaborPricePanel, NamedPanel, ProductPanel, ProductPricePanel, ProviderPanel } from '@/features/catalogs/administrative/CatalogAdminPanels'
+import { AgreementsPanel } from '@/features/catalogs/administrative/AgreementsPanel'
 import { GoalForm, HolidayForm, LaborPriceForm, NamedForm, ProductForm, ProductPriceForm, ProviderForm } from '@/features/catalogs/administrative/CatalogAdminForms'
 import { modalDescription, modalEyebrow, modalTitle, pageActionLabel, saveButtonLabel } from '@/features/catalogs/administrative/catalogAdminEditorPresentation'
 
@@ -179,6 +180,11 @@ export function CadastrosPagePaginated() {
   }, [debouncedSearch, section])
 
   useEffect(() => {
+    // Acordos comerciais: o painel carrega os próprios dados; aqui só as listas de apoio do formulário.
+    if (section === 'ACORDOS_MO') {
+      for (const scope of ['OPERACOES', 'SUPERVISORES', 'FUNCOES', 'FORNECEDORES'] as const) void loadStaticScope(scope, { background: true })
+      return
+    }
     if (isPriceSection(section)) void loadPriceScope(section, pricePage, debouncedSearch)
     else void loadStaticScope(section)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -293,6 +299,7 @@ export function CadastrosPagePaginated() {
   }
 
   async function reloadAfterSave() {
+    if (section === 'ACORDOS_MO') return // o painel de acordos recarrega os próprios dados
     if (!isPriceSection(section)) {
       loadedStaticScopesRef.current.delete(section)
       await loadStaticScope(section, { force: true })
@@ -396,7 +403,7 @@ export function CadastrosPagePaginated() {
         eyebrow="ADMINISTRAÇÃO"
         title="Cadastros"
         description="Mantenha catálogos operacionais, feriados, metas, fornecedores, produtos e tabelas de preço em uma única área administrativa."
-        actions={<Button label={currentPageActionLabel} icon="pi pi-plus" onClick={openNew} className="nx-primary-button" />}
+        actions={section === 'ACORDOS_MO' ? undefined : <Button label={currentPageActionLabel} icon="pi pi-plus" onClick={openNew} className="nx-primary-button" />}
       />
 
       {notice && <Message severity="success" text={notice} className="nx-catalog-message" />}
@@ -410,6 +417,7 @@ export function CadastrosPagePaginated() {
       {section === 'SUPERVISORES' && <NamedPanel loading={loading} singular="Supervisor" plural="Supervisores" description="Cadastre, inative ou reative supervisores disponíveis nos novos lançamentos." items={supervisors} search={search} setSearch={setSearch} onEdit={editNamed} />}
       {section === 'FUNCOES' && <NamedPanel loading={loading} singular="Função" plural="Funções" description="Funções usadas em mão de obra e nas tabelas de preço. Inativar preserva o histórico existente." items={functions} search={search} setSearch={setSearch} onEdit={editNamed} />}
       {section === 'ATIVIDADES' && <NamedPanel loading={loading} singular="Atividade" plural="Atividades" description="Atividades operacionais disponíveis nos lançamentos. Inativar não apaga solicitações antigas." items={activities} search={search} setSearch={setSearch} onEdit={editNamed} />}
+      {section === 'ACORDOS_MO' && <AgreementsPanel providers={providerRows} operations={operationRows} supervisors={supervisorRows} functions={functionRows} />}
       {section === 'FERIADOS' && <HolidayPanel loading={loading} items={holidays} search={search} setSearch={setSearch} onEdit={editHoliday} />}
       {section === 'METAS' && <GoalPanel loading={loading} items={goals} search={search} setSearch={setSearch} onEdit={editGoal} />}
       {section === 'FORNECEDORES' && <ProviderPanel loading={loading} items={providers} search={search} setSearch={setSearch} onEdit={editProvider} />}

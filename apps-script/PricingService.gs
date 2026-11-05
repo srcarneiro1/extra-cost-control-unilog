@@ -18,9 +18,29 @@ const PricingService = (() => {
     return DAY_TYPES.UTIL;
   }
 
+  // Acordos comerciais (05/11/2026): se houver acordo ativo para fornecedor + operação (+ função,
+  // turno, tipo de dia e supervisor, quando definidos) na data operacional, ele tem prioridade.
+  // Sem acordo, segue a tabela PRECOS_MO como antes. Retorna também a origem do preço.
   function resolveLaborPrice(params) {
     const date = DateService.parseDateOnly(params.date);
     const dayType = classifyDay(date);
+    const feriadoSerra = dayType === DAY_TYPES.DOMINGO_FERIADO && HolidayService.isSerraHoliday(date);
+
+    if (params.operation) {
+      const agreement = AgreementService.findApplicable({
+        provider: params.provider,
+        operation: params.operation,
+        supervisor: params.supervisor,
+        role: params.role,
+        shift: params.shift,
+        dayType: dayType,
+        date: date,
+      });
+      if (agreement) {
+        return { price: agreement.price, dayType: dayType, feriadoSerra: feriadoSerra, origem: 'ACORDO', idAcordo: agreement.id };
+      }
+    }
+
     const rows = SheetRepository.readObjects('PRECOS_MO');
 
     const candidates = rows.filter(function (row) {
@@ -45,8 +65,16 @@ const PricingService = (() => {
     return {
       price: toNumber_(candidates[0].PRECO_UNITARIO),
       dayType: dayType,
-      feriadoSerra: dayType === DAY_TYPES.DOMINGO_FERIADO && HolidayService.isSerraHoliday(date),
+      feriadoSerra: feriadoSerra,
+      origem: 'TABELA',
+      idAcordo: '',
     };
+  }
+
+  // Colunas de rastreabilidade do preço na solicitação (criadas sem apagar nada).
+  // Registros antigos ficam com ORIGEM_PRECO vazio = tabela.
+  function ensureOriginColumns() {
+    SheetRepository.ensureColumns('SOLICITACOES', ['ORIGEM_PRECO', 'ID_ACORDO_APLICADO']);
   }
 
   function resolveProductPrice(params) {
@@ -114,6 +142,7 @@ const PricingService = (() => {
     DAY_TYPES,
     classifyDay,
     resolveLaborPrice,
+    ensureOriginColumns,
     resolveProductPrice,
   };
 })();

@@ -143,7 +143,10 @@ const SolicitationService = (() => {
       role: roleRow.FUNCAO,
       shift: shift,
       date: common.operationalDate,
+      operation: common.record.OPERACAO,
+      supervisor: common.record.SUPERVISOR,
     });
+    PricingService.ensureOriginColumns();
 
     const unitPrice = roundMoney_(priceResult.price);
     const expectedValue = roundMoney_(requestedQuantity * unitPrice);
@@ -158,6 +161,8 @@ const SolicitationService = (() => {
         VOLUME_REFERENCIA: input.volumeReferencia == null ? '' : input.volumeReferencia,
         UNIDADE_VOLUME: ValidationService.normalizeText(input.unidadeVolume),
         PRECO_UNITARIO_APLICADO: unitPrice,
+        ORIGEM_PRECO: priceResult.origem,
+        ID_ACORDO_APLICADO: priceResult.idAcordo,
         PRODUTO_ALIMENTACAO: '',
         QTD_ALIMENTACAO: '',
         PRECO_ALIMENTACAO_APLICADO: '',
