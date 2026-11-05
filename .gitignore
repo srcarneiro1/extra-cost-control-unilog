@@ -1,9 +1,21 @@
+# Dependências e builds
 node_modules/
 dist/
+out/
+.next/
+src/app/generated/
+.wrangler/
+
+# Variáveis de ambiente e segredos (nunca versionar)
 .env
 .env.*
 !.env.example
 *.local
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+.clasprc.json
+
+# Sistema
 .DS_Store
-src/app/generated/
-.wrangler/
