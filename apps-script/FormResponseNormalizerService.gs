@@ -4,6 +4,14 @@ const FormResponseNormalizerService = (() => {
   const ORIGIN = 'GOOGLE_FORMS';
   const TRIGGER_HANDLER = 'onOperationalFormSubmit';
   const TEXT_FIELDS = ['COMPETENCIA', 'CENTRO_CUSTO', 'ID_ORIGEM'];
+  // 05/11/2026 — incidente: a resposta do Allan (18:25) falhou por bloqueio ocupado por mais de 10 s
+  // e se perdeu sem registro. Agora: espera de até 30 s, checagem de duplicidade lendo só colunas
+  // (menos tempo segurando o bloqueio), registro de toda tentativa em LOG_INTEGRACAO_FORMS e
+  // conciliação idempotente (FormReconciliationService) para recuperar respostas pendentes.
+  const LOCK_WAIT_MS = 30000;
+  const LOG_SHEET = 'LOG_INTEGRACAO_FORMS';
+  const LOG_HEADERS = ['DATA_HORA', 'EXECUCAO', 'ID_RESPOSTA', 'DATA_RESPOSTA', 'RESULTADO', 'ID_SOLICITACAO', 'MENSAGEM', 'DURACAO_MS'];
+  const LOCK_ERROR = 'Não foi possível obter bloqueio para normalizar a resposta do Forms.';
 
   const TYPES = Object.freeze({
     LABOR: 'MAO_DE_OBRA',
@@ -43,10 +51,38 @@ const FormResponseNormalizerService = (() => {
       throw new Error('Evento de envio do Google Forms inválido ou ausente.');
     }
 
-    return normalizeResponse_(event.response);
+    // Erros continuam sendo relançados: a execução aparece como "Falha" no painel e o Google avisa
+    // por e-mail; a diferença é que agora a falha fica registrada e a resposta pode ser recuperada.
+    return processResponse(event.response, 'GATILHO');
   }
 
-  function normalizeResponse_(formResponse) {
+  // Ponto único de processamento (gatilho e conciliação). Registra o resultado sempre.
+  function processResponse(formResponse, execution) {
+    const started = Date.now();
+    let responseId = '';
+    let responseDate = '';
+    try {
+      responseId = String(formResponse.getId() || '');
+      responseDate = formResponse.getTimestamp() || '';
+    } catch (error) {
+      // segue: a validação abaixo reporta a ausência do ID
+    }
+    try {
+      const result = persist_(buildRecord_(formResponse));
+      log_(execution, responseId, responseDate, result.duplicado ? 'DUPLICADA' : 'CRIADA', result.idSolicitacao, '', started);
+      return result;
+    } catch (error) {
+      const message = String(error && error.message || error);
+      const kind = message === LOCK_ERROR ? 'ERRO_BLOQUEIO'
+        : error && error.name === 'ValidationError' ? 'ERRO_VALIDACAO'
+        : 'ERRO_INESPERADO';
+      log_(execution, responseId, responseDate, kind, '', message, started);
+      throw error;
+    }
+  }
+
+  // Monta e valida a solicitação a partir da resposta, sem gravar nada (usado também na simulação).
+  function buildRecord_(formResponse) {
     const responseId = ValidationService.requiredText(formResponse.getId(), 'ID da resposta do Forms');
     const answers = responseMap_(formResponse);
     const type = resolveType_(answer_(answers, QUESTIONS.type));
@@ -119,9 +155,20 @@ const FormResponseNormalizerService = (() => {
       applyFood_(record, answers);
     }
 
+    return { responseId: responseId, createdAt: createdAt, type: type, record: record };
+  }
+
+  // Grava com bloqueio. A checagem de duplicidade pelo ID da resposta acontece DENTRO do bloqueio:
+  // gatilho repetido, edição de resposta ou conciliação nunca criam uma segunda solicitação.
+  function persist_(built) {
+    const responseId = built.responseId;
+    const createdAt = built.createdAt;
+    const type = built.type;
+    const record = built.record;
+
     const lock = LockService.getScriptLock();
-    if (!lock.tryLock(10000)) {
-      throw new Error('Não foi possível obter bloqueio para normalizar a resposta do Forms.');
+    if (!lock.tryLock(LOCK_WAIT_MS)) {
+      throw new Error(LOCK_ERROR);
     }
 
     try {
@@ -302,11 +349,71 @@ const FormResponseNormalizerService = (() => {
     return ValidationService.normalizeText(row[fieldName]);
   }
 
+  // Lê só as colunas necessárias (antes lia a aba inteira dentro do bloqueio, o que deixava cada
+  // execução com 7 a 13 s e aumentava a chance de conflito com outras gravações).
   function findExisting_(responseId) {
-    return SheetRepository.readObjects(SHEET_SOLICITACOES).find(function (row) {
-      return ValidationService.normalizeUpper(row.ORIGEM) === ORIGIN &&
-        ValidationService.normalizeText(row.ID_ORIGEM) === responseId;
-    }) || null;
+    const index = originIndex();
+    return index[responseId] ? { ID_SOLICITACAO: index[responseId] } : null;
+  }
+
+  // Mapa ID da resposta do Forms → protocolo, para as solicitações de origem GOOGLE_FORMS.
+  function originIndex() {
+    const origins = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'ORIGEM');
+    const ids = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'ID_ORIGEM');
+    const protocols = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'ID_SOLICITACAO');
+    const index = {};
+    for (let i = 0; i < ids.length; i += 1) {
+      if (ValidationService.normalizeUpper(origins[i]) !== ORIGIN) continue;
+      const id = ValidationService.normalizeText(ids[i]);
+      if (id) index[id] = ValidationService.normalizeText(protocols[i]) || '(sem protocolo)';
+    }
+    return index;
+  }
+
+  // Registro de cada tentativa (sem dados pessoais). appendRow é atômico, então pode ser usado fora
+  // do bloqueio. Falha no registro nunca derruba o processamento.
+  function log_(execution, responseId, responseDate, result, protocol, message, started) {
+    const duration = Date.now() - started;
+    try {
+      const spreadsheet = SheetRepository.getSpreadsheet();
+      let sheet = spreadsheet.getSheetByName(LOG_SHEET);
+      if (!sheet) {
+        // Primeira execução: cria a aba de registro com o cabeçalho.
+        sheet = spreadsheet.insertSheet(LOG_SHEET);
+        sheet.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS]);
+      } else {
+        SheetRepository.ensureColumns(LOG_SHEET, LOG_HEADERS);
+      }
+      const values = {
+        DATA_HORA: new Date(),
+        EXECUCAO: execution,
+        ID_RESPOSTA: responseId,
+        DATA_RESPOSTA: responseDate,
+        RESULTADO: result,
+        ID_SOLICITACAO: protocol || '',
+        MENSAGEM: String(message || '').slice(0, 500),
+        DURACAO_MS: duration,
+      };
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      sheet.appendRow(headers.map(function (header) {
+        return Object.prototype.hasOwnProperty.call(values, header) ? values[header] : '';
+      }));
+    } catch (error) {
+      // registro é auxiliar
+    }
+    try {
+      console.log(JSON.stringify({
+        evento: 'extra_forms', execucao: execution, resultado: result, protocolo: protocol || '',
+        resposta: maskId(responseId), duracaoMs: duration,
+      }));
+    } catch (error) {
+      // idem
+    }
+  }
+
+  function maskId(value) {
+    const text = String(value || '');
+    return text.length > 8 ? '…' + text.slice(-8) : text;
   }
 
   function installTrigger() {
@@ -343,7 +450,14 @@ const FormResponseNormalizerService = (() => {
   }
 
   return {
+    TRIGGER_HANDLER,
+    PROPERTY_FORM_ID,
     normalizeEvent,
+    processResponse,
+    buildRecord: buildRecord_,
+    originIndex,
+    maskId,
+    openForm: openForm_,
     installTrigger,
   };
 })();
