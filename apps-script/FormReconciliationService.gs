@@ -89,7 +89,8 @@ const FormReconciliationService = (() => {
         const detail = r.TIPO_SOLICITACAO === 'MAO_DE_OBRA'
           ? r.FUNCAO + ' × ' + r.QTD_SOLICITADA
           : [r.PRODUTO_ALIMENTACAO && r.QTD_ALIMENTACAO + ' ' + r.PRODUTO_ALIMENTACAO, r.PRODUTO_BEBIDA && r.QTD_BEBIDA + ' ' + r.PRODUTO_BEBIDA].filter(Boolean).join(' + ');
-        report.linhas.push('OK      | ' + stamp_(response) + ' | ' + r.TIPO_SOLICITACAO + ' | ' + r.OPERACAO + ' | ' + r.SUPERVISOR + ' | ' + r.DATA_OPERACIONAL + ' | ' + detail);
+        report.linhas.push('OK      | ' + stamp_(response) + ' | ' + r.TIPO_SOLICITACAO + ' | ' + r.OPERACAO + ' | ' + r.SUPERVISOR + ' | ' + r.DATA_OPERACIONAL + ' | ' + detail +
+          (built.notes && built.notes.length ? ' | OBS.: ' + built.notes.join(' ') : ''));
       } catch (error) {
         report.invalidas += 1;
         report.linhas.push('INVÁLIDA | ' + stamp_(response) + ' | ' + error.message);

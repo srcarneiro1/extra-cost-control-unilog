@@ -40,6 +40,7 @@ const FormResponseNormalizerService = (() => {
     forkliftShift: 'Turno — Operador de Empilhadeira',
     food: 'Alimentação',
     foodQuantity: 'Quantidade de alimentação',
+    categories: 'Categorias solicitadas',
     drink: 'Bebida',
     drinkQuantity: 'Quantidade de bebida',
     costResponsibility: 'Responsável pelo custo',
@@ -68,8 +69,9 @@ const FormResponseNormalizerService = (() => {
       // segue: a validação abaixo reporta a ausência do ID
     }
     try {
-      const result = persist_(buildRecord_(formResponse));
-      log_(execution, responseId, responseDate, result.duplicado ? 'DUPLICADA' : 'CRIADA', result.idSolicitacao, '', started);
+      const built = buildRecord_(formResponse);
+      const result = persist_(built);
+      log_(execution, responseId, responseDate, result.duplicado ? 'DUPLICADA' : 'CRIADA', result.idSolicitacao, (built.notes || []).join(' '), started);
       return result;
     } catch (error) {
       const message = String(error && error.message || error);
@@ -153,13 +155,14 @@ const FormResponseNormalizerService = (() => {
       STATUS: SolicitationStatusService.STATUS.SENT,
     };
 
+    let notes = [];
     if (type === TYPES.LABOR) {
       applyLabor_(record, answers);
     } else {
-      applyFood_(record, answers);
+      notes = applyFood_(record, answers);
     }
 
-    return { responseId: responseId, createdAt: createdAt, type: type, origin: meta.origin || ORIGIN, record: record };
+    return { responseId: responseId, createdAt: createdAt, type: type, origin: meta.origin || ORIGIN, record: record, notes: notes || [] };
   }
 
   // Grava com bloqueio. A checagem de duplicidade pelo ID da resposta acontece DENTRO do bloqueio:
@@ -244,11 +247,39 @@ const FormResponseNormalizerService = (() => {
     record.UNIDADE_VOLUME = ValidationService.normalizeText(answer_(answers, QUESTIONS.volumeUnit));
   }
 
+  // Alimentação/bebidas (07/11/2026): respeita "Categorias solicitadas" do Google Forms.
+  // Incidentes de 02/11 e 03/11: categoria só "Alimentação", bebida escolhida e quantidade de
+  // bebida vazia → antes recusado. Regras por item (alimentação e bebida, separadamente):
+  //   - categoria marcada → produto e quantidade obrigatórios;
+  //   - categoria NÃO marcada + produto escolhido + quantidade vazia → resíduo ignorado (anotado no registro);
+  //   - categoria NÃO marcada + quantidade preenchida → inconsistência: recusa, sem presumir.
+  // Sem a pergunta de categorias (tela de solicitação do app), vale a regra anterior.
+  // Retorna as observações (ex.: resíduo ignorado) para o registro de integração.
   function applyFood_(record, answers) {
-    const food = ValidationService.normalizeText(answer_(answers, QUESTIONS.food));
-    const drink = ValidationService.normalizeText(answer_(answers, QUESTIONS.drink));
+    let food = ValidationService.normalizeText(answer_(answers, QUESTIONS.food));
+    let drink = ValidationService.normalizeText(answer_(answers, QUESTIONS.drink));
     const foodQuantityRaw = ValidationService.normalizeText(answer_(answers, QUESTIONS.foodQuantity));
     const drinkQuantityRaw = ValidationService.normalizeText(answer_(answers, QUESTIONS.drinkQuantity));
+    const categoriesRaw = ValidationService.normalizeUpper(answer_(answers, QUESTIONS.categories));
+    const notes = [];
+
+    if (categoriesRaw) {
+      const wantsFood = categoriesRaw.indexOf('ALIMENTA') >= 0;
+      const wantsDrink = categoriesRaw.indexOf('BEBIDA') >= 0;
+      const checkItem = function (wanted, product, quantity, label, categoryLabel) {
+        if (wanted) {
+          if (!product) ValidationService.fail('Categoria ' + categoryLabel + ' marcada, mas nenhum produto de ' + label + ' foi escolhido.');
+          return product;
+        }
+        if (quantity) {
+          ValidationService.fail('Inconsistência: quantidade de ' + label + ' informada, mas a categoria ' + categoryLabel + ' não foi marcada.');
+        }
+        if (product) notes.push(categoryLabel + ' "' + product + '" ignorada: categoria não marcada e quantidade vazia.');
+        return '';
+      };
+      food = checkItem(wantsFood, food, foodQuantityRaw, 'alimentação', 'Alimentação');
+      drink = checkItem(wantsDrink, drink, drinkQuantityRaw, 'bebida', 'Bebida');
+    }
 
     if (!food && !drink) {
       ValidationService.fail('Informe pelo menos um produto de alimentação ou bebida.');
@@ -259,7 +290,7 @@ const FormResponseNormalizerService = (() => {
       validateProductCategory_(canonicalFood, 'ALIMENTACAO');
       record.PRODUTO_ALIMENTACAO = canonicalFood;
       record.QTD_ALIMENTACAO = ValidationService.positiveInteger(foodQuantityRaw, 'Quantidade de alimentação');
-    } else if (foodQuantityRaw) {
+    } else if (foodQuantityRaw && !categoriesRaw) {
       ValidationService.fail('Produto de alimentação é obrigatório quando a quantidade de alimentação for informada.');
     }
 
@@ -268,9 +299,10 @@ const FormResponseNormalizerService = (() => {
       validateProductCategory_(canonicalDrink, 'BEBIDA');
       record.PRODUTO_BEBIDA = canonicalDrink;
       record.QTD_BEBIDA = ValidationService.positiveInteger(drinkQuantityRaw, 'Quantidade de bebida');
-    } else if (drinkQuantityRaw) {
+    } else if (drinkQuantityRaw && !categoriesRaw) {
       ValidationService.fail('Produto de bebida é obrigatório quando a quantidade de bebida for informada.');
     }
+    return notes;
   }
 
   function validateProductCategory_(productName, expectedCategory) {

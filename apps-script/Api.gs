@@ -6,7 +6,7 @@ const Api = (() => {
       const route = normalizeRoute_(e && e.parameter && e.parameter.route);
 
       if (route === 'health') {
-        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.11.06.1', recursos: ['historicoTerceiros', 'filtroDataOperacional', 'cacheFechamentos', 'jornadaPaga8h', 'ordemDataOperacional', 'acordosComerciais', 'conciliacaoFormulario', 'telaSolicitacao', 'cadastrosDeCusto'] });
+        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.11.07.1', recursos: ['historicoTerceiros', 'filtroDataOperacional', 'cacheFechamentos', 'jornadaPaga8h', 'ordemDataOperacional', 'acordosComerciais', 'conciliacaoFormulario', 'telaSolicitacao', 'cadastrosDeCusto', 'categoriasFormulario'] });
       }
       if (route === 'auth') return JsonResponse.unauthorized('Autenticação disponível somente pelo gateway protegido.');
       if (route === 'usuarios') return JsonResponse.unauthorized('Administração de usuários disponível somente pelo gateway protegido.');

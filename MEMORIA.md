@@ -428,15 +428,13 @@ Testes: 24 no simulador (opções, envio de lanche, reenvio idempotente, mão de
 - Onde achar no log: Cloudflare → Workers & Pages → projeto do Extra → Functions/Logs (tempo real) → buscar a referência.
 - Testes: 10 no gateway (isolado) e 6 na tela.
 
-## Identidade Unilog no app inteiro (cores, cantos, fonte) — 06/11/2026
+## Formulário: regra por "Categorias solicitadas" — 07/11/2026 (API 2026.11.07.1)
 
-Estrutura das telas mantida; só a camada visual foi alinhada ao Manual 2026 (Rev. 2). Só o Extra Cost (Retrabalho e BI ficam para depois).
-- **Cinzas** (136 tons, quase todos azulados): cada um manteve a claridade (mesmo contraste e hierarquia) e passou ao tom do Cinza UNILOG; os próximos de um cinza oficial foram encaixados nele (#494a56, #6d6e78, #92929a, #b6b7bb, #dbdbdd, #ededee). Barra lateral e textos muito escuros → Cinza UNILOG.
-- **Vermelhos** (18 tons) → só #db0812 (oficial) e #b00610 (hover/texto escuro), com fundo #fbe6e7 e bordas suaves derivadas.
-- **Azuis de status** ("Em triagem", cartão "Aguardando triagem") → cinza ("em andamento"); teal de gráfico → azul secundário oficial #accfcc.
-- **Verde e amarelo de status** (atendida, dentro/fora do previsto, pendências) mantidos, por decisão do usuário, por já serem tons suaves; fundos claros com matiz verde/amarelo/rosado preservados.
-- **Cantos**: botões e campos 6 px, cartões 8 px (tokens `--radius-control`/`--radius-card` e valores fixos nos CSS: 9–24 px → 8 px, 7–8 px → 6 px; pílulas e círculos inalterados).
-- **Tema do PrimeReact** (`scripts/build-unilog-theme.mjs`): severidades do Lara trocadas — info/azul e help/roxo → cinza; danger → vermelho oficial; success/warning → tons suaves (verde #3f7c59, âmbar #a87900); hover do primário → #b00610; fundo de seleção → #fbe6e7.
-- Fonte: referências a Inter removidas (Roboto oficial já carregada).
-- Script usado: mapeamento automático com regras explícitas (registrado nesta memória); comparações antes/depois de Solicitações, Visão geral (executiva e analytics), Fechamentos, Cadastros e Usuários, no computador e no celular.
-- Opcional não aplicado: status 100% conforme o manual (concluído em cinza, em andamento cinza 10, atenção vermelho), trocando também verde e amarelo.
+Causa das 2 respostas recusadas (02/11 Doriedson/MEGALABS e 03/11 Alex Guidini/CELLERA): categoria marcada só "Alimentação", mas a lista "Bebida" ficou com COCA-COLA 2L escolhida e a quantidade de bebida vazia; o processador ignorava as categorias e exigia a quantidade.
+Regra nova em `FormResponseNormalizerService.applyFood_` (alimentação e bebida, separadamente):
+- categoria marcada → produto e quantidade obrigatórios;
+- categoria não marcada + produto escolhido + quantidade vazia → **resíduo ignorado**, anotado na MENSAGEM do `LOG_INTEGRACAO_FORMS` (resultado CRIADA) e na simulação ("OBS.");
+- categoria não marcada + quantidade preenchida → **inconsistência**: recusa, sem presumir;
+- sem a pergunta de categorias (tela de solicitação do app) → regra anterior.
+Testes: 9 cenários novos (incluindo os dois casos reais), 24 do formulário e 24 da tela de solicitação repetidos sem falhas.
+Pendente operacional: confirmar com os solicitantes que os dois pedidos eram só alimentação antes da conciliação; CE-2026-002130 é duplicado do CE-2026-002080 (já atendido) — cancelar pelo fluxo do app.
