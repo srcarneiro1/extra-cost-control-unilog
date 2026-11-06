@@ -10,7 +10,7 @@ export type PublicOptions = {
   responsaveis: Array<{ nome: string; exigeCentroCusto: boolean }>
   centros: Array<{ codigo: string; descricao: string }>
   vinculos: Record<string, string[]>
-  acordos?: Array<{ id: string; nome: string; operacao: string; vigenciaInicio: string; vigenciaFim: string; supervisores: string[] }>
+  acordos?: Array<{ id: string; nome: string; operacoes: string[]; vigenciaInicio: string; vigenciaFim: string; supervisores: string[] }>
 }
 
 export type PublicProtocol = { tipoSolicitacao: 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'; idSolicitacao: string; jaRegistrado: boolean }

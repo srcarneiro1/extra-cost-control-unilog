@@ -163,7 +163,7 @@ export function PublicRequestPage() {
 
   // Acordos "indicados" que valem para a operação, a data e o supervisor escolhidos (07/11/2026).
   const eligibleAgreements = useMemo(() => (options?.acordos || []).filter((a) =>
-    a.operacao.toUpperCase() === form.operacao.toUpperCase() &&
+    (!a.operacoes.length || a.operacoes.includes(form.operacao.toUpperCase())) &&
     form.dataOperacional >= a.vigenciaInicio && form.dataOperacional <= a.vigenciaFim &&
     (!a.supervisores.length || a.supervisores.includes(form.supervisor.toUpperCase()))
   ), [options, form.operacao, form.dataOperacional, form.supervisor])

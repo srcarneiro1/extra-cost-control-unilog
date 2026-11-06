@@ -23,7 +23,8 @@ import type { AcordoComercialDto, AcordoSituacao, CatalogoAdminNomeDto, Forneced
 
 type Draft = {
   fornecedor: string
-  operacao: string
+  operacoes: string[]
+  todasOperacoes: boolean
   funcao: string
   turno: string
   tipoDia: string
@@ -46,7 +47,7 @@ const APPLY_OPTIONS = [
 ]
 
 const emptyDraft = (): Draft => ({
-  fornecedor: '', operacao: '', funcao: 'TODAS', turno: 'TODOS', tipoDia: 'TODOS',
+  fornecedor: '', operacoes: [], todasOperacoes: false, funcao: 'TODAS', turno: 'TODOS', tipoDia: 'TODOS',
   todosSupervisores: false, supervisores: [], vigenciaInicio: '', vigenciaFim: '',
   precoUnitario: null, qtdReferenciaDia: null, justificativa: '', responsavelNegociacao: '', referenciaDocumento: '',
   formaAplicacao: 'INDICADA', nomePublico: '',
@@ -142,7 +143,7 @@ export function AgreementsPanel({
     const query = search.trim().toUpperCase()
     return items
       .filter((item) => situacao === 'TODAS' || item.situacao === situacao)
-      .filter((item) => !query || `${item.id} ${item.fornecedor} ${item.operacao} ${item.supervisores.join(' ')} ${item.funcao}`.toUpperCase().includes(query))
+      .filter((item) => !query || `${item.id} ${item.fornecedor} ${item.operacao} ${(item.operacoes || []).join(' ')} ${item.supervisores.join(' ')} ${item.funcao}`.toUpperCase().includes(query))
       .sort((a, b) => (b.vigenciaInicio || '').localeCompare(a.vigenciaInicio || ''))
   }, [items, search, situacao])
 
@@ -162,7 +163,8 @@ export function AgreementsPanel({
 
   async function save() {
     setFormError('')
-    if (!draft.fornecedor || !draft.operacao) return setFormError('Informe fornecedor e operação.')
+    if (!draft.fornecedor) return setFormError('Informe o fornecedor.')
+    if (!draft.todasOperacoes && !draft.operacoes.length) return setFormError('Selecione ao menos uma operação ou escolha "Todas as operações".')
     if (!draft.todosSupervisores && !draft.supervisores.length) return setFormError('Selecione ao menos um supervisor ou escolha "Todos os supervisores".')
     if (!draft.vigenciaInicio || !draft.vigenciaFim) return setFormError('Informe a vigência inicial e final.')
     if (draft.vigenciaFim < draft.vigenciaInicio) return setFormError('A vigência final não pode ser anterior à inicial.')
@@ -175,6 +177,7 @@ export function AgreementsPanel({
         ...draft,
         precoUnitario: Number(draft.precoUnitario),
         supervisores: draft.todosSupervisores ? [] : draft.supervisores,
+        operacoes: draft.todasOperacoes ? [] : draft.operacoes,
         justificativa: draft.justificativa.trim(),
         responsavelNegociacao: draft.responsavelNegociacao.trim(),
         referenciaDocumento: draft.referenciaDocumento.trim(),
@@ -267,8 +270,13 @@ export function AgreementsPanel({
         <div className="nx-catalog-form-stack">
           <div className="nx-catalog-form-grid">
             <Field label="Fornecedor *"><Dropdown value={draft.fornecedor} options={options(laborProviders, 'Selecione')} onChange={(e) => setDraft((d) => ({ ...d, fornecedor: e.value || '' }))} filter /></Field>
-            <Field label="Operação *"><Dropdown value={draft.operacao} options={options(operations, 'Selecione')} onChange={(e) => setDraft((d) => ({ ...d, operacao: e.value || '' }))} filter /></Field>
+            <Field label="Abrangência de operações"><Dropdown value={draft.todasOperacoes} options={[{ label: 'Operações selecionadas', value: false }, { label: 'Todas as operações', value: true }]} onChange={(e) => setDraft((d) => ({ ...d, todasOperacoes: Boolean(e.value) }))} /></Field>
           </div>
+          {!draft.todasOperacoes && (
+            <Field label="Operações *">
+              <MultiSelect value={draft.operacoes} options={options(operations, '').slice(1)} onChange={(e) => setDraft((d) => ({ ...d, operacoes: e.value || [] }))} filter display="chip" placeholder="Selecione as operações" />
+            </Field>
+          )}
           <div className="nx-catalog-form-grid">
             <Field label="Função"><Dropdown value={draft.funcao} options={[{ label: 'Todas as funções', value: 'TODAS' }, ...options(functions, '').slice(1)]} onChange={(e) => setDraft((d) => ({ ...d, funcao: e.value || 'TODAS' }))} filter /></Field>
             <Field label="Turno"><Dropdown value={draft.turno} options={TURNO_OPTIONS} onChange={(e) => setDraft((d) => ({ ...d, turno: e.value }))} /></Field>

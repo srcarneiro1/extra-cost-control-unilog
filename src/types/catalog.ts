@@ -243,6 +243,8 @@ export interface AcordoComercialDto {
   situacao: AcordoSituacao
   fornecedor: string
   operacao: string
+  operacoes: string[]
+  todasOperacoes: boolean
   funcao: string
   turno: string
   tipoDia: string
@@ -266,7 +268,8 @@ export interface AcordoComercialDto {
 }
 export interface SaveAcordoComercialInput {
   fornecedor: string
-  operacao: string
+  operacoes: string[]
+  todasOperacoes: boolean
   funcao: string
   turno: string
   tipoDia: string

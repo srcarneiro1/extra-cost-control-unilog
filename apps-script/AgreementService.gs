@@ -53,6 +53,25 @@ const AgreementService = (() => {
   function text_(v) { return String(v == null ? '' : v).trim(); }
   function upper_(v) { return ValidationService.normalizeUpper(v); }
 
+  // Operações do acordo (07/11/2026): uma, várias ("OP1; OP2") ou TODAS. Registros antigos com uma
+  // operação continuam válidos. Lista vazia = todas as operações.
+  const ALL_OPERATIONS = 'TODAS';
+  function operationsOf_(value) {
+    const raw = text_(value);
+    if (!raw || upper_(raw) === ALL_OPERATIONS) return [];
+    return raw.split(/[;\n]+/).map(upper_).filter(Boolean);
+  }
+
+  function coversOperation_(r, operation) {
+    const list = operationsOf_(r.OPERACAO);
+    return !list.length || list.indexOf(upper_(operation)) >= 0;
+  }
+
+  function operationsLabel_(r) {
+    const list = operationsOf_(r.OPERACAO);
+    return list.length ? list.join(', ') : 'Todas as operações';
+  }
+
   function supervisorsOf_(value) {
     const raw = text_(value);
     if (!raw || upper_(raw) === ALL) return [];
@@ -84,7 +103,9 @@ const AgreementService = (() => {
       status: status,
       situacao: situacao,
       fornecedor: text_(r.FORNECEDOR),
-      operacao: text_(r.OPERACAO),
+      operacao: text_(r.OPERACAO) ? operationsLabel_(r) : '',
+      operacoes: operationsOf_(r.OPERACAO),
+      todasOperacoes: Boolean(text_(r.OPERACAO)) && operationsOf_(r.OPERACAO).length === 0,
       funcao: text_(r.FUNCAO) || ALL_ROLES,
       turno: text_(r.TURNO) || ALL,
       tipoDia: text_(r.TIPO_DIA) || ALL,
@@ -130,7 +151,7 @@ const AgreementService = (() => {
       if (!isValid_(r)) return false;
       if (applyMode_(r) === APPLY.INDICATED && text_(r.ID_ACORDO) !== confirmedId) return false;
       if (upper_(r.FORNECEDOR) !== upper_(ctx.provider)) return false;
-      if (upper_(r.OPERACAO) !== upper_(ctx.operation)) return false;
+      if (!coversOperation_(r, ctx.operation)) return false;
       const role = upper_(r.FUNCAO);
       if (role && role !== ALL_ROLES && role !== upper_(ctx.role)) return false;
       const shift = upper_(r.TURNO);
@@ -157,7 +178,7 @@ const AgreementService = (() => {
         return {
           id: text_(r.ID_ACORDO),
           nome: text_(r.NOME_PUBLICO) || text_(r.ID_ACORDO),
-          operacao: text_(r.OPERACAO),
+          operacoes: operationsOf_(r.OPERACAO),
           vigenciaInicio: iso_(r.VIGENCIA_INICIO),
           vigenciaFim: iso_(r.VIGENCIA_FIM),
           supervisores: supervisorsOf_(r.SUPERVISORES),
@@ -172,7 +193,7 @@ const AgreementService = (() => {
     if (!wanted) return '';
     const iso = DateService.toIsoDate(DateService.parseDateOnly(date));
     const hit = indicatedOptions().find(function (a) { return a.id === wanted; });
-    if (!hit || upper_(hit.operacao) !== upper_(operation) || iso < hit.vigenciaInicio || iso > hit.vigenciaFim ||
+    if (!hit || (hit.operacoes.length && hit.operacoes.indexOf(upper_(operation)) < 0) || iso < hit.vigenciaInicio || iso > hit.vigenciaFim ||
         (hit.supervisores.length && hit.supervisores.indexOf(upper_(supervisor)) < 0)) {
       ValidationService.fail('O acordo indicado não vale para esta operação, data ou supervisor.');
     }
@@ -195,7 +216,12 @@ const AgreementService = (() => {
     reset_();
     const author = requiredAuthor_(input);
     const provider = canonical_('CAD_FORNECEDORES', 'FORNECEDOR', input.fornecedor, 'Fornecedor');
-    const operation = canonical_('CAD_OPERACOES', 'OPERACAO', input.operacao, 'Operação');
+    // Operações: selecionadas (uma ou várias) ou todas. Compatível com o campo antigo "operacao".
+    const operationList = Array.isArray(input.operacoes) ? input.operacoes : (input.operacao ? [input.operacao] : []);
+    const allOperations = input.todasOperacoes === true;
+    const canonicalOperations = allOperations ? [] : unique_(operationList.map(function (o) { return canonical_('CAD_OPERACOES', 'OPERACAO', o, 'Operação'); }));
+    if (!allOperations && !canonicalOperations.length) ValidationService.fail('Selecione ao menos uma operação ou marque "todas as operações".');
+    const operation = allOperations ? ALL_OPERATIONS : canonicalOperations.join('; ');
     const roleInput = upper_(input.funcao || ALL_ROLES);
     const role = roleInput === ALL_ROLES ? ALL_ROLES : canonical_('CAD_FUNCOES', 'FUNCAO', input.funcao, 'Função');
     const shift = ValidationService.enumValue(input.turno || ALL, 'Turno', [ALL, 'DIURNO', 'NOTURNO']);
@@ -288,7 +314,11 @@ const AgreementService = (() => {
   }
 
   function overlaps_(r, c) {
-    if (upper_(r.FORNECEDOR) !== upper_(c.FORNECEDOR) || upper_(r.OPERACAO) !== upper_(c.OPERACAO)) return false;
+    if (upper_(r.FORNECEDOR) !== upper_(c.FORNECEDOR)) return false;
+    // Operações se cruzam se uma das listas for "todas" ou se tiverem alguma em comum.
+    const opsA = operationsOf_(r.OPERACAO);
+    const opsB = operationsOf_(c.OPERACAO);
+    if (opsA.length && opsB.length && !opsA.some(function (o) { return opsB.indexOf(o) >= 0; })) return false;
     if (!(iso_(r.VIGENCIA_INICIO) <= c.VIGENCIA_FIM && c.VIGENCIA_INICIO <= iso_(r.VIGENCIA_FIM))) return false;
     if (!intersects_(r.FUNCAO, c.FUNCAO, ALL_ROLES)) return false;
     if (!intersects_(r.TURNO, c.TURNO, ALL)) return false;
