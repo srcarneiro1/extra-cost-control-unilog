@@ -86,3 +86,7 @@
 .pr-field{align-content:start}
 .pr-hint,.pr-section-head p{font-weight:400}
 .pr-field .p-inputtext:not(.p-dropdown-label),.pr-field .p-dropdown{min-height:46px}
+/* Rodapé sempre no fim da tela, mesmo com pouco conteúdo (ex.: erro ao carregar) */
+.pr-page{display:flex;flex-direction:column}
+.pr-page>.pr-main{flex:1 0 auto;width:100%}
+.pr-page>.pr-footer{flex-shrink:0}

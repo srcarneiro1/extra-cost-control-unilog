@@ -417,3 +417,4 @@ Testes: 24 no simulador (opções, envio de lanche, reenvio idempotente, mão de
 - Favoritos antigos da gestão com `#` (`/#solicitacoes`, `/#cadastros`…) são redirecionados para `/gestao/#…`, inclusive se o `#` mudar na mesma aba (`src/app/page.tsx`).
 - Na tela de solicitação, o botão do topo vira "Ir para a gestão" quando há sessão ativa (`/api/auth/me`); no login, "Só quer fazer uma solicitação?" leva à raiz.
 - Testes: 9 no navegador (raiz, botão sem e com sessão, login, atalho /solicitar, favorito antigo, troca de # na mesma aba, /gestao com sessão).
+- Rodapé da tela de solicitação fixo no fim da tela quando há pouco conteúdo (ex.: erro ao carregar as opções): `.pr-page` em coluna flexível (`public-request.css`).
