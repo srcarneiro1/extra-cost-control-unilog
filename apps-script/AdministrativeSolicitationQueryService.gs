@@ -272,6 +272,8 @@ const AdministrativeSolicitationQueryService = (() => {
       // Rastreabilidade (05/11/2026): registros antigos sem origem são da tabela.
       origemPreco: text_(record.ORIGEM_PRECO) || (unitPrice == null ? '' : 'TABELA'),
       idAcordoAplicado: text_(record.ID_ACORDO_APLICADO),
+      idAcordoIndicado: text_(record.ID_ACORDO_INDICADO),
+      acordoIndicado: text_(record.ID_ACORDO_INDICADO) ? AgreementService.summary(record.ID_ACORDO_INDICADO) : null,
       produtoAlimentacao: text_(record.PRODUTO_ALIMENTACAO),
       qtdAlimentacao: numberOrNull_(record.QTD_ALIMENTACAO),
       precoAlimentacaoAplicado: numberOrNull_(record.PRECO_ALIMENTACAO_APLICADO),

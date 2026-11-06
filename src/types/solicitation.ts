@@ -118,6 +118,8 @@ export interface AdministrativeSolicitationDetail {
   precoUnitarioAplicado: number | null
   origemPreco?: string
   idAcordoAplicado?: string
+  idAcordoIndicado?: string
+  acordoIndicado?: { id: string; nome: string; fornecedor: string; precoUnitario: number; vigenciaInicio: string; vigenciaFim: string; ativo: boolean } | null
   produtoAlimentacao: string
   qtdAlimentacao: number | null
   precoAlimentacaoAplicado: number | null

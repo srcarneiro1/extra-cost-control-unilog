@@ -27,6 +27,7 @@ const PricingService = (() => {
     const feriadoSerra = dayType === DAY_TYPES.DOMINGO_FERIADO && HolidayService.isSerraHoliday(date);
 
     if (params.operation) {
+      const confirmedId = String(params.confirmedAgreementId || '').trim();
       const agreement = AgreementService.findApplicable({
         provider: params.provider,
         operation: params.operation,
@@ -35,7 +36,16 @@ const PricingService = (() => {
         shift: params.shift,
         dayType: dayType,
         date: date,
+        confirmedId: confirmedId,
       });
+      // Acordo confirmado na triagem que não se encaixa: avisa em vez de cair na tabela em silêncio.
+      // (Na correção, confirmedOptional=true: se as condições mudaram, segue a tabela.)
+      if (confirmedId && !params.confirmedOptional && (!agreement || agreement.id !== confirmedId)) {
+        const info = AgreementService.summary(confirmedId);
+        ValidationService.fail('O acordo ' + confirmedId + ' não se aplica a esta solicitação' +
+          (info && info.fornecedor ? ' (vale para o fornecedor ' + info.fornecedor + ', na vigência e condições cadastradas)' : '') +
+          '. Ajuste o fornecedor ou use o preço da tabela.');
+      }
       if (agreement) {
         return { price: agreement.price, dayType: dayType, feriadoSerra: feriadoSerra, origem: 'ACORDO', idAcordo: agreement.id };
       }
@@ -74,7 +84,7 @@ const PricingService = (() => {
   // Colunas de rastreabilidade do preço na solicitação (criadas sem apagar nada).
   // Registros antigos ficam com ORIGEM_PRECO vazio = tabela.
   function ensureOriginColumns() {
-    SheetRepository.ensureColumns('SOLICITACOES', ['ORIGEM_PRECO', 'ID_ACORDO_APLICADO']);
+    SheetRepository.ensureColumns('SOLICITACOES', ['ORIGEM_PRECO', 'ID_ACORDO_APLICADO', 'ID_ACORDO_INDICADO']);
   }
 
   function resolveProductPrice(params) {

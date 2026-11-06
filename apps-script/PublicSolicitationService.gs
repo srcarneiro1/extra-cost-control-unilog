@@ -44,6 +44,7 @@ const PublicSolicitationService = (() => {
       responsaveis: CostCenterService.responsibles(false).map((r) => ({ nome: r.nome, exigeCentroCusto: r.exigeCentroCusto })),
       centros: CostCenterService.centers(false).map((c) => ({ codigo: c.codigo, descricao: c.descricao })),
       vinculos: CostCenterService.links(),
+      acordos: AgreementService.indicatedOptions(),
     };
   }
 
@@ -80,7 +81,14 @@ const PublicSolicitationService = (() => {
       answers[Q.requestedQuantity] = text_(labor.quantidade);
       answers[Q.referenceVolume] = text_(labor.volumeReferencia);
       answers[Q.volumeUnit] = text_(labor.unidadeVolume);
-      built.push(withPrefix_('Mão de obra', () => N.buildFromAnswers(answers, { responseId: sendId + '-MO', createdAt: createdAt, origin: ORIGIN })));
+      const laborBuilt = withPrefix_('Mão de obra', () => N.buildFromAnswers(answers, { responseId: sendId + '-MO', createdAt: createdAt, origin: ORIGIN }));
+      // Acordo indicado pelo solicitante (07/11/2026): validado aqui; o Administrativo confirma na triagem.
+      const indicated = withPrefix_('Mão de obra', () => AgreementService.validateIndication(labor.idAcordoIndicado, laborBuilt.record.OPERACAO, laborBuilt.record.DATA_OPERACIONAL, laborBuilt.record.SUPERVISOR));
+      if (indicated) {
+        PricingService.ensureOriginColumns();
+        laborBuilt.record.ID_ACORDO_INDICADO = indicated;
+      }
+      built.push(laborBuilt);
     }
     if (food) {
       const answers = Object.assign({}, common);

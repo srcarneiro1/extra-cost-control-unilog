@@ -32,6 +32,7 @@ type Form = {
   quantidade: string
   volumeReferencia: string
   unidadeVolume: string
+  idAcordoIndicado: string
   produtoAlimentacao: string
   qtdAlimentacao: string
   produtoBebida: string
@@ -59,6 +60,7 @@ const emptyForm = (keep?: Partial<Form>): Form => ({
   quantidade: '',
   volumeReferencia: '',
   unidadeVolume: '',
+  idAcordoIndicado: '',
   produtoAlimentacao: '',
   qtdAlimentacao: '',
   produtoBebida: '',
@@ -159,6 +161,20 @@ export function PublicRequestPage() {
     setErrors((current) => ({ ...current, [key]: undefined, ...(key === 'querMaoDeObra' || key === 'querAlimentacao' ? { tipo: undefined } : {}) }))
   }
 
+  // Acordos "indicados" que valem para a operação, a data e o supervisor escolhidos (07/11/2026).
+  const eligibleAgreements = useMemo(() => (options?.acordos || []).filter((a) =>
+    a.operacao.toUpperCase() === form.operacao.toUpperCase() &&
+    form.dataOperacional >= a.vigenciaInicio && form.dataOperacional <= a.vigenciaFim &&
+    (!a.supervisores.length || a.supervisores.includes(form.supervisor.toUpperCase()))
+  ), [options, form.operacao, form.dataOperacional, form.supervisor])
+
+  // Se a indicação deixou de valer (mudou operação, data ou supervisor), limpa.
+  useEffect(() => {
+    if (form.idAcordoIndicado && !eligibleAgreements.some((a) => a.id === form.idAcordoIndicado)) {
+      setForm((current) => ({ ...current, idAcordoIndicado: '' }))
+    }
+  }, [eligibleAgreements, form.idAcordoIndicado])
+
   const responsible = options?.responsaveis.find((item) => item.nome === form.responsavelCusto)
   const needsCostCenter = Boolean(responsible?.exigeCentroCusto)
 
@@ -231,6 +247,7 @@ export function PublicRequestPage() {
         maoDeObra: form.querMaoDeObra ? {
           atividade: form.atividade, funcao: form.funcao, turno: form.turno, quantidade: form.quantidade,
           volumeReferencia: form.volumeReferencia.trim(), unidadeVolume: form.unidadeVolume.trim(),
+          idAcordoIndicado: form.idAcordoIndicado,
         } : null,
         alimentacao: form.querAlimentacao ? {
           produtoAlimentacao: form.produtoAlimentacao, qtdAlimentacao: form.produtoAlimentacao ? form.qtdAlimentacao : '',
@@ -370,6 +387,11 @@ export function PublicRequestPage() {
                   <Field label="Unidade do volume" hint="Opcional. Ex.: pedidos, caixas">
                     <InputText value={form.unidadeVolume} onChange={(e) => set('unidadeVolume', e.target.value.slice(0, 40))} />
                   </Field>
+                  {eligibleAgreements.length > 0 && (
+                    <Field label="Faz parte de algum acordo comercial?" hint="O Administrativo confirma na triagem.">
+                      <Dropdown value={form.idAcordoIndicado} options={[{ label: 'Não', value: '' }, ...eligibleAgreements.map((a) => ({ label: a.nome, value: a.id }))]} onChange={(e) => set('idAcordoIndicado', e.value || '')} />
+                    </Field>
+                  )}
                 </div>
               </Section>
             )}

@@ -31,8 +31,10 @@ const TriageService = (() => {
       validateProviderCompatibility_(providerRow, type);
 
       const operationalDate = DateService.parseDateOnly(record.DATA_OPERACIONAL);
+      // Acordo indicado pelo solicitante: só vale se o Administrativo confirmar (07/11/2026).
+      const confirmAgreement = input.confirmarAcordo === true && String(record.ID_ACORDO_INDICADO || '').trim();
       const updates = type === TYPES.LABOR
-        ? laborUpdates_(record, providerRow.FORNECEDOR, operationalDate)
+        ? laborUpdates_(record, providerRow.FORNECEDOR, operationalDate, confirmAgreement ? String(record.ID_ACORDO_INDICADO).trim() : '')
         : foodUpdates_(record, providerRow.FORNECEDOR, operationalDate, input);
       updates.FORNECEDOR = providerRow.FORNECEDOR;
 
@@ -66,13 +68,14 @@ const TriageService = (() => {
     if (type === TYPES.FOOD && !ValidationService.isTruthy(providerRow.ALIMENTACAO)) ValidationService.fail('Fornecedor não habilitado para alimentação/bebida.');
   }
 
-  function laborUpdates_(record, provider, operationalDate) {
+  function laborUpdates_(record, provider, operationalDate, confirmedAgreementId) {
     const role = ValidationService.requiredText(record.FUNCAO, 'Função');
     const shift = ValidationService.enumValue(record.TURNO, 'Turno', ['DIURNO', 'NOTURNO']);
     const requestedQuantity = ValidationService.positiveInteger(record.QTD_SOLICITADA, 'Quantidade solicitada');
     const priceResult = PricingService.resolveLaborPrice({
       provider: provider, role: role, shift: shift, date: operationalDate,
       operation: record.OPERACAO, supervisor: record.SUPERVISOR,
+      confirmedAgreementId: confirmedAgreementId || '',
     });
     PricingService.ensureOriginColumns();
     const unitPrice = roundMoney_(priceResult.price);

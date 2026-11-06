@@ -10,6 +10,7 @@ export type PublicOptions = {
   responsaveis: Array<{ nome: string; exigeCentroCusto: boolean }>
   centros: Array<{ codigo: string; descricao: string }>
   vinculos: Record<string, string[]>
+  acordos?: Array<{ id: string; nome: string; operacao: string; vigenciaInicio: string; vigenciaFim: string; supervisores: string[] }>
 }
 
 export type PublicProtocol = { tipoSolicitacao: 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'; idSolicitacao: string; jaRegistrado: boolean }
@@ -25,7 +26,7 @@ export type PublicSubmission = {
   justificativa: string
   responsavelCusto: string
   centroCusto: string
-  maoDeObra: null | { atividade: string; funcao: string; turno: string; quantidade: string; volumeReferencia: string; unidadeVolume: string }
+  maoDeObra: null | { atividade: string; funcao: string; turno: string; quantidade: string; volumeReferencia: string; unidadeVolume: string; idAcordoIndicado: string }
   alimentacao: null | { produtoAlimentacao: string; qtdAlimentacao: string; produtoBebida: string; qtdBebida: string }
 }
 

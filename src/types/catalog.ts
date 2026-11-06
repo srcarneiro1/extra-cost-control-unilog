@@ -255,6 +255,8 @@ export interface AcordoComercialDto {
   justificativa: string
   responsavelNegociacao: string
   referenciaDocumento: string
+  formaAplicacao: 'AUTOMATICA' | 'INDICADA'
+  nomePublico: string
   criadoEm: string
   criadoPor: string
   atualizadoEm: string
@@ -277,6 +279,8 @@ export interface SaveAcordoComercialInput {
   justificativa: string
   responsavelNegociacao: string
   referenciaDocumento: string
+  formaAplicacao: 'AUTOMATICA' | 'INDICADA'
+  nomePublico: string
 }
 
 // Responsáveis pelo custo e centros de custo (05/11/2026)

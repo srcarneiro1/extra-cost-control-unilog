@@ -17,12 +17,16 @@ const AgreementService = (() => {
   const HEADERS = [
     'ID_ACORDO', 'STATUS', 'FORNECEDOR', 'OPERACAO', 'FUNCAO', 'TURNO', 'TIPO_DIA', 'SUPERVISORES',
     'VIGENCIA_INICIO', 'VIGENCIA_FIM', 'PRECO_UNITARIO', 'QTD_REFERENCIA_DIA',
-    'JUSTIFICATIVA', 'RESPONSAVEL_NEGOCIACAO', 'REFERENCIA_DOCUMENTO',
+    'JUSTIFICATIVA', 'RESPONSAVEL_NEGOCIACAO', 'REFERENCIA_DOCUMENTO', 'FORMA_APLICACAO', 'NOME_PUBLICO',
     'CRIADO_EM', 'CRIADO_POR', 'ATUALIZADO_EM', 'ATUALIZADO_POR', 'MOTIVO_INATIVACAO', 'VERSAO',
   ];
   const ALL = 'TODOS';
   const ALL_ROLES = 'TODAS';
   const DAY_TYPES = ['UTIL', 'SABADO', 'DOMINGO_FERIADO'];
+  // Forma de aplicação (07/11/2026): AUTOMATICA (vale para toda solicitação que se encaixe) ou
+  // INDICADA (o solicitante indica e o Administrativo confirma na triagem; sem confirmação, vale a tabela).
+  // Registros sem o campo são AUTOMATICA (comportamento anterior).
+  const APPLY = Object.freeze({ AUTO: 'AUTOMATICA', INDICATED: 'INDICADA' });
   const ACTIONS = Object.freeze({ LIST: 'LISTAR_ACORDOS_MO', SAVE: 'SALVAR_ACORDO_MO', INACTIVATE: 'INATIVAR_ACORDO_MO' });
 
   let memo_ = null;
@@ -93,6 +97,8 @@ const AgreementService = (() => {
       justificativa: text_(r.JUSTIFICATIVA),
       responsavelNegociacao: text_(r.RESPONSAVEL_NEGOCIACAO),
       referenciaDocumento: text_(r.REFERENCIA_DOCUMENTO),
+      formaAplicacao: applyMode_(r),
+      nomePublico: text_(r.NOME_PUBLICO),
       criadoEm: text_(r.CRIADO_EM),
       criadoPor: text_(r.CRIADO_POR),
       atualizadoEm: text_(r.ATUALIZADO_EM),
@@ -110,12 +116,19 @@ const AgreementService = (() => {
     return { acordos: rows_().map(function (x) { return map_(x.record); }) };
   }
 
+  function applyMode_(r) {
+    return upper_(r.FORMA_APLICACAO) === APPLY.INDICATED ? APPLY.INDICATED : APPLY.AUTO;
+  }
+
   // ---------- aplicação no preço (chamado pelo PricingService) ----------
-  // ctx: { provider, operation, supervisor, role, shift, dayType, date }
+  // ctx: { provider, operation, supervisor, role, shift, dayType, date, confirmedId }
+  // Acordos INDICADA só entram quando confirmados (confirmedId = ID do acordo).
   function findApplicable(ctx) {
     const date = DateService.toIsoDate(DateService.parseDateOnly(ctx.date));
+    const confirmedId = text_(ctx.confirmedId);
     const matches = rows_().map(function (x) { return x.record; }).filter(function (r) {
       if (!isValid_(r)) return false;
+      if (applyMode_(r) === APPLY.INDICATED && text_(r.ID_ACORDO) !== confirmedId) return false;
       if (upper_(r.FORNECEDOR) !== upper_(ctx.provider)) return false;
       if (upper_(r.OPERACAO) !== upper_(ctx.operation)) return false;
       const role = upper_(r.FUNCAO);
@@ -134,6 +147,47 @@ const AgreementService = (() => {
         matches.map(function (r) { return text_(r.ID_ACORDO); }).join(', ') + '). Inative o acordo duplicado em Cadastros.');
     }
     return matches.length ? { id: text_(matches[0].ID_ACORDO), price: Number(matches[0].PRECO_UNITARIO) } : null;
+  }
+
+  // Acordos INDICADA ativos (sem preço) para a tela de solicitação filtrar por operação, data e supervisor.
+  function indicatedOptions() {
+    return rows_().map(function (x) { return x.record; })
+      .filter(function (r) { return isValid_(r) && applyMode_(r) === APPLY.INDICATED; })
+      .map(function (r) {
+        return {
+          id: text_(r.ID_ACORDO),
+          nome: text_(r.NOME_PUBLICO) || text_(r.ID_ACORDO),
+          operacao: text_(r.OPERACAO),
+          vigenciaInicio: iso_(r.VIGENCIA_INICIO),
+          vigenciaFim: iso_(r.VIGENCIA_FIM),
+          supervisores: supervisorsOf_(r.SUPERVISORES),
+        };
+      });
+  }
+
+  // Valida a indicação feita na solicitação (acordo INDICADA, ativo, mesma operação, data na vigência
+  // e supervisor coberto). Fornecedor, função e turno são conferidos na triagem.
+  function validateIndication(id, operation, date, supervisor) {
+    const wanted = text_(id);
+    if (!wanted) return '';
+    const iso = DateService.toIsoDate(DateService.parseDateOnly(date));
+    const hit = indicatedOptions().find(function (a) { return a.id === wanted; });
+    if (!hit || upper_(hit.operacao) !== upper_(operation) || iso < hit.vigenciaInicio || iso > hit.vigenciaFim ||
+        (hit.supervisores.length && hit.supervisores.indexOf(upper_(supervisor)) < 0)) {
+      ValidationService.fail('O acordo indicado não vale para esta operação, data ou supervisor.');
+    }
+    return hit.id;
+  }
+
+  // Resumo de um acordo (para a triagem mostrar o indicado).
+  function summary(id) {
+    const wanted = text_(id);
+    if (!wanted) return null;
+    const hit = rows_().find(function (x) { return text_(x.record.ID_ACORDO) === wanted; });
+    if (!hit) return null;
+    const r = hit.record;
+    return { id: wanted, nome: text_(r.NOME_PUBLICO) || wanted, fornecedor: text_(r.FORNECEDOR), precoUnitario: Number(r.PRECO_UNITARIO || 0),
+      vigenciaInicio: safeIso_(r.VIGENCIA_INICIO), vigenciaFim: safeIso_(r.VIGENCIA_FIM), ativo: upper_(r.STATUS) === 'ATIVO' };
   }
 
   // ---------- cadastro ----------
@@ -162,6 +216,9 @@ const AgreementService = (() => {
     const justification = ValidationService.requiredText(input.justificativa, 'Justificativa');
     const negotiator = ValidationService.requiredText(input.responsavelNegociacao, 'Responsável pela negociação');
     const document = text_(input.referenciaDocumento);
+    const applyMode = ValidationService.enumValue(input.formaAplicacao || APPLY.AUTO, 'Forma de aplicação', [APPLY.AUTO, APPLY.INDICATED]);
+    const publicName = text_(input.nomePublico).slice(0, 80);
+    if (applyMode === APPLY.INDICATED && !publicName) ValidationService.fail('Informe o nome do acordo para o solicitante (ex.: "Fim de semana GoBeauty").');
 
     const candidate = {
       FORNECEDOR: provider, OPERACAO: operation, FUNCAO: role, TURNO: shift, TIPO_DIA: dayType,
@@ -186,6 +243,8 @@ const AgreementService = (() => {
       JUSTIFICATIVA: justification,
       RESPONSAVEL_NEGOCIACAO: negotiator,
       REFERENCIA_DOCUMENTO: document,
+      FORMA_APLICACAO: applyMode,
+      NOME_PUBLICO: publicName,
       CRIADO_EM: now,
       CRIADO_POR: author,
       ATUALIZADO_EM: now,
@@ -274,5 +333,5 @@ const AgreementService = (() => {
     try { return fn(); } finally { lock.releaseLock(); }
   }
 
-  return { ACTIONS, execute, findApplicable, reset: reset_ };
+  return { ACTIONS, APPLY, execute, findApplicable, indicatedOptions, validateIndication, summary, reset: reset_ };
 })();

@@ -126,6 +126,7 @@ function pickLabor(value: unknown) {
   return {
     atividade: text(v.atividade, 120), funcao: text(v.funcao, 120), turno: text(v.turno, 20),
     quantidade: text(v.quantidade, 6), volumeReferencia: text(v.volumeReferencia, 20), unidadeVolume: text(v.unidadeVolume, 40),
+    idAcordoIndicado: text(v.idAcordoIndicado, 20),
   }
 }
 

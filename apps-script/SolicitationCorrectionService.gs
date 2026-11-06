@@ -239,6 +239,9 @@ const SolicitationCorrectionService = (() => {
         date: common.operationalDate,
         operation: common.updates.OPERACAO,
         supervisor: common.updates.SUPERVISOR,
+        // Mantém um acordo INDICADA já confirmado, se ainda se encaixar; senão, segue a tabela.
+        confirmedAgreementId: String(record.ID_ACORDO_APLICADO || '').trim(),
+        confirmedOptional: true,
       });
       // Registro antigo sem origem continua vazio (= tabela) quando o preço segue da tabela:
       // evita uma "alteração" falsa na auditoria de uma correção que não mudou nada.

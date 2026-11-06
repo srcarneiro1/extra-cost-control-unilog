@@ -36,12 +36,20 @@ type Draft = {
   justificativa: string
   responsavelNegociacao: string
   referenciaDocumento: string
+  formaAplicacao: 'AUTOMATICA' | 'INDICADA'
+  nomePublico: string
 }
+
+const APPLY_OPTIONS = [
+  { label: 'Automática — vale para toda solicitação que se encaixe', value: 'AUTOMATICA' },
+  { label: 'Indicada — o solicitante indica e o Administrativo confirma', value: 'INDICADA' },
+]
 
 const emptyDraft = (): Draft => ({
   fornecedor: '', operacao: '', funcao: 'TODAS', turno: 'TODOS', tipoDia: 'TODOS',
   todosSupervisores: false, supervisores: [], vigenciaInicio: '', vigenciaFim: '',
   precoUnitario: null, qtdReferenciaDia: null, justificativa: '', responsavelNegociacao: '', referenciaDocumento: '',
+  formaAplicacao: 'INDICADA', nomePublico: '',
 })
 
 const SITUACAO: Record<AcordoSituacao, { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' }> = {
@@ -160,6 +168,7 @@ export function AgreementsPanel({
     if (draft.vigenciaFim < draft.vigenciaInicio) return setFormError('A vigência final não pode ser anterior à inicial.')
     if (!draft.precoUnitario || draft.precoUnitario <= 0) return setFormError('Informe o preço unitário negociado.')
     if (!draft.justificativa.trim() || !draft.responsavelNegociacao.trim()) return setFormError('Informe a justificativa e o responsável pela negociação.')
+    if (draft.formaAplicacao === 'INDICADA' && !draft.nomePublico.trim()) return setFormError('Informe o nome do acordo para o solicitante.')
     setSaving(true)
     try {
       const saved = await saveAcordoAdmin({
@@ -169,6 +178,7 @@ export function AgreementsPanel({
         justificativa: draft.justificativa.trim(),
         responsavelNegociacao: draft.responsavelNegociacao.trim(),
         referenciaDocumento: draft.referenciaDocumento.trim(),
+        nomePublico: draft.nomePublico.trim(),
       })
       setEditorOpen(false)
       setNotice(`Acordo ${saved.id} cadastrado: ${money(saved.precoUnitario)} por pessoa/dia de ${dateLabel(saved.vigenciaInicio)} a ${dateLabel(saved.vigenciaFim)}.`)
@@ -226,6 +236,7 @@ export function AgreementsPanel({
           <Column header="Supervisores" body={(item: AcordoComercialDto) => item.situacao === 'PENDENTE' ? '—' : item.todosSupervisores ? 'Todos' : item.supervisores.join(', ')} />
           <Column header="Condições" body={(item: AcordoComercialDto) => <small>{item.situacao === 'PENDENTE' ? 'Registro incompleto da planilha: não é aplicado' : conditionLabel(item)}</small>} />
           <Column header="Vigência" body={(item: AcordoComercialDto) => item.vigenciaInicio ? `${dateLabel(item.vigenciaInicio)} → ${dateLabel(item.vigenciaFim)}` : '—'} />
+          <Column header="Aplicação" body={(item: AcordoComercialDto) => item.situacao === 'PENDENTE' ? '—' : item.formaAplicacao === 'INDICADA' ? <span title={item.nomePublico}>Indicada<small className="nx-agreement-public-name">{item.nomePublico}</small></span> : 'Automática'} />
           <Column header="Preço" body={(item: AcordoComercialDto) => <strong className="nx-nowrap">{item.precoUnitario ? money(item.precoUnitario) : '—'}</strong>} />
           <Column header="Situação" body={(item: AcordoComercialDto) => <Badge tone={SITUACAO[item.situacao].tone}>{SITUACAO[item.situacao].label}</Badge>} />
           <Column header="Ação" body={(item: AcordoComercialDto) => (
@@ -269,6 +280,14 @@ export function AgreementsPanel({
           {!draft.todosSupervisores && (
             <Field label="Supervisores *">
               <MultiSelect value={draft.supervisores} options={options(supervisors, '').slice(1)} onChange={(e) => setDraft((d) => ({ ...d, supervisores: e.value || [] }))} filter display="chip" placeholder="Selecione os supervisores" />
+            </Field>
+          )}
+          <Field label="Forma de aplicação *" hint={draft.formaAplicacao === 'INDICADA' ? 'Use quando, nas mesmas condições, há pedidos normais (tabela) e pedidos do acordo.' : 'Toda solicitação que se encaixar recebe o preço do acordo.'}>
+            <Dropdown value={draft.formaAplicacao} options={APPLY_OPTIONS} onChange={(e) => setDraft((d) => ({ ...d, formaAplicacao: e.value }))} />
+          </Field>
+          {draft.formaAplicacao === 'INDICADA' && (
+            <Field label="Nome para o solicitante *" hint="Aparece na tela de solicitação, sem o preço. Ex.: Fim de semana GoBeauty.">
+              <InputText value={draft.nomePublico} onChange={(e) => setDraft((d) => ({ ...d, nomePublico: e.target.value.slice(0, 80) }))} />
             </Field>
           )}
           <div className="nx-catalog-form-grid">
@@ -324,6 +343,7 @@ export function AgreementsPanel({
             <dt>Supervisores</dt><dd>{details.todosSupervisores ? 'Todos' : details.supervisores.join(', ') || '—'}</dd>
             <dt>Condições</dt><dd>{conditionLabel(details)}</dd>
             <dt>Vigência</dt><dd>{details.vigenciaInicio ? `${dateLabel(details.vigenciaInicio)} a ${dateLabel(details.vigenciaFim)}` : '—'}</dd>
+            <dt>Aplicação</dt><dd>{details.formaAplicacao === 'INDICADA' ? `Indicada pelo solicitante — "${details.nomePublico}"` : 'Automática'}</dd>
             <dt>Preço por pessoa/dia</dt><dd>{details.precoUnitario ? money(details.precoUnitario) : '—'}{details.qtdReferenciaDia ? ` · referência ${details.qtdReferenciaDia} pessoa(s)/dia` : ''}</dd>
             <dt>Justificativa</dt><dd>{details.justificativa || '—'}</dd>
             <dt>Negociação</dt><dd>{details.responsavelNegociacao || '—'}{details.referenciaDocumento ? ` · ${details.referenciaDocumento}` : ''}</dd>

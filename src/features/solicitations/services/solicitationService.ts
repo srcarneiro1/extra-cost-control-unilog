@@ -382,6 +382,7 @@ export function applyAdministrativeTriage(input: {
   produtoAlimentacaoAplicado?: string
   produtoBebidaAplicado?: string
   motivoAjusteProduto?: string
+  confirmarAcordo?: boolean
 }): Promise<unknown> {
   return postRequest('/api/triagem', input)
 }

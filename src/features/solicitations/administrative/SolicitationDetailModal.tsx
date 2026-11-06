@@ -268,6 +268,9 @@ export function SolicitationDetailModal({
     }
   }
 
+  // Acordo indicado pelo solicitante (07/11/2026): o Administrativo confirma ou usa a tabela.
+  const [confirmAgreement, setConfirmAgreement] = useState(false)
+
   async function handleTriage() {
     if (!canAdminister || !detail || detail.triagemConcluida || !provider) return
     setActionLoading(true)
@@ -275,6 +278,7 @@ export function SolicitationDetailModal({
       const result = await applyAdministrativeTriage({
         idSolicitacao: detail.idSolicitacao,
         fornecedor: provider,
+        ...(detail.tipoSolicitacao === 'MAO_DE_OBRA' && detail.idAcordoIndicado ? { confirmarAcordo: confirmAgreement } : {}),
         ...(detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA'
           ? {
               produtoAlimentacaoAplicado: detail.produtoAlimentacao ? appliedFood : undefined,
@@ -491,6 +495,7 @@ export function SolicitationDetailModal({
                 <DetailField label="Qtd. solicitada" value={detail.qtdSolicitada} />
                 <DetailField label="Qtd. comparecida" value={detail.qtdComparecida} />
                 <DetailField label="Preço unitário" value={formatMoney(detail.precoUnitarioAplicado)} />
+                {detail.idAcordoIndicado && <DetailField label="Acordo indicado" value={`${detail.acordoIndicado?.nome || ''} (${detail.idAcordoIndicado})`.trim()} />}
                 {detail.precoUnitarioAplicado != null && (
                   <DetailField label="Origem do preço" value={detail.origemPreco === 'ACORDO' ? `Acordo comercial ${detail.idAcordoAplicado || ''}`.trim() : 'Tabela de preços'} />
                 )}
@@ -516,6 +521,25 @@ export function SolicitationDetailModal({
               <SectionHeading icon="pi pi-check-square" title="Triagem administrativa" detail="Defina o fornecedor e congele o preço aplicado" />
               <div className="workflow-form-grid nx-workflow-grid">
                 <label className="nx-workflow-field"><span>Fornecedor</span><Dropdown value={provider} options={providerOptions} onChange={(event) => setProvider(event.value || '')} filter /></label>
+                {detail.tipoSolicitacao === 'MAO_DE_OBRA' && detail.idAcordoIndicado && (
+                  <div className="workflow-form-wide nx-agreement-indicated">
+                    <span className="nx-agreement-indicated-title"><i className="pi pi-briefcase" aria-hidden="true" /> O solicitante indicou um acordo comercial</span>
+                    <strong>{detail.acordoIndicado?.nome || detail.idAcordoIndicado} · {detail.idAcordoIndicado}</strong>
+                    {detail.acordoIndicado && (
+                      <small>
+                        {formatMoney(detail.acordoIndicado.precoUnitario)} por pessoa/dia · fornecedor {detail.acordoIndicado.fornecedor}
+                        {!detail.acordoIndicado.ativo && ' · acordo inativo'}
+                      </small>
+                    )}
+                    <label className="nx-agreement-indicated-choice">
+                      <input type="checkbox" checked={confirmAgreement} onChange={(event) => { setConfirmAgreement(event.target.checked); if (event.target.checked && !provider && detail.acordoIndicado?.fornecedor) setProvider(detail.acordoIndicado.fornecedor) }} />
+                      <span>Confirmar o acordo (sem confirmar, vale o preço da tabela)</span>
+                    </label>
+                    {confirmAgreement && detail.acordoIndicado?.fornecedor && provider && provider.toUpperCase() !== detail.acordoIndicado.fornecedor.toUpperCase() && (
+                      <small className="nx-agreement-indicated-warning">O acordo vale para o fornecedor {detail.acordoIndicado.fornecedor}; com outro fornecedor a triagem será recusada.</small>
+                    )}
+                  </div>
+                )}
                 {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && detail.produtoAlimentacao && <label className="nx-workflow-field"><span>Alimentação aplicada</span><Dropdown value={appliedFood} options={foodOptions} onChange={(event) => setAppliedFood(event.value || '')} filter /></label>}
                 {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && detail.produtoBebida && <label className="nx-workflow-field"><span>Bebida aplicada</span><Dropdown value={appliedDrink} options={drinkOptions} onChange={(event) => setAppliedDrink(event.value || '')} filter /></label>}
                 {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && <label className="workflow-form-wide nx-workflow-field nx-workflow-field-wide"><span>Motivo do ajuste</span><InputTextarea value={adjustmentReason} onChange={(event) => setAdjustmentReason(event.target.value)} rows={3} autoResize placeholder="Obrigatório somente quando o produto aplicado for diferente." /></label>}

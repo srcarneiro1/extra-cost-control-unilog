@@ -438,3 +438,14 @@ Regra nova em `FormResponseNormalizerService.applyFood_` (alimentação e bebida
 - sem a pergunta de categorias (tela de solicitação do app) → regra anterior.
 Testes: 9 cenários novos (incluindo os dois casos reais), 24 do formulário e 24 da tela de solicitação repetidos sem falhas.
 Pendente operacional: confirmar com os solicitantes que os dois pedidos eram só alimentação antes da conciliação; CE-2026-002130 é duplicado do CE-2026-002080 (já atendido) — cancelar pelo fluxo do app.
+
+## Acordo comercial indicado pelo solicitante — 07/11/2026 (API 2026.11.07.2)
+
+Problema: na mesma operação/fornecedor/período convivem pedidos normais (tabela) e pedidos do acordo; aplicar o acordo automaticamente cobraria errado os normais. Decisão: **o solicitante indica e o Administrativo confirma**.
+- Acordo ganhou `FORMA_APLICACAO` (AUTOMATICA | INDICADA) e `NOME_PUBLICO` (nome mostrado ao solicitante, sem preço). Registros antigos sem o campo = AUTOMATICA (sem mudança). Novos acordos vêm com INDICADA por padrão na tela.
+- `AgreementService.findApplicable`: acordo INDICADA só entra com `confirmedId` igual ao seu ID. `indicatedOptions()` (sem preço) para a tela de solicitação; `validateIndication()` (operação, vigência, supervisor); `summary()` para a triagem. Sobreposição continua bloqueada (inclusive entre automático e indicado).
+- `PricingService.resolveLaborPrice`: `confirmedAgreementId`; se confirmado e não se encaixar (ex.: outro fornecedor), recusa com mensagem; na correção (`confirmedOptional`) mantém o acordo se ainda se encaixar, senão segue a tabela.
+- Solicitação: coluna `ID_ACORDO_INDICADO` (criada sem apagar nada). Tela aberta: pergunta "Faz parte de algum acordo comercial?" só quando há acordo indicado vigente para operação/data/supervisor; enviado em `maoDeObra.idAcordoIndicado` (gateway público aceita o campo).
+- Triagem (`TriageService`): `confirmarAcordo: true` aplica o acordo indicado; sem confirmação, tabela. Tela de detalhe: caixa "O solicitante indicou um acordo comercial" (nome, código, preço, fornecedor), confirmação desmarcada por padrão, pré-seleciona o fornecedor do acordo ao confirmar, aviso se o fornecedor escolhido for outro; campo "Acordo indicado" no detalhe.
+- Rotina `aplicarAcordosSolicitacoesExistentes` só aplica acordos AUTOMATICA.
+- Testes: 14 novos no servidor + 31 de acordos (regressão), 27 da tela de solicitação no servidor, 5 na tela de solicitação, 5 na triagem e 4 no cadastro.
