@@ -6,15 +6,15 @@ import { compactCurrency, currency, shortLabel } from '@/features/dashboard/dash
 import type { DashboardBreakdownItem } from '@/types/dashboard'
 
 const CHART_PALETTE = {
-  ink: '#242a36',
+  ink: '#494a56',
   graphite: '#494a56',
-  planned: '#d7dbe0',
-  muted: '#858a93',
-  grid: '#eceef1',
-  text: '#5f636b',
+  planned: '#dbdbdd',
+  muted: '#828496',
+  grid: '#ededee',
+  text: '#5c5e6e',
 }
 
-const chartFont = { size: 9, family: 'Inter, Roboto, Arial, sans-serif' }
+const chartFont = { size: 9, family: 'Roboto, Arial, sans-serif' }
 
 export function HorizontalRanking({ title, subtitle, items, limit = 8 }: { title: string; subtitle: string; items: DashboardBreakdownItem[]; limit?: number }) {
   const visible = items.slice(0, limit)

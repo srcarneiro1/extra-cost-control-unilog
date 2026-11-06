@@ -19,12 +19,12 @@
 .ui-summary-metric-danger.nx-prime-metric,
 .nx-dashboard-metric-card.dashboard-metric-danger,
 .nx-dashboard-economy-card.is-increase{
-  border-left-color:#efc9cc!important;
+  border-left-color:#f3c4c7!important;
 }
-.ui-summary-metric-info.nx-prime-metric{border-left-color:#cfe0f7!important}
+.ui-summary-metric-info.nx-prime-metric{border-left-color:#dbdbdd!important}
 .dashboard-meta-alert-dentro_da_meta{border-left-color:#cce6d6!important}
 .dashboard-meta-alert-no_limite_da_meta{border-left-color:#f1ddae!important}
-.dashboard-meta-alert-fora_da_meta{border-left-color:#efc9cc!important}
+.dashboard-meta-alert-fora_da_meta{border-left-color:#f3c4c7!important}
 
 /* EconomyCard follows the same icon | label/value/detail anatomy as SummaryMetrics. */
 .nx-dashboard-economy-card.p-card>.p-card-body>.p-card-content{
@@ -46,7 +46,7 @@
   display:grid!important;
   place-items:center!important;
   border:1px solid rgba(255,255,255,.78)!important;
-  border-radius:11px!important;
+  border-radius:8px!important;
   background:rgba(255,255,255,.64)!important;
   color:var(--metric-value,var(--unilog-ink-2))!important;
   font-size:16px!important;
@@ -78,7 +78,7 @@ button.ui-summary-metric.nx-prime-metric.is-active .ui-summary-metric-icon{
   .nx-dashboard-economy-card .dashboard-economy-label>i{
     width:34px!important;
     height:34px!important;
-    border-radius:10px!important;
+    border-radius:8px!important;
     font-size:14px!important;
   }
 }

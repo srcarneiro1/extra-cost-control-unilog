@@ -109,8 +109,8 @@
     gap:12px 14px!important;
     width:100%!important;
     padding:15px!important;
-    border:1px solid #e0e4e8!important;
-    border-radius:14px!important;
+    border:1px solid #e2e2e6!important;
+    border-radius:8px!important;
     background:#fff!important;
     box-shadow:0 6px 20px rgba(18,24,34,.05)!important;
   }
@@ -140,7 +140,7 @@
     font-weight:800;
     letter-spacing:.075em;
     text-transform:uppercase;
-    color:#8a9099;
+    color:#92929a;
   }
   .admin-page .nx-prime-table .p-frozen-column{
     position:static!important;
@@ -161,7 +161,7 @@
   .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){
     grid-column:1/-1!important;
     padding-bottom:11px!important;
-    border-bottom:1px solid #edf0f2!important;
+    border-bottom:1px solid #ededee!important;
   }
   .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1)::before{content:'Solicitação'}
   .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(2)::before{content:'Registro'}
@@ -176,7 +176,7 @@
   .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(11){
     grid-column:1/-1!important;
     padding-top:12px!important;
-    border-top:1px solid #edf0f2!important;
+    border-top:1px solid #ededee!important;
   }
   .admin-page:not(.catalog-page) .nx-prime-table .p-datatable-tbody>tr>td:nth-child(11)::before{content:'Ações';margin-bottom:3px}
   .admin-page:not(.catalog-page) .nx-prime-table .nx-user-cell{
@@ -205,7 +205,7 @@
     min-height:44px!important;
     padding:0!important;
     justify-content:center!important;
-    border-radius:10px!important;
+    border-radius:8px!important;
   }
   .admin-page:not(.catalog-page) .nx-prime-table .nx-solicitation-row-actions>.p-button:last-child{
     grid-column:auto!important;
@@ -219,7 +219,7 @@
   .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1){
     grid-column:1/-1!important;
     padding-bottom:11px!important;
-    border-bottom:1px solid #edf0f2!important;
+    border-bottom:1px solid #ededee!important;
   }
   .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(1)::before{content:'Usuário'}
   .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(2)::before{content:'Perfil'}
@@ -230,7 +230,7 @@
   .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7){
     grid-column:1/-1!important;
     padding-top:12px!important;
-    border-top:1px solid #edf0f2!important;
+    border-top:1px solid #ededee!important;
   }
   .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7)::before{content:'Ação';margin-bottom:3px}
   .admin-page.catalog-page .nx-prime-table .p-datatable-tbody>tr>td:nth-child(7) .p-button{
@@ -242,14 +242,14 @@
   .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:first-child{
     grid-column:1/-1!important;
     padding-bottom:11px!important;
-    border-bottom:1px solid #edf0f2!important;
+    border-bottom:1px solid #ededee!important;
     font-size:13px!important;
   }
   .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:first-child::before{display:none}
   .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:last-child{
     grid-column:1/-1!important;
     padding-top:11px!important;
-    border-top:1px solid #edf0f2!important;
+    border-top:1px solid #ededee!important;
   }
   .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:last-child::before{content:'Ação';margin-bottom:3px}
   .nx-catalog-page .nx-catalog-table .p-datatable-tbody>tr>td:last-child .p-button{
@@ -293,7 +293,7 @@
   .nx-catalog-page .nx-catalog-paginator.p-paginator,
   .admin-page .nx-prime-table .p-paginator,
   .admin-page .nx-prime-paginator.p-paginator{
-    border-top:1px solid #edf0f2!important;
+    border-top:1px solid #ededee!important;
     justify-content:center!important;
     padding:.7rem .45rem!important;
     gap:3px!important;

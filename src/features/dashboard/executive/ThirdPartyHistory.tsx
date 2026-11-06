@@ -9,15 +9,15 @@ import type { DashboardThirdPartyMonth } from '@/types/dashboard'
 // Barras do realizado (VALOR_REAL), mesma regra do card "Realizado mão de obra".
 // Competência em andamento em tom mais claro, marcada como parcial.
 const PALETTE = {
-  ink: '#242a36',
+  ink: '#494a56',
   bar: '#494a56',
-  barPartial: '#b9bdc4',
-  muted: '#858a93',
-  grid: '#eceef1',
-  text: '#5f636b',
+  barPartial: '#b6b7bb',
+  muted: '#828496',
+  grid: '#ededee',
+  text: '#5c5e6e',
 }
 
-const chartFont = { size: 9, family: 'Inter, Roboto, Arial, sans-serif' }
+const chartFont = { size: 9, family: 'Roboto, Arial, sans-serif' }
 
 function shortLabel(competence: string) {
   // "Outubro/2026" → "out/26"
@@ -39,7 +39,7 @@ export function ThirdPartyHistory({ months }: { months: DashboardThirdPartyMonth
         label: 'Realizado com terceiros',
         data: items.map((item) => item.valorRealizado),
         backgroundColor: items.map((item) => (item.parcial ? PALETTE.barPartial : PALETTE.bar)),
-        hoverBackgroundColor: items.map((item) => (item.parcial ? '#a3a8b0' : PALETTE.ink)),
+        hoverBackgroundColor: items.map((item) => (item.parcial ? '#a2a3b1' : PALETTE.ink)),
         borderRadius: 6,
         maxBarThickness: 46,
       },

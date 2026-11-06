@@ -97,7 +97,7 @@ button.ui-summary-metric.nx-prime-metric>.p-button-label{
   display:grid!important;
   place-items:center!important;
   border:1px solid color-mix(in srgb,var(--metric-border) 75%,#fff)!important;
-  border-radius:11px!important;
+  border-radius:8px!important;
   background:rgba(255,255,255,.64)!important;
   color:var(--metric-value)!important;
   font-size:16px!important;
@@ -137,21 +137,21 @@ button.ui-summary-metric.nx-prime-metric>.p-button-label{
 .ui-summary-metric-danger.nx-prime-metric,
 .nx-dashboard-metric-card.dashboard-metric-danger,
 .nx-dashboard-economy-card.is-increase{
-  --metric-bg:#fff0f1;
-  --metric-border:#efc9cc;
-  --metric-accent:#cf3e47;
-  --metric-label:#ad1b23;
-  --metric-value:#b51b24;
-  --metric-detail:#956166;
+  --metric-bg:#fbe6e7;
+  --metric-border:#f3c4c7;
+  --metric-accent:#db0812;
+  --metric-label:#b00610;
+  --metric-value:#b00610;
+  --metric-detail:#8a5a5e;
   border-left:5px solid var(--metric-accent)!important;
 }
 .ui-summary-metric-info.nx-prime-metric{
-  --metric-bg:#eef5ff;
-  --metric-border:#cfe0f7;
-  --metric-accent:#4d82c4;
-  --metric-label:#2f67b1;
-  --metric-value:#2f67b1;
-  --metric-detail:#5a7599;
+  --metric-bg:#f6f6f7;
+  --metric-border:#dbdbdd;
+  --metric-accent:#494a56;
+  --metric-label:#494a56;
+  --metric-value:#494a56;
+  --metric-detail:#6d6e78;
   border-left:5px solid var(--metric-accent)!important;
 }
 .ui-summary-metric-neutral.nx-prime-metric,
@@ -202,7 +202,7 @@ button.ui-summary-metric.nx-prime-metric.is-active{
 }
 .dashboard-meta-alert-dentro_da_meta{background:#edf8f2!important;border-color:#cce6d6!important;border-left:5px solid #63a77f!important}
 .dashboard-meta-alert-no_limite_da_meta{background:#fff7e8!important;border-color:#f1ddae!important;border-left:5px solid #d09a19!important}
-.dashboard-meta-alert-fora_da_meta{background:#fff0f1!important;border-color:#efc9cc!important;border-left:5px solid #cf3e47!important}
+.dashboard-meta-alert-fora_da_meta{background:#fbe6e7!important;border-color:#f3c4c7!important;border-left:5px solid #db0812!important}
 
 /* --------------------------------------------------------------------------
    CANONICAL DATA TABLE
@@ -226,8 +226,8 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   padding:12px 14px!important;
   border-width:0 0 1px!important;
   border-color:var(--unilog-border-soft)!important;
-  background:#f8f9fb!important;
-  color:#59616c!important;
+  background:#ffffff!important;
+  color:#5a5b6b!important;
   font-size:9px!important;
   line-height:1.25!important;
   font-weight:800!important;
@@ -251,14 +251,14 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   border-width:0 0 1px!important;
   border-color:var(--unilog-border-soft)!important;
   background:inherit!important;
-  color:#444b55!important;
+  color:#494a56!important;
   font-size:11px!important;
   line-height:1.4!important;
   vertical-align:middle!important;
 }
 .nx-prime-table .p-datatable-tbody>tr:hover>td,
 .nx-catalog-table .p-datatable-tbody>tr:hover>td{
-  background:#fbfcfd!important;
+  background:#ffffff!important;
 }
 .nx-prime-table .p-datatable-tbody>tr:last-child>td,
 .nx-catalog-table .p-datatable-tbody>tr:last-child>td{border-bottom:0!important}
@@ -302,7 +302,7 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   height:34px!important;
   min-height:34px!important;
   padding:0!important;
-  border-radius:8px!important;
+  border-radius:6px!important;
   font-size:11px!important;
   line-height:1!important;
 }
@@ -340,7 +340,7 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   margin:0!important;
   padding:0!important;
   overflow:hidden!important;
-  border-radius:8px!important;
+  border-radius:6px!important;
   font-size:10px!important;
   line-height:1!important;
   vertical-align:middle!important;
@@ -381,7 +381,7 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   min-height:54px!important;
   padding:10px 14px!important;
   border-color:var(--unilog-border-soft)!important;
-  background:#fbfcfd!important;
+  background:#ffffff!important;
 }
 
 /* Dashboard comparison is div-based rather than Prime DataTable, so mirror the
@@ -389,7 +389,7 @@ button.ui-summary-metric.nx-prime-metric.is-active{
 .dashboard-comparison-table{
   overflow:hidden!important;
   border:1px solid var(--unilog-border-soft)!important;
-  border-radius:12px!important;
+  border-radius:8px!important;
   background:#fff!important;
 }
 .dashboard-comparison-row{
@@ -397,14 +397,14 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   padding:11px 14px!important;
   border-bottom:1px solid var(--unilog-border-soft)!important;
   background:#fff!important;
-  color:#444b55!important;
+  color:#494a56!important;
   font-size:10px!important;
   line-height:1.35!important;
 }
 .dashboard-comparison-row:last-child{border-bottom:0!important}
 .dashboard-comparison-row.dashboard-comparison-head{
-  background:#f8f9fb!important;
-  color:#59616c!important;
+  background:#ffffff!important;
+  color:#5a5b6b!important;
   font-size:9px!important;
   font-weight:800!important;
   letter-spacing:.05em!important;

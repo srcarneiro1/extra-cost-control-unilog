@@ -14,13 +14,22 @@ const target = path.join(process.cwd(), 'src/app/generated/primereact-unilog-the
 
 // Escala indigo (Tailwind) do Lara → escala vermelho Unilog (#db0812).
 const PALETTE = {
-  '#eef2ff': '#fdecee', // 50  fundo de item selecionado
+  // Cores de severidade do Lara → identidade Unilog (Manual 2026, Rev. 2) — 06/11/2026.
+  // info (azul) → cinza; danger → vermelho oficial; help (roxo) → cinza;
+  // success/warning mantêm o significado, em tons suaves que conversam com a paleta.
+  '#0ea5e9': '#6d6e78', '#0284c7': '#494a56', '#3b82f6': '#6d6e78', '#2563eb': '#494a56',
+  '#ef4444': '#db0812', '#dc2626': '#b00610',
+  '#a855f7': '#6d6e78', '#9333ea': '#494a56',
+  '#22c55e': '#3f7c59', '#16a34a': '#2f6d49', '#15803d': '#23603c',
+  '#f97316': '#a87900', '#ea580c': '#8c6800', '#eab308': '#a87900',
+  '#14b8a6': '#5f8f8b',
+  '#eef2ff': '#fbe6e7', // 50  fundo de item selecionado (vermelho 10 do manual)
   '#e0e7ff': '#fbd9dc', // 100
   '#c7d2fe': '#f5b5b9', // 200 anel de foco
   '#a5b4fc': '#ee8a90', // 300
   '#818cf8': '#e55a62', // 400
   '#6366f1': '#db0812', // 500 primária
-  '#4f46e5': '#b8070f', // 600 hover
+  '#4f46e5': '#b00610', // 600 hover (manual Rev. 2)
   '#4338ca': '#9e060d', // 700 texto destacado
   '#3730a3': '#83050b', // 800
   '#312e81': '#6a0409', // 900

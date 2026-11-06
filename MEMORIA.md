@@ -427,3 +427,16 @@ Testes: 24 no simulador (opções, envio de lanche, reenvio idempotente, mão de
 - Carga das opções: uma nova tentativa automática após 1,5 s (leitura; a 1ª chamada após um tempo parado costuma falhar enquanto o Apps Script "acorda"). O envio nunca é repetido automaticamente.
 - Onde achar no log: Cloudflare → Workers & Pages → projeto do Extra → Functions/Logs (tempo real) → buscar a referência.
 - Testes: 10 no gateway (isolado) e 6 na tela.
+
+## Identidade Unilog no app inteiro (cores, cantos, fonte) — 06/11/2026
+
+Estrutura das telas mantida; só a camada visual foi alinhada ao Manual 2026 (Rev. 2). Só o Extra Cost (Retrabalho e BI ficam para depois).
+- **Cinzas** (136 tons, quase todos azulados): cada um manteve a claridade (mesmo contraste e hierarquia) e passou ao tom do Cinza UNILOG; os próximos de um cinza oficial foram encaixados nele (#494a56, #6d6e78, #92929a, #b6b7bb, #dbdbdd, #ededee). Barra lateral e textos muito escuros → Cinza UNILOG.
+- **Vermelhos** (18 tons) → só #db0812 (oficial) e #b00610 (hover/texto escuro), com fundo #fbe6e7 e bordas suaves derivadas.
+- **Azuis de status** ("Em triagem", cartão "Aguardando triagem") → cinza ("em andamento"); teal de gráfico → azul secundário oficial #accfcc.
+- **Verde e amarelo de status** (atendida, dentro/fora do previsto, pendências) mantidos, por decisão do usuário, por já serem tons suaves; fundos claros com matiz verde/amarelo/rosado preservados.
+- **Cantos**: botões e campos 6 px, cartões 8 px (tokens `--radius-control`/`--radius-card` e valores fixos nos CSS: 9–24 px → 8 px, 7–8 px → 6 px; pílulas e círculos inalterados).
+- **Tema do PrimeReact** (`scripts/build-unilog-theme.mjs`): severidades do Lara trocadas — info/azul e help/roxo → cinza; danger → vermelho oficial; success/warning → tons suaves (verde #3f7c59, âmbar #a87900); hover do primário → #b00610; fundo de seleção → #fbe6e7.
+- Fonte: referências a Inter removidas (Roboto oficial já carregada).
+- Script usado: mapeamento automático com regras explícitas (registrado nesta memória); comparações antes/depois de Solicitações, Visão geral (executiva e analytics), Fechamentos, Cadastros e Usuários, no computador e no celular.
+- Opcional não aplicado: status 100% conforme o manual (concluído em cinza, em andamento cinza 10, atenção vermelho), trocando também verde e amarelo.

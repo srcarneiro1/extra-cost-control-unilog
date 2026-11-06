@@ -6,15 +6,15 @@ import { compactCurrency, currency, shortDate } from '@/features/dashboard/dashb
 import type { DashboardProjectionPoint } from '@/types/dashboard'
 
 const CHART_PALETTE = {
-  ink: '#242a36',
+  ink: '#494a56',
   graphite: '#494a56',
-  muted: '#858a93',
-  grid: '#eceef1',
+  muted: '#828496',
+  grid: '#ededee',
   red: '#db0812',
-  text: '#5f636b',
+  text: '#5c5e6e',
 }
 
-const chartFont = { size: 9, family: 'Inter, Roboto, Arial, sans-serif' }
+const chartFont = { size: 9, family: 'Roboto, Arial, sans-serif' }
 
 export function ProjectionChart({ points }: { points: DashboardProjectionPoint[] }) {
   const chartData = {
@@ -35,8 +35,8 @@ export function ProjectionChart({ points }: { points: DashboardProjectionPoint[]
       {
         label: 'Meta esperada',
         data: points.map((point) => point.metaEsperada),
-        borderColor: '#9aa0a8',
-        backgroundColor: '#9aa0a8',
+        borderColor: '#999aa9',
+        backgroundColor: '#999aa9',
         pointRadius: 0,
         borderWidth: 2,
         borderDash: [7, 5],

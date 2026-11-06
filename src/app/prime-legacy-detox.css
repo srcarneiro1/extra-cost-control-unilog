@@ -15,11 +15,11 @@
   background:#fff;
 }
 .nx-prime-dialog .p-dialog-content{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
-.nx-prime-dialog .p-dialog-header{background:linear-gradient(180deg,#fff,#fbfcfd)}
-.nx-prime-dialog .p-dialog-footer{background:#fbfcfd}
+.nx-prime-dialog .p-dialog-header{background:linear-gradient(180deg,#fff,#ffffff)}
+.nx-prime-dialog .p-dialog-footer{background:#ffffff}
 
 @media(max-width:760px){
   .page-actions.nx-modern-actions{width:100%}
-  .nx-prime-dialog.p-dialog{height:auto!important;max-height:88dvh!important;border-radius:16px!important}
+  .nx-prime-dialog.p-dialog{height:auto!important;max-height:88dvh!important;border-radius:8px!important}
   .ui-modal-loading{min-height:220px}
 }

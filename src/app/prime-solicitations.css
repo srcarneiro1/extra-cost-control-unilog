@@ -1,8 +1,8 @@
 .nx-delete-dialog{min-width:0}
 .nx-delete-dialog-body{display:grid;gap:14px;min-width:0}
-.nx-delete-dialog-body .p-message{width:100%;margin:0;border-radius:10px}
+.nx-delete-dialog-body .p-message{width:100%;margin:0;border-radius:8px}
 .nx-delete-dialog-body .p-inputtextarea{width:100%;min-height:100px}
-.nx-delete-dialog-body small{font-size:9px;color:#858b94}
+.nx-delete-dialog-body small{font-size:9px;color:#838496}
 
 .admin-page>.nx-prime-notice{
   position:fixed!important;
@@ -17,13 +17,13 @@
   align-items:center!important;
   gap:10px!important;
   padding:12px 14px!important;
-  border-radius:12px!important;
+  border-radius:8px!important;
   box-shadow:0 16px 40px rgba(24,26,31,.24)!important;
   pointer-events:auto!important;
 }
 .admin-page>.nx-prime-notice>span{min-width:0;flex:1 1 auto;line-height:1.35}
 .admin-page>.nx-prime-notice.is-success{border:1px solid #b9d9c3!important;background:#eef8f1!important;color:#23603c!important}
-.admin-page>.nx-prime-notice.is-error{border:1px solid #efb9be!important;background:#fff0f1!important;color:#9b1119!important}
+.admin-page>.nx-prime-notice.is-error{border:1px solid #f0b4b8!important;background:#fbe6e7!important;color:#b00610!important}
 .admin-page>.nx-prime-notice .p-button{flex:0 0 auto;color:currentColor!important}
 
 .admin-page .nx-prime-data-panel.p-card{min-width:0;overflow:hidden}
@@ -61,10 +61,10 @@
     right:0;
     z-index:1;
     background:#fff;
-    box-shadow:inset 1px 0 0 #edf0f2;
+    box-shadow:inset 1px 0 0 #ededee;
   }
-  .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child{background:#f8f9fb;z-index:2}
-  .admin-page .nx-prime-table .p-datatable-tbody>tr:hover>td:last-child{background:#fbfcfd}
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:last-child{background:#ffffff;z-index:2}
+  .admin-page .nx-prime-table .p-datatable-tbody>tr:hover>td:last-child{background:#ffffff}
 
   /* Solicitação: coluna fixa à esquerda (já marcada como frozen no TSX), com a mesma linha fina,
      para o conteúdo que rola não parecer "passar por baixo" do número. */
@@ -74,10 +74,10 @@
     left:0;
     z-index:1;
     background:#fff;
-    box-shadow:inset -1px 0 0 #edf0f2;
+    box-shadow:inset -1px 0 0 #ededee;
   }
-  .admin-page .nx-prime-table .p-datatable-thead>tr>th:first-child{background:#f8f9fb;z-index:2}
-  .admin-page .nx-prime-table .p-datatable-tbody>tr:hover>td:first-child{background:#fbfcfd}
+  .admin-page .nx-prime-table .p-datatable-thead>tr>th:first-child{background:#ffffff;z-index:2}
+  .admin-page .nx-prime-table .p-datatable-tbody>tr:hover>td:first-child{background:#ffffff}
 
   /* Safari: o "quique" elástico do trackpad empurrava a tabela além do início/fim e levava junto
      as colunas fixas (efeito de "passar um pouco"). overscroll-behavior-x:none desliga o quique
@@ -108,7 +108,7 @@
   min-height:34px;
   padding:0!important;
   justify-content:center;
-  border-radius:9px;
+  border-radius:8px;
   transition:background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .14s ease;
 }
 .admin-page .nx-prime-table .nx-solicitation-row-actions.is-admin .p-button[aria-label="Aguardando ajuste"],

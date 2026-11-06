@@ -24,9 +24,9 @@
 .nx-functional-content .admin-page,
 .nx-functional-content .catalog-page{min-width:0}
 
-.nx-scope-chip{display:grid;gap:1px;min-width:0;max-width:300px;padding:6px 10px;border:1px solid #eceef1;border-radius:9px;background:#fafbfc}
-.nx-scope-chip small{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#9298a2}
-.nx-scope-chip strong{font-size:9px;color:#4c535d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-scope-chip{display:grid;gap:1px;min-width:0;max-width:300px;padding:6px 10px;border:1px solid #ededee;border-radius:8px;background:#ffffff}
+.nx-scope-chip small{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#92929a}
+.nx-scope-chip strong{font-size:9px;color:#494a56;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 @media(max-width:900px){
   .nx-functional-content{padding-top:22px}

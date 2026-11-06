@@ -82,7 +82,7 @@ button.ui-summary-metric.nx-prime-metric>.p-button-label{
 .ui-summary-metric.nx-prime-metric .ui-summary-metric-icon{
   width:34px!important;
   height:34px!important;
-  border-radius:10px!important;
+  border-radius:8px!important;
   font-size:15px!important;
   background:rgba(255,255,255,.62)!important;
   border:1px solid rgba(73,74,86,.07)!important;
@@ -104,22 +104,22 @@ button.ui-summary-metric.nx-prime-metric>.p-button-label{
 }
 
 .ui-summary-metric-neutral.nx-prime-metric{
-  background:#f5f6f8!important;
-  border-color:#e2e5e9!important;
-  color:#59616c!important;
+  background:#f6f6f7!important;
+  border-color:#e3e4e8!important;
+  color:#5a5b6b!important;
 }
-.ui-summary-metric-neutral.nx-prime-metric .ui-summary-metric-icon{color:#59616c!important}
-.ui-summary-metric-neutral.nx-prime-metric .ui-summary-metric-copy>strong{color:#343a43!important}
+.ui-summary-metric-neutral.nx-prime-metric .ui-summary-metric-icon{color:#5a5b6b!important}
+.ui-summary-metric-neutral.nx-prime-metric .ui-summary-metric-copy>strong{color:#363741!important}
 
 .ui-summary-metric-info.nx-prime-metric{
-  background:#eef5ff!important;
-  border-color:#cfe0f7!important;
-  color:#2f67b1!important;
+  background:#f6f6f7!important;
+  border-color:#dbdbdd!important;
+  color:#494a56!important;
 }
-.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-icon{color:#2f67b1!important}
+.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-icon{color:#494a56!important}
 .ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>span,
-.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>strong{color:#2f67b1!important}
-.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>small{color:#5a7599!important}
+.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>strong{color:#494a56!important}
+.ui-summary-metric-info.nx-prime-metric .ui-summary-metric-copy>small{color:#6d6e78!important}
 
 .ui-summary-metric-success.nx-prime-metric{
   background:#edf8f2!important;
@@ -142,14 +142,14 @@ button.ui-summary-metric.nx-prime-metric>.p-button-label{
 .ui-summary-metric-warning.nx-prime-metric .ui-summary-metric-copy>small{color:#8d7447!important}
 
 .ui-summary-metric-danger.nx-prime-metric{
-  background:#fff0f1!important;
-  border-color:#efc9cc!important;
-  color:#b51b24!important;
+  background:#fbe6e7!important;
+  border-color:#f3c4c7!important;
+  color:#b00610!important;
 }
-.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-icon{color:#b51b24!important}
+.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-icon{color:#b00610!important}
 .ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>span,
-.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>strong{color:#b51b24!important}
-.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>small{color:#956166!important}
+.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>strong{color:#b00610!important}
+.ui-summary-metric-danger.nx-prime-metric .ui-summary-metric-copy>small{color:#8a5a5e!important}
 
 button.ui-summary-metric.nx-prime-metric:hover:not(:disabled){
   filter:brightness(.985);
@@ -201,9 +201,9 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   background:#fff7e8!important;
 }
 .nx-dashboard-metric-card.dashboard-metric-danger{
-  border-color:#efc9cc!important;
-  border-left:4px solid #d14a52!important;
-  background:#fff0f1!important;
+  border-color:#f3c4c7!important;
+  border-left:4px solid #db0812!important;
+  background:#fbe6e7!important;
 }
 .nx-dashboard-metric-card.dashboard-metric-success .p-card-content>span,
 .nx-dashboard-metric-card.dashboard-metric-success .p-card-content>strong{color:#2f7650!important}
@@ -212,8 +212,8 @@ button.ui-summary-metric.nx-prime-metric.is-active{
 .nx-dashboard-metric-card.dashboard-metric-warning .p-card-content>strong{color:#a46a00!important}
 .nx-dashboard-metric-card.dashboard-metric-warning .p-card-content>small{color:#8d7447!important}
 .nx-dashboard-metric-card.dashboard-metric-danger .p-card-content>span,
-.nx-dashboard-metric-card.dashboard-metric-danger .p-card-content>strong{color:#b51b24!important}
-.nx-dashboard-metric-card.dashboard-metric-danger .p-card-content>small{color:#956166!important}
+.nx-dashboard-metric-card.dashboard-metric-danger .p-card-content>strong{color:#b00610!important}
+.nx-dashboard-metric-card.dashboard-metric-danger .p-card-content>small{color:#8a5a5e!important}
 
 /* Economy/increase is explicit feedback, so it follows the same language. */
 .nx-dashboard-economy-card.is-saving{
@@ -224,12 +224,12 @@ button.ui-summary-metric.nx-prime-metric.is-active{
 .nx-dashboard-economy-card.is-saving strong{color:#2f7650!important}
 .nx-dashboard-economy-card.is-saving small{color:#5d7f6c!important}
 .nx-dashboard-economy-card.is-increase{
-  background:#fff0f1!important;
-  border-color:#efc9cc!important;
+  background:#fbe6e7!important;
+  border-color:#f3c4c7!important;
 }
 .nx-dashboard-economy-card.is-increase .dashboard-economy-label,
-.nx-dashboard-economy-card.is-increase strong{color:#b51b24!important}
-.nx-dashboard-economy-card.is-increase small{color:#956166!important}
+.nx-dashboard-economy-card.is-increase strong{color:#b00610!important}
+.nx-dashboard-economy-card.is-increase small{color:#8a5a5e!important}
 
 /* Meta status is a direct feedback message, not a descriptive card. */
 .dashboard-meta-alert-dentro_da_meta{
@@ -241,8 +241,8 @@ button.ui-summary-metric.nx-prime-metric.is-active{
   border-color:#f1ddae!important;
 }
 .dashboard-meta-alert-fora_da_meta{
-  background:#fff0f1!important;
-  border-color:#efc9cc!important;
+  background:#fbe6e7!important;
+  border-color:#f3c4c7!important;
 }
 
 /* --------------------------------------------------------------------------

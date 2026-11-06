@@ -18,9 +18,9 @@
   align-items:center;
   gap:8px;
   padding:7px 10px;
-  border:1px solid #e2e7e4;
+  border:1px solid #e2e3e7;
   border-radius:999px;
-  background:#f7faf8;
+  background:#f8f8f9;
   color:#53645a;
   font-size:0!important;
   font-weight:700;
@@ -41,7 +41,7 @@
 }
 
 .nx-user-copy strong{font-size:10.5px!important;color:#fff}
-.nx-user-copy span{font-size:9px!important;color:#c2c8d1!important}
+.nx-user-copy span{font-size:9px!important;color:#c5c6ce!important}
 .nx-user-card>.nx-icon-button{
   border:1px solid rgba(255,255,255,.08);
   background:rgba(255,255,255,.035);
@@ -168,7 +168,7 @@
     min-width:0!important;
     justify-items:start!important;
     padding-top:7px;
-    border-top:1px solid #edf0f2;
+    border-top:1px solid #ededee;
   }
   .nx-dashboard-alert-card .p-card-content>div:nth-child(2)>strong{font-size:14px!important}
   .nx-dashboard-alert-card .p-card-content>div:nth-child(2)>p{font-size:10px!important}
@@ -251,7 +251,7 @@
   border-radius:6px!important;
   background:rgba(255,255,255,.88)!important;
   box-shadow:0 1px 4px rgba(18,24,34,.035);
-  color:#666e78!important;
+  color:#6d6e78!important;
   font-size:7.5px!important;
   font-weight:800!important;
   line-height:1.2!important;

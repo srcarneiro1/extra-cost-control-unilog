@@ -1,12 +1,12 @@
 export const ANALYTICS_PALETTE = {
-  ink: '#242a36',
+  ink: '#494a56',
   graphite: '#494a56',
-  graphiteSoft: '#8b9099',
+  graphiteSoft: '#92929a',
   red: '#db0812',
-  grid: '#eceef1',
-  text: '#5f636b',
-  muted: '#858a93',
-  planned: '#d7dbe0',
+  grid: '#ededee',
+  text: '#5c5e6e',
+  muted: '#828496',
+  planned: '#dbdbdd',
 }
 
 export function analyticsCurrency(value: number | null | undefined) {
@@ -36,11 +36,11 @@ export const analyticsBaseLegend = {
     usePointStyle: true,
     pointStyle: 'circle' as const,
     padding: 14,
-    font: { size: 10, family: 'Inter, Roboto, Arial, sans-serif' },
+    font: { size: 10, family: 'Roboto, Arial, sans-serif' },
   },
 }
 
 export const analyticsAxisTicks = {
   color: ANALYTICS_PALETTE.muted,
-  font: { size: 9, family: 'Inter, Roboto, Arial, sans-serif' },
+  font: { size: 9, family: 'Roboto, Arial, sans-serif' },
 }
