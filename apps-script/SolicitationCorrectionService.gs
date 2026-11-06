@@ -133,25 +133,19 @@ const SolicitationCorrectionService = (() => {
     const operationalDate = DateService.parseDateOnly(
       value_(data, 'dataOperacional', record.DATA_OPERACIONAL)
     );
-    const responsibility = ValidationService.enumValue(
-      value_(data, 'responsavelCusto', record.RESPONSAVEL_CUSTO),
-      'Responsável pelo custo',
-      ['CLIENTE', 'UNILOG']
-    );
     const justification = ValidationService.requiredText(
       value_(data, 'justificativa', record.JUSTIFICATIVA),
       'Justificativa'
     );
 
-    const costCenter = responsibility === 'UNILOG'
-      ? ValidationService.digitsOnly(
-          ValidationService.requiredText(
-            value_(data, 'centroCusto', record.CENTRO_CUSTO),
-            'Centro de custo'
-          ),
-          'Centro de custo'
-        )
-      : '';
+    // Responsável pelo custo e centro de custo validados pelo cadastro (05/11/2026).
+    const cost = CostCenterService.validate(
+      value_(data, 'responsavelCusto', record.RESPONSAVEL_CUSTO),
+      value_(data, 'centroCusto', record.CENTRO_CUSTO),
+      { keep: { responsavel: record.RESPONSAVEL_CUSTO, centroCusto: record.CENTRO_CUSTO } }
+    );
+    const responsibility = cost.responsavel;
+    const costCenter = cost.centroCusto;
 
     const currentProvider = ValidationService.normalizeText(record.FORNECEDOR);
     const providerInput = ValidationService.normalizeText(

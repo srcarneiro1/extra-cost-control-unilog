@@ -89,18 +89,10 @@ const SolicitationService = (() => {
     }
 
     const operationalDate = DateService.parseDateOnly(input.dataOperacional);
-    const responsibility = ValidationService.enumValue(
-      input.responsavelCusto,
-      'Responsável pelo custo',
-      ['CLIENTE', 'UNILOG']
-    );
-
-    const costCenter = responsibility === 'UNILOG'
-      ? ValidationService.digitsOnly(
-          ValidationService.requiredText(input.centroCusto, 'Centro de custo'),
-          'Centro de custo'
-        )
-      : '';
+    // Responsável pelo custo e centro de custo validados pelo cadastro (05/11/2026).
+    const cost = CostCenterService.validate(input.responsavelCusto, input.centroCusto);
+    const responsibility = cost.responsavel;
+    const costCenter = cost.centroCusto;
 
     return {
       operationalDate: operationalDate,

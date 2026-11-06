@@ -1,5 +1,7 @@
 import { invalidateDashboardCache } from '@/services/dashboardService'
 import type {
+  CentroCustoDto,
+  ResponsavelCustoDto,
   AcordoComercialDto,
   SaveAcordoComercialInput,
   CatalogAdminScope,
@@ -368,4 +370,17 @@ export async function saveAcordoAdmin(input: SaveAcordoComercialInput): Promise<
 export async function inactivateAcordoAdmin(id: string, versao: number, motivo: string): Promise<AcordoComercialDto> {
   const data = await postAdmin<{ acordo: AcordoComercialDto }>({ acao: 'INATIVAR_ACORDO_MO', id, versao, motivo })
   return data.acordo
+}
+
+// Responsáveis pelo custo e centros de custo (05/11/2026) — rota protegida de Cadastros.
+export async function fetchCustosAdmin(): Promise<{ responsaveis: ResponsavelCustoDto[]; responsaveisPadrao: boolean; centros: CentroCustoDto[] }> {
+  return postAdmin({ acao: 'LISTAR_CUSTOS' }, false)
+}
+
+export async function saveCentroCustoAdmin(input: { codigo: string; descricao: string; ativo: boolean; supervisores: string[] }): Promise<void> {
+  await postAdmin({ acao: 'SALVAR_CENTRO_CUSTO', ...input })
+}
+
+export async function saveResponsavelCustoAdmin(input: { nome: string; exigeCentroCusto: boolean; ativo: boolean }): Promise<void> {
+  await postAdmin({ acao: 'SALVAR_RESPONSAVEL_CUSTO', ...input })
 }

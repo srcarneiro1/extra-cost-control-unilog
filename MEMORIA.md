@@ -376,3 +376,44 @@ Recuperação (`FormReconciliationService.gs`, executar no editor):
 - opcional: `instalarConciliacaoAutomaticaFormulario` (gatilho de tempo a cada 15 min, `conciliarRespostasFormularioAutomatico`, não relança erros e não repete respostas já registradas como inválidas) / `removerConciliacaoAutomaticaFormulario`.
 
 Testes no simulador: 24 cenários (incidente reproduzido, espera de 30 s, falha registrada, diagnóstico sem expor IDs completos, simulação sem alterar dados, recuperação do Allan com dados e horário corretos, lançamento anterior intacto, idempotência da conciliação e do gatilho repetido/edição de resposta, validação registrada e listada, protocolos sequenciais, falha temporária recuperada pela conciliação automática, gatilho de tempo único, automática sem repetir inválidas).
+
+## Tela aberta de solicitação + cadastros de custo — 05–06/11/2026 (API 2026.11.06.1)
+
+Objetivo: substituir o Google Forms por uma tela do próprio app, aberta (sem login), mantendo a gestão restrita.
+
+**Tela `/solicitar`** (`src/app/solicitar/page.tsx`, `features/public-request/*`, estilos `public-request.css`):
+- sem login; botão "Acesso à gestão" leva ao login ("/"); o login ganhou o link "Só quer fazer uma solicitação?";
+- opções lidas na hora dos cadastros (supervisores, operações, atividades, funções, produtos elegíveis — mesma regra do formulário —, responsáveis e centros de custo); cadastrou no app, aparece na tela;
+- **mão de obra e alimentação/bebidas no mesmo envio** → uma solicitação por tipo, cada uma com seu protocolo; o servidor valida as duas antes e grava as duas sob um único bloqueio (tudo ou nada);
+- validação na própria tela (bebida/alimentação escolhida exige quantidade; quantidades só números; centro de custo só quando o responsável exige, com os centros do supervisor primeiro e sugestão automática quando ele tem um só; sem centros cadastrados vira campo numérico);
+- idempotência: `idEnvio` gerado na abertura; nova tentativa após falha usa o mesmo id (não duplica); "Fazer outra solicitação" gera outro;
+- origem `FORMULARIO_WEB`, status ENVIADA, sem fornecedor (definido na triagem, onde os acordos comerciais se aplicam).
+
+**Servidor:** `PublicSolicitationService.gs` (ações OPCOES/ENVIAR, rota `solicitacao_publica`, só com o token do gateway) reaproveita a validação do formulário: `FormResponseNormalizerService.buildFromAnswers` (respostas no formato das perguntas) e `persistMany` (vários registros sob um bloqueio, duplicidade por ORIGEM + ID_ORIGEM). `FormCatalogSyncService.eligibleProducts` exportado.
+
+**Gateway público** `functions/api/publico/solicitacao.ts`: GET opções (cache 60 s), POST envio; campos em lista fechada com tamanho máximo; anti-robô invisível (campo-isca `site` + mínimo de 3 s entre abrir e enviar); limite de 10 envios a cada 10 min por IP (cache do Cloudflare); só cria e lê opções — nenhum dado lançado sai por essa rota.
+
+**Cadastros de custo** (`CostCenterService.gs`; Cadastros → "Centros de custo", `CostCentersPanel.tsx`):
+- `CAD_RESPONSAVEIS_CUSTO` (RESPONSAVEL, EXIGE_CENTRO_CUSTO, ATIVO): substitui o CLIENTE/UNILOG fixo no código. Sem cadastro valem CLIENTE (sem centro), UNILOG, DIRETORIA e PROJETOS (com centro) — corrige as respostas do Google Forms com DIRETORIA/PROJETOS, antes recusadas;
+- `CAD_CENTROS_CUSTO` (CENTRO_CUSTO, DESCRICAO, ATIVO) e `CAD_SUPERVISOR_CENTROS` (vínculo). Sem centros cadastrados, qualquer código numérico é aceito (comportamento anterior);
+- validação única `CostCenterService.validate` usada no formulário, na tela aberta, na criação pelo app e na correção (na correção, valores inalterados de registros antigos continuam aceitos); correção de solicitação oferece os responsáveis do cadastro;
+- `configurarCadastrosDeCusto()` (opcional, uma vez): cria as abas, os 4 responsáveis e os 10 centros do formulário atual.
+
+Testes: 24 no simulador (opções, envio de lanche, reenvio idempotente, mão de obra + lanche juntos, DIRETORIA, tudo ou nada, bebida sem quantidade, quantidade inválida, CLIENTE sem centro, UNILOG sem centro, configuração, centro inexistente, vínculos, novo responsável, inativação, correção de registro antigo, bloqueio ocupado e nova tentativa), os 24 do Google Forms repetidos sobre a versão nova, 19 na tela aberta e 5 no painel de centros de custo.
+
+## Identidade Unilog (Manual 2026, Revisão 2) no login e na tela de solicitação — 06/11/2026
+
+- **Fonte Roboto oficial hospedada no app** (`public/fonts/roboto-{300,400,700,900}.woff2`, ~21 KB cada, subconjunto latino; `src/app/brand-fonts.css`, importado primeiro no layout). Antes o app declarava Roboto mas não carregava a fonte: Windows/Mac exibiam Arial. Isso afeta o app inteiro (para melhor: passa a usar a fonte da marca).
+- **Tokens da marca** em `brand-fonts.css` (`--unilog-cinza #494a56`, `--unilog-vermelho #db0812`, hover `#b00610`, tons de cinza e vermelho 10).
+- **Logo oficial vetorial** (`public/brand/unilog_express_logo_branco.svg` com ® no login, 150 px; `_sem_registro` na barra lateral e no topo da tela de solicitação, abaixo de 120 px). O arquivo antigo `unilog-logo-white-transparent.svg` era um traçado de imagem, não o vetor oficial (mantido no repositório, sem uso).
+- **Fundo animado** (`components/brand/BrandBackdrop.tsx`): ícones de logística em contorno fino, brancos a 9%, flutuando devagar sobre o Cinza UNILOG liso (sem degradê, conforme o manual); `prefers-reduced-motion` desliga a animação. Inspirado no login do allPick, adaptado à paleta Unilog.
+- **Login** (`login-brand.css`, classe `nx-login-brand-v2`): fundo cinza com ícones, logo com ®, selo "GESTÃO", linha vermelha antes dos títulos ("EXTRA COST CONTROL", "ACESSO"), título com destaque sublinhado em vermelho (texto vermelho sobre cinza não é permitido), cartão branco raio 8, campos e botão raio 6, rodapé "© ano Unilog Express. Todos os direitos reservados.". Lógica de login inalterada.
+- **Tela de solicitação**: topo cinza com fundo animado, logo oficial e título; formulário em cartões brancos sobre cinza 10; vermelho #db0812; textos em Cinza UNILOG; alerta com barra lateral vermelha; sucesso em cinza (sem verde fora da paleta); campos alinhados pelo topo; rodapé cinza com filete vermelho.
+- Pendente (fora deste escopo): demais telas internas ainda usam `#d60016`/`#242a36` em alguns pontos; ícones PrimeIcons em vez de Material Symbols.
+
+## Endereços: a raiz abre a tela de solicitação — 06/11/2026
+
+- `/` → **tela de solicitação** (pública). `/gestao/` → **gestão** (login + aplicativo). `/solicitar/` continua como atalho.
+- Favoritos antigos da gestão com `#` (`/#solicitacoes`, `/#cadastros`…) são redirecionados para `/gestao/#…`, inclusive se o `#` mudar na mesma aba (`src/app/page.tsx`).
+- Na tela de solicitação, o botão do topo vira "Ir para a gestão" quando há sessão ativa (`/api/auth/me`); no login, "Só quer fazer uma solicitação?" leva à raiz.
+- Testes: 9 no navegador (raiz, botão sem e com sessão, login, atalho /solicitar, favorito antigo, troca de # na mesma aba, /gestao com sessão).

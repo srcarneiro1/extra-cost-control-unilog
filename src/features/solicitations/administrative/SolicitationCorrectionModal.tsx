@@ -54,6 +54,18 @@ export function SolicitationCorrectionModal({
     return catalogs.fornecedores.filter((item) => item.tiposSolicitacao.includes(detail.tipoSolicitacao))
   }, [catalogs, detail])
 
+  // Responsáveis pelo custo vêm do cadastro (05/11/2026); o atual entra na lista mesmo se inativo.
+  const responsibles = catalogs?.responsaveisCusto?.length
+    ? catalogs.responsaveisCusto
+    : [{ nome: 'CLIENTE', exigeCentroCusto: false }, { nome: 'UNILOG', exigeCentroCusto: true }, { nome: 'DIRETORIA', exigeCentroCusto: true }, { nome: 'PROJETOS', exigeCentroCusto: true }]
+  const currentResponsible = form?.responsavelCusto || ''
+  const responsibleOptions = [
+    ...responsibles.map((item) => ({ label: item.nome, value: item.nome })),
+    ...(currentResponsible && !responsibles.some((item) => item.nome === currentResponsible) ? [{ label: `${currentResponsible} (inativo)`, value: currentResponsible }] : []),
+  ]
+  const requiresCostCenter = responsibles.find((item) => item.nome === currentResponsible)?.exigeCentroCusto
+    ?? Boolean(detail?.centroCusto)
+
   const foods = catalogs?.produtos.filter((item) => item.categoria === 'ALIMENTACAO') || []
   const drinks = catalogs?.produtos.filter((item) => item.categoria === 'BEBIDA') || []
 
@@ -160,14 +172,11 @@ export function SolicitationCorrectionModal({
               <span>Responsável pelo custo</span>
               <Dropdown
                 value={form.responsavelCusto}
-                options={[
-                  { label: 'CLIENTE', value: 'CLIENTE' },
-                  { label: 'UNILOG', value: 'UNILOG' },
-                ]}
+                options={responsibleOptions}
                 onChange={(event) => set('responsavelCusto', event.value)}
               />
             </label>
-            {form.responsavelCusto === 'UNILOG' && (
+            {requiresCostCenter && (
               <label className="nx-workflow-field">
                 <span>Centro de custo</span>
                 <InputText value={form.centroCusto} onChange={(event) => set('centroCusto', event.target.value.replace(/\D/g, ''))} inputMode="numeric" />

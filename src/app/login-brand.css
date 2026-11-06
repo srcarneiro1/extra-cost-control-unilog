@@ -1,0 +1,40 @@
+/* Login na identidade Unilog (Manual 2026, Revisão 2) — 06/11/2026.
+   Fundo Cinza UNILOG liso (sem degradê) com ícones flutuando; cartão branco; vermelho só na ação. */
+.nx-login-page.nx-login-brand-v2{position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  padding:clamp(18px,4vw,40px);background:var(--unilog-cinza);font-family:'Roboto',Verdana,Arial,sans-serif}
+.nx-login-brand-v2 .nx-login-card{position:relative;z-index:1;width:min(1040px,100%);min-height:0;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(20px,4vw,56px);
+  align-items:center;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
+.nx-login-brand-v2 .nx-login-brand{background:transparent;padding:8px 0;gap:34px;min-height:0;overflow:visible}
+.nx-login-brand-v2 .nx-login-brand:before{display:none}
+.nx-login-brand-v2 .nx-brand-topline{display:flex;align-items:center;gap:16px}
+.nx-login-brand-v2 .nx-brand-topline img{width:150px;height:auto}
+.nx-login-brand-v2 .nx-product-chip{padding:6px 14px;border:1px solid rgba(255,255,255,.35);border-radius:999px;background:transparent;color:#fff;font-size:11px;font-weight:700;letter-spacing:.22em}
+.nx-login-brand-v2 .nx-overline-dash{display:inline-flex;align-items:center;gap:12px;letter-spacing:.22em;font-weight:700}
+.nx-login-brand-v2 .nx-overline-dash:before{content:'';width:34px;height:2px;background:var(--unilog-vermelho)}
+.nx-login-brand-v2 .nx-brand-copy .nx-overline{color:var(--unilog-cinza-20)}
+.nx-login-brand-v2 .nx-brand-copy h1{margin:14px 0 14px;font-size:clamp(32px,4.2vw,46px);line-height:1.08;font-weight:700;letter-spacing:-.02em;color:#fff}
+.nx-login-brand-v2 .nx-accent{box-shadow:inset 0 -0.16em 0 var(--unilog-vermelho)}
+.nx-login-brand-v2 .nx-brand-copy p{font-size:16px;line-height:1.55;font-weight:300;color:var(--unilog-cinza-20);max-width:46ch}
+.nx-login-brand-v2 .nx-login-proof span{color:var(--unilog-cinza-20)}
+.nx-login-brand-v2 .nx-login-form-panel{background:#fff;border-radius:8px;padding:clamp(26px,3.4vw,40px);box-shadow:0 18px 50px rgba(0,0,0,.18)}
+.nx-login-brand-v2 .nx-login-heading .nx-overline{color:var(--unilog-vermelho)}
+.nx-login-brand-v2 .nx-login-heading h2{color:var(--unilog-cinza);font-weight:700}
+.nx-login-brand-v2 .nx-login-heading p{color:var(--unilog-cinza-80)}
+.nx-login-brand-v2 .nx-login-form label{color:var(--unilog-cinza)}
+.nx-login-brand-v2 .p-inputtext{border-radius:6px;border-color:var(--unilog-cinza-40);min-height:46px}
+.nx-login-brand-v2 .nx-primary-button.p-button{border-radius:6px;background:var(--unilog-vermelho);border-color:var(--unilog-vermelho);font-weight:700;min-height:46px}
+.nx-login-brand-v2 .nx-primary-button.p-button:hover{background:var(--unilog-vermelho-hover);border-color:var(--unilog-vermelho-hover)}
+.nx-login-brand-v2 .nx-login-request-link{color:var(--unilog-vermelho)}
+.nx-login-legal{position:relative;z-index:1;font-size:12px;color:var(--unilog-cinza-20)}
+@media(max-width:860px){
+  .nx-login-brand-v2 .nx-login-card{grid-template-columns:1fr}
+  .nx-login-brand-v2 .nx-login-brand{gap:20px}
+  .nx-login-brand-v2 .nx-brand-copy h1{font-size:30px}
+  .nx-login-brand-v2 .nx-brand-copy p{font-size:15px}
+}
+@media(max-width:560px){
+  .nx-login-brand-v2 .nx-brand-topline img{width:130px}
+  .nx-login-brand-v2 .nx-brand-copy p{display:none}
+}
+.nx-login-brand-v2 .nx-brand-topline{justify-content:flex-start!important}
+@media(max-width:860px){.nx-login-brand-v2 .nx-brand-topline{margin-bottom:6px}}

@@ -602,6 +602,7 @@ const FormCatalogSyncService = (() => {
   }
 
   return {
+    eligibleProducts: eligibleProducts_,
     sync,
     migrateFunctionShiftStructure,
     handleEdit,

@@ -24,6 +24,7 @@ export function pageActionLabel(section: CatalogSection) {
                 : section === 'PRODUTOS' ? 'Novo produto'
                   : section === 'PRECOS_MO' ? 'Novo preço de mão de obra'
                     : section === 'ACORDOS_MO' ? 'Novo acordo'
+                    : section === 'CUSTOS' ? 'Novo centro de custo'
                     : 'Novo preço de produto'
 }
 

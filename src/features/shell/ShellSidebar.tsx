@@ -46,7 +46,7 @@ export function ShellSidebar({
 
       <aside className={`nx-sidebar ${mobileOpen ? 'is-mobile-open' : ''}`}>
         <div className="nx-sidebar-brand">
-          <img src="/brand/unilog-logo-white-transparent.svg" alt="Unilog Express" />
+          <img src="/brand/unilog_express_logo_branco_sem_registro.svg" alt="Unilog Express" />
           <button
             type="button"
             className="nx-icon-button nx-desktop-collapse"

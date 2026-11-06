@@ -78,6 +78,8 @@ export interface PrecoProdutoAdminDto {
 }
 
 export interface CatalogosDto {
+  responsaveisCusto?: Array<{ nome: string; exigeCentroCusto: boolean }>
+  centrosCusto?: Array<{ codigo: string; descricao: string }>
   operacoes: CatalogoNomeDto[]
   supervisores: CatalogoNomeDto[]
   fornecedores: FornecedorDto[]
@@ -276,3 +278,7 @@ export interface SaveAcordoComercialInput {
   responsavelNegociacao: string
   referenciaDocumento: string
 }
+
+// Responsáveis pelo custo e centros de custo (05/11/2026)
+export interface ResponsavelCustoDto { nome: string; exigeCentroCusto: boolean; ativo: boolean }
+export interface CentroCustoDto { codigo: string; descricao: string; ativo: boolean; supervisores: string[] }

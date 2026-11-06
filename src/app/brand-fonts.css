@@ -1,0 +1,24 @@
+/* Roboto oficial da marca (Manual 2026), hospedada no próprio app — 06/11/2026.
+   Antes o app declarava Roboto mas não carregava a fonte (Windows/Mac caíam em Arial). */
+@font-face{font-family:'Roboto';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/roboto-300.woff2') format('woff2')}
+@font-face{font-family:'Roboto';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/roboto-400.woff2') format('woff2')}
+@font-face{font-family:'Roboto';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/roboto-700.woff2') format('woff2')}
+@font-face{font-family:'Roboto';font-style:normal;font-weight:900;font-display:swap;src:url('/fonts/roboto-900.woff2') format('woff2')}
+
+/* Tokens da marca (Revisão 2) */
+:root{
+  --unilog-cinza:#494a56;--unilog-vermelho:#db0812;--unilog-vermelho-hover:#b00610;
+  --unilog-cinza-80:#6d6e78;--unilog-cinza-60:#92929a;--unilog-cinza-40:#b6b7bb;--unilog-cinza-20:#dbdbdd;--unilog-cinza-10:#ededee;
+  --unilog-vermelho-10:#fbe6e7;
+}
+
+/* Fundo animado */
+.brand-backdrop{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.brand-backdrop-icon{position:absolute;fill:none;stroke:#fff;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.09;
+  transform:translate(-50%,-50%) rotate(var(--rot,0deg));animation-name:brand-float;animation-timing-function:ease-in-out;animation-iteration-count:infinite;animation-direction:alternate;will-change:transform}
+@keyframes brand-float{
+  0%{transform:translate(-50%,-50%) rotate(var(--rot,0deg))}
+  50%{transform:translate(calc(-50% + 10px),calc(-50% - 18px)) rotate(calc(var(--rot,0deg) + 6deg))}
+  100%{transform:translate(calc(-50% - 8px),calc(-50% + 12px)) rotate(calc(var(--rot,0deg) - 4deg))}
+}
+@media (prefers-reduced-motion:reduce){.brand-backdrop-icon{animation:none}}

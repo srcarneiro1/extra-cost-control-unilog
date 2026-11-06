@@ -6,7 +6,7 @@ const Api = (() => {
       const route = normalizeRoute_(e && e.parameter && e.parameter.route);
 
       if (route === 'health') {
-        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.11.05.2', recursos: ['historicoTerceiros', 'filtroDataOperacional', 'cacheFechamentos', 'jornadaPaga8h', 'ordemDataOperacional', 'acordosComerciais', 'conciliacaoFormulario'] });
+        return JsonResponse.ok({ service: 'extra-cost-control-unilog', version: '2026.11.06.1', recursos: ['historicoTerceiros', 'filtroDataOperacional', 'cacheFechamentos', 'jornadaPaga8h', 'ordemDataOperacional', 'acordosComerciais', 'conciliacaoFormulario', 'telaSolicitacao', 'cadastrosDeCusto'] });
       }
       if (route === 'auth') return JsonResponse.unauthorized('Autenticação disponível somente pelo gateway protegido.');
       if (route === 'usuarios') return JsonResponse.unauthorized('Administração de usuários disponível somente pelo gateway protegido.');
@@ -42,6 +42,17 @@ const Api = (() => {
         ValidationService.fail('Ação de administração de usuários inválida.');
       }
 
+      // Tela aberta de solicitação (05/11/2026): só o gateway chama (token); sem sessão de usuário.
+      if (route === 'solicitacao_publica') {
+        const servicePayload = authorizeGateway_(payload);
+        const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
+        if (action === PublicSolicitationService.ACTIONS.OPTIONS) return JsonResponse.ok(PublicSolicitationService.options());
+        if (action === PublicSolicitationService.ACTIONS.SUBMIT) {
+          return JsonResponse.ok(writeAndInvalidate_(function () { return PublicSolicitationService.submit(servicePayload); }));
+        }
+        return JsonResponse.badRequest('Ação inválida.');
+      }
+
       if (route === 'cadastros') {
         const servicePayload = authorizeGateway_(payload);
         const action = ValidationService.normalizeUpper(servicePayload && servicePayload.acao);
@@ -49,6 +60,11 @@ const Api = (() => {
 
         // Acordos comerciais (05/11/2026): listagem sem limpar caches; cadastro e inativação no AgreementService.
         if (action === AgreementService.ACTIONS.LIST) return JsonResponse.ok(AgreementService.execute(servicePayload));
+        // Responsáveis pelo custo e centros de custo (05/11/2026).
+        if (action === CostCenterService.ACTIONS.LIST) return JsonResponse.ok(CostCenterService.execute(servicePayload));
+        if (action === CostCenterService.ACTIONS.SAVE_CENTER || action === CostCenterService.ACTIONS.SAVE_RESPONSIBLE) {
+          return JsonResponse.ok(writeAndInvalidate_(function () { return CostCenterService.execute(servicePayload); }));
+        }
         if (action === AgreementService.ACTIONS.SAVE || action === AgreementService.ACTIONS.INACTIVATE) {
           return JsonResponse.ok(writeAndInvalidate_(function () { return AgreementService.execute(servicePayload); }));
         }

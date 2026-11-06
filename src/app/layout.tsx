@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import './brand-fonts.css'
 import './generated/primereact-unilog-theme.css'
 import 'primereact/resources/primereact.min.css'
 import 'primeicons/primeicons.css'
@@ -29,6 +30,8 @@ import './prime-unified-surfaces.css'
 import './prime-card-selection-refinement.css'
 import './mobile-solicitation-actions.css'
 import './ios-input-zoom.css'
+import './public-request.css'
+import './login-brand.css'
 
 export const metadata: Metadata = {
   title: 'Extra Cost Control | Unilog Express',

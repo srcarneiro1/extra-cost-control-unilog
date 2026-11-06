@@ -83,33 +83,37 @@ const FormResponseNormalizerService = (() => {
 
   // Monta e valida a solicitação a partir da resposta, sem gravar nada (usado também na simulação).
   function buildRecord_(formResponse) {
-    const responseId = ValidationService.requiredText(formResponse.getId(), 'ID da resposta do Forms');
-    const answers = responseMap_(formResponse);
+    return buildFromAnswers_(responseMap_(formResponse), {
+      responseId: ValidationService.requiredText(formResponse.getId(), 'ID da resposta do Forms'),
+      createdAt: formResponse.getTimestamp() || new Date(),
+      origin: ORIGIN,
+    });
+  }
+
+  // Mesma validação para o Google Forms e para a tela de solicitação do aplicativo (05/11/2026):
+  // answers = { título da pergunta: resposta }; meta = { responseId, createdAt, origin }.
+  function buildFromAnswers_(answers, meta) {
+    const responseId = ValidationService.requiredText(meta.responseId, 'Identificador do envio');
     const type = resolveType_(answer_(answers, QUESTIONS.type));
-    const createdAt = formResponse.getTimestamp() || new Date();
+    const createdAt = meta.createdAt || new Date();
     const operationalDate = DateService.parseDateOnly(
       ValidationService.requiredText(answer_(answers, QUESTIONS.operationalDate), 'Data operacional')
     );
 
-    const responsibility = ValidationService.enumValue(
+    // Responsável pelo custo vem do cadastro (CLIENTE, UNILOG, DIRETORIA, PROJETOS…), não mais fixo.
+    const cost = CostCenterService.validate(
       answer_(answers, QUESTIONS.costResponsibility),
-      'Responsável pelo custo',
-      ['CLIENTE', 'UNILOG']
+      answer_(answers, QUESTIONS.costCenter)
     );
-
-    const costCenter = responsibility === 'UNILOG'
-      ? ValidationService.digitsOnly(
-          ValidationService.requiredText(answer_(answers, QUESTIONS.costCenter), 'Centro de custo'),
-          'Centro de custo'
-        )
-      : '';
+    const responsibility = cost.responsavel;
+    const costCenter = cost.centroCusto;
 
     const record = {
       ID_SOLICITACAO: '',
       TIPO_SOLICITACAO: type,
       DATA_CRIACAO: createdAt,
       USUARIO_CRIACAO: ValidationService.requiredText(answer_(answers, QUESTIONS.requester), 'Nome do solicitante'),
-      ORIGEM: ORIGIN,
+      ORIGEM: meta.origin || ORIGIN,
       ID_ORIGEM: responseId,
       LOTE_IMPORTACAO: '',
       SUPERVISOR: canonicalCatalogValue_(
@@ -155,7 +159,7 @@ const FormResponseNormalizerService = (() => {
       applyFood_(record, answers);
     }
 
-    return { responseId: responseId, createdAt: createdAt, type: type, record: record };
+    return { responseId: responseId, createdAt: createdAt, type: type, origin: meta.origin || ORIGIN, record: record };
   }
 
   // Grava com bloqueio. A checagem de duplicidade pelo ID da resposta acontece DENTRO do bloqueio:
@@ -172,7 +176,7 @@ const FormResponseNormalizerService = (() => {
     }
 
     try {
-      const existing = findExisting_(responseId);
+      const existing = findExisting_(responseId, built.origin);
       if (existing) {
         return {
           normalizado: false,
@@ -349,21 +353,47 @@ const FormResponseNormalizerService = (() => {
     return ValidationService.normalizeText(row[fieldName]);
   }
 
+  // Grava várias solicitações já validadas sob UM bloqueio (envio da tela com mão de obra + lanche).
+  // Idempotente por ID de origem: reenvio do mesmo envio devolve os protocolos já criados.
+  function persistMany(builtList, execution) {
+    const started = Date.now();
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(LOCK_WAIT_MS)) {
+      builtList.forEach((b) => log_(execution, b.responseId, b.createdAt, 'ERRO_BLOQUEIO', '', LOCK_ERROR, started));
+      throw new Error('Sistema ocupado no momento. Tente enviar novamente em alguns segundos.');
+    }
+    try {
+      SolicitationStatusService.ensureSchema();
+      const results = builtList.map((built) => {
+        const existing = findExisting_(built.responseId, built.origin);
+        if (existing) return { duplicado: true, idSolicitacao: existing.ID_SOLICITACAO, tipoSolicitacao: built.type };
+        built.record.ID_SOLICITACAO = ProtocolService.next(built.createdAt);
+        SheetRepository.appendObject(SHEET_SOLICITACOES, built.record, { textFields: TEXT_FIELDS });
+        return { duplicado: false, idSolicitacao: built.record.ID_SOLICITACAO, tipoSolicitacao: built.type };
+      });
+      results.forEach((r, i) => log_(execution, builtList[i].responseId, builtList[i].createdAt, r.duplicado ? 'DUPLICADA' : 'CRIADA', r.idSolicitacao, '', started));
+      return results;
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
   // Lê só as colunas necessárias (antes lia a aba inteira dentro do bloqueio, o que deixava cada
   // execução com 7 a 13 s e aumentava a chance de conflito com outras gravações).
-  function findExisting_(responseId) {
-    const index = originIndex();
+  function findExisting_(responseId, origin) {
+    const index = originIndex(origin);
     return index[responseId] ? { ID_SOLICITACAO: index[responseId] } : null;
   }
 
-  // Mapa ID da resposta do Forms → protocolo, para as solicitações de origem GOOGLE_FORMS.
-  function originIndex() {
+  // Mapa ID de origem → protocolo, para as solicitações da origem informada (padrão: GOOGLE_FORMS).
+  function originIndex(origin) {
+    const wanted = ValidationService.normalizeUpper(origin || ORIGIN);
     const origins = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'ORIGEM');
     const ids = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'ID_ORIGEM');
     const protocols = SheetRepository.readFieldValues(SHEET_SOLICITACOES, 'ID_SOLICITACAO');
     const index = {};
     for (let i = 0; i < ids.length; i += 1) {
-      if (ValidationService.normalizeUpper(origins[i]) !== ORIGIN) continue;
+      if (ValidationService.normalizeUpper(origins[i]) !== wanted) continue;
       const id = ValidationService.normalizeText(ids[i]);
       if (id) index[id] = ValidationService.normalizeText(protocols[i]) || '(sem protocolo)';
     }
@@ -455,6 +485,11 @@ const FormResponseNormalizerService = (() => {
     normalizeEvent,
     processResponse,
     buildRecord: buildRecord_,
+    buildFromAnswers: buildFromAnswers_,
+    persistMany,
+    log: log_,
+    QUESTIONS,
+    FORM_TYPES,
     originIndex,
     maskId,
     openForm: openForm_,

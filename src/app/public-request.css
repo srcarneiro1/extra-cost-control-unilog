@@ -1,0 +1,88 @@
+/* Tela aberta de solicitação (05/11/2026) — identidade Unilog */
+.pr-page{min-height:100vh;background:var(--unilog-cinza-10);color:var(--unilog-cinza);font-family:'Roboto',Verdana,Arial,sans-serif}
+.pr-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px clamp(14px,4vw,34px);background:#2c2f38;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.pr-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.pr-brand img{height:34px;width:auto}
+.pr-brand span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#d7dae0;white-space:nowrap}
+.pr-admin-link{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:6px;border:1px solid rgba(255,255,255,.22);color:#fff;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;transition:background-color .14s ease}
+.pr-admin-link:hover{background:rgba(255,255,255,.1)}
+.pr-admin-link .pi{font-size:12px}
+.pr-main{max-width:820px;margin:0 auto;padding:26px clamp(12px,4vw,24px) calc(48px + env(safe-area-inset-bottom,0px))}
+.pr-intro{margin-bottom:18px}
+.pr-overline{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--unilog-vermelho)}
+.pr-intro h1{margin:6px 0 6px;font-size:26px;letter-spacing:-.02em}
+.pr-intro p{margin:0;color:var(--unilog-cinza-80);font-size:14px;line-height:1.5}
+.pr-form{display:grid;gap:14px}
+.pr-section{background:#fff;border:1px solid var(--unilog-cinza-20);border-radius:8px;overflow:hidden}
+.pr-section-head{display:flex;gap:12px;align-items:flex-start;padding:16px 18px 6px}
+.pr-step{flex:0 0 26px;height:26px;border-radius:999px;display:grid;place-items:center;background:var(--unilog-cinza);color:#fff;font-size:12px;font-weight:700}
+.pr-section-head h2{margin:2px 0 2px;font-size:16px}
+.pr-section-head p{margin:0;color:var(--unilog-cinza-80);font-size:12.5px}
+.pr-section-body{display:grid;gap:12px;padding:10px 18px 18px}
+.pr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.pr-field{display:grid;gap:5px;min-width:0}
+.pr-label{font-size:12px;font-weight:600;color:var(--unilog-cinza)}
+.pr-label em{color:var(--unilog-vermelho);font-style:normal}
+.pr-field .p-inputtext,.pr-field .p-dropdown{width:100%;min-height:44px;font-size:15px}
+.pr-field.has-error .p-inputtext,.pr-field.has-error .p-dropdown{border-color:var(--unilog-vermelho)}
+.pr-hint{font-size:11.5px;color:var(--unilog-cinza-80)}
+.pr-error{font-size:12px;color:var(--unilog-vermelho);font-weight:600}
+.pr-choice-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pr-choice{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--unilog-cinza-20);border-radius:8px;background:#fff;color:var(--unilog-cinza);text-align:left;cursor:pointer;font:inherit;transition:border-color .14s ease,background-color .14s ease}
+.pr-choice>.pi:first-child{font-size:18px;color:var(--unilog-cinza-80)}
+.pr-choice span{display:grid;gap:2px;flex:1}
+.pr-choice strong{font-size:14px}
+.pr-choice small{font-size:12px;color:var(--unilog-cinza-80)}
+.pr-choice>.pi:last-child{font-size:18px;color:var(--unilog-cinza-60)}
+.pr-choice:hover{border-color:var(--unilog-cinza-40)}
+.pr-choice.is-on{border-color:var(--unilog-vermelho);background:var(--unilog-vermelho-10)}
+.pr-choice.is-on>.pi{color:var(--unilog-vermelho)}
+.pr-choice:focus-visible{outline:2px solid rgba(219,8,18,.35);outline-offset:2px}
+.pr-actions{display:flex;justify-content:flex-end}
+.pr-primary.p-button{min-height:46px;padding:0 22px;border-radius:6px;background:var(--unilog-vermelho);border-color:var(--unilog-vermelho);font-weight:700}
+.pr-primary.p-button:hover{background:var(--unilog-vermelho-hover);border-color:var(--unilog-vermelho-hover)}
+.pr-submit-error{display:flex;gap:8px;align-items:center;padding:12px 14px;border-radius:6px;border-left:4px solid var(--unilog-vermelho);background:var(--unilog-vermelho-10);color:var(--unilog-cinza);font-size:13px;font-weight:600}
+.pr-state{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:40px 16px;background:#fff;border:1px solid var(--unilog-cinza-20);border-radius:8px;color:var(--unilog-cinza-80)}
+.pr-success{display:grid;justify-items:center;gap:8px;padding:30px 20px;background:#fff;border:1px solid var(--unilog-cinza-20);border-radius:8px;text-align:center}
+.pr-success>.pi{font-size:40px;color:var(--unilog-cinza)}
+.pr-success h2{margin:4px 0 0;font-size:20px}
+.pr-success p{margin:0;color:var(--unilog-cinza-80);font-size:13.5px}
+.pr-success ul{list-style:none;margin:10px 0 14px;padding:0;display:grid;gap:8px;width:min(100%,420px)}
+.pr-success li{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:6px;background:var(--unilog-cinza-10);font-size:13.5px}
+.pr-success li strong{font-size:15px;letter-spacing:.02em}
+.pr-hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+@media(max-width:640px){
+  .pr-brand span{display:none}
+  .pr-admin-link{padding:8px 11px;font-size:12px}
+  .pr-intro h1{font-size:22px}
+  .pr-grid,.pr-choice-row{grid-template-columns:1fr}
+  .pr-section-head{padding:14px 14px 4px}
+  .pr-section-body{padding:8px 14px 16px}
+  .pr-actions .p-button{width:100%}
+  .pr-field .p-inputtext{font-size:16px}
+}
+.nx-login-request-link{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;font-weight:600;color:var(--unilog-vermelho);text-decoration:none}.nx-login-request-link:hover{text-decoration:underline}
+.nx-costs-stack{display:grid;gap:14px}
+
+/* Topo com fundo animado e rodapé (identidade Unilog, 06/11/2026) */
+.pr-hero{position:relative;overflow:hidden;background:var(--unilog-cinza);padding-bottom:64px}
+.pr-hero .pr-topbar{position:relative;z-index:1;background:transparent}
+.pr-hero .pr-brand img{height:38px}
+.pr-hero .pr-intro{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:22px clamp(12px,4vw,24px) 0;color:#fff}
+.pr-hero .pr-overline{display:inline-flex;align-items:center;gap:12px;color:var(--unilog-cinza-20);letter-spacing:.2em}
+.pr-hero .pr-overline:before{content:'';width:30px;height:2px;background:var(--unilog-vermelho)}
+.pr-hero .pr-intro h1{color:#fff;font-size:clamp(28px,4vw,38px);font-weight:700}
+.pr-accent{box-shadow:inset 0 -0.16em 0 var(--unilog-vermelho)}
+.pr-hero .pr-intro p{color:var(--unilog-cinza-20);font-weight:300;font-size:15px;max-width:62ch}
+.pr-main{position:relative;z-index:1;margin-top:-40px}
+.pr-section,.pr-success,.pr-state{box-shadow:0 1px 2px rgba(73,74,86,.06)}
+.pr-field .p-inputtext,.pr-field .p-dropdown{border-radius:6px;border-color:var(--unilog-cinza-40)}
+.pr-label{font-weight:500}
+.pr-section-head h2{font-weight:700;color:var(--unilog-cinza)}
+.pr-footer{padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));border-top:3px solid var(--unilog-vermelho);background:var(--unilog-cinza);color:var(--unilog-cinza-20);font-size:12px;text-align:center}
+.pr-main{padding-bottom:36px}
+@media(max-width:640px){.pr-hero .pr-brand img{height:34px}.pr-hero{padding-bottom:56px}}
+.pr-grid{align-items:start}
+.pr-field{align-content:start}
+.pr-hint,.pr-section-head p{font-weight:400}
+.pr-field .p-inputtext:not(.p-dropdown-label),.pr-field .p-dropdown{min-height:46px}

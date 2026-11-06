@@ -1,6 +1,6 @@
 import type { CategoriaProduto, TipoDia, WhatsappDestino } from '@/types/catalog'
 
-export type CatalogSection = 'OPERACOES' | 'SUPERVISORES' | 'FUNCOES' | 'ATIVIDADES' | 'FERIADOS' | 'METAS' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'ACORDOS_MO' | 'PRECOS_PRODUTOS'
+export type CatalogSection = 'OPERACOES' | 'SUPERVISORES' | 'FUNCOES' | 'ATIVIDADES' | 'FERIADOS' | 'METAS' | 'FORNECEDORES' | 'PRODUTOS' | 'PRECOS_MO' | 'ACORDOS_MO' | 'CUSTOS' | 'PRECOS_PRODUTOS'
 export type NamedDraft = { nome: string; ativo: boolean }
 export type HolidayDraft = { data: string; denominacao: string; tipo: string; municipio: string; uf: string; ativo: boolean; fonte: string }
 export type GoalDraft = { competencia: string; valor: string }
@@ -37,6 +37,7 @@ export const SECTION_ITEMS: Array<{ key: CatalogSection; label: string; icon: st
   { key: 'PRODUTOS', label: 'Produtos', icon: 'pi pi-box' },
   { key: 'PRECOS_MO', label: 'Preços de mão de obra', icon: 'pi pi-wallet' },
   { key: 'ACORDOS_MO', label: 'Acordos comerciais', icon: 'pi pi-briefcase' },
+  { key: 'CUSTOS', label: 'Centros de custo', icon: 'pi pi-sitemap' },
   { key: 'PRECOS_PRODUTOS', label: 'Preços de produtos', icon: 'pi pi-tag' },
 ]
 

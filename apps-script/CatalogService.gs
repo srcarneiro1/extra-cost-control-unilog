@@ -46,6 +46,9 @@ const CatalogService = (() => {
     const result = {
       operacoes: namedDtos_(SHEETS.operacoes, 'OPERACAO'),
       supervisores: namedDtos_(SHEETS.supervisores, 'SUPERVISOR'),
+      // Responsáveis pelo custo e centros de custo (05/11/2026) — usados na correção de solicitações.
+      responsaveisCusto: CostCenterService.responsibles(false).map(function (r) { return { nome: r.nome, exigeCentroCusto: r.exigeCentroCusto }; }),
+      centrosCusto: CostCenterService.centers(false).map(function (c) { return { codigo: c.codigo, descricao: c.descricao }; }),
       fornecedores: providerDtos_(providerRows),
       atividades: namedDtos_(SHEETS.atividades, 'ATIVIDADE'),
       funcoes: namedDtos_(SHEETS.funcoes, 'FUNCAO'),

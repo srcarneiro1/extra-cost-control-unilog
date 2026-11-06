@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
+import { BrandBackdrop } from '@/components/brand/BrandBackdrop'
 import { Button } from 'primereact/button'
 import { InputText } from 'primereact/inputtext'
 import { Password } from 'primereact/password'
@@ -60,17 +61,18 @@ export function LoginExperience({ onAuthenticated }: LoginExperienceProps) {
   }
 
   return (
-    <main className="nx-login-page">
+    <main className="nx-login-page nx-login-brand-v2">
+      <BrandBackdrop />
       <section className="nx-login-card" aria-labelledby="login-title">
         <aside className="nx-login-brand">
           <div className="nx-brand-topline">
-            <img src="/brand/unilog-logo-white-transparent.svg" alt="Unilog Express" />
-            <span className="nx-product-chip">Extra Cost Control</span>
+            <img src="/brand/unilog_express_logo_branco.svg" alt="Unilog Express" />
+            <span className="nx-product-chip">GESTÃO</span>
           </div>
 
           <div className="nx-brand-copy">
-            <span className="nx-overline nx-overline-light">GESTÃO OPERACIONAL</span>
-            <h1>Custos extras com leitura simples e controle rigoroso.</h1>
+            <span className="nx-overline nx-overline-light nx-overline-dash">EXTRA COST CONTROL</span>
+            <h1>Custos extras <span className="nx-accent">sob controle</span>, do pedido ao fechamento.</h1>
             <p>
               Um ambiente único para operação, administrativo e gestão acompanharem solicitações,
               custos e capacidade de atendimento.
@@ -85,7 +87,7 @@ export function LoginExperience({ onAuthenticated }: LoginExperienceProps) {
 
         <div className="nx-login-form-panel">
           <div className="nx-login-heading">
-            <span className="nx-overline">{firstAccess ? 'PRIMEIRO ACESSO' : 'ACESSO À PLATAFORMA'}</span>
+            <span className="nx-overline nx-overline-dash">{firstAccess ? 'PRIMEIRO ACESSO' : 'ACESSO'}</span>
             <h2 id="login-title">{firstAccess ? 'Crie sua própria senha' : 'Bem-vindo de volta'}</h2>
             <p>
               {firstAccess
@@ -176,6 +178,11 @@ export function LoginExperience({ onAuthenticated }: LoginExperienceProps) {
             />
           </form>
 
+          {/* Tela aberta de solicitação (sem login) para quem só precisa pedir. */}
+          <a className="nx-login-request-link" href="/">
+            <i className="pi pi-send" aria-hidden="true" /> Só quer fazer uma solicitação? Acesse o formulário
+          </a>
+
           <div className="nx-login-footnote">
             <i className="pi pi-info-circle" />
             <span>
@@ -186,6 +193,7 @@ export function LoginExperience({ onAuthenticated }: LoginExperienceProps) {
           </div>
         </div>
       </section>
+      <footer className="nx-login-legal">© {new Date().getFullYear()} Unilog Express. Todos os direitos reservados.</footer>
     </main>
   )
 }
