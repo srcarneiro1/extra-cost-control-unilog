@@ -459,3 +459,9 @@ Problema: na mesma operação/fornecedor/período convivem pedidos normais (tabe
 - Gateway público aceita `datasOperacionais` (até 31 datas válidas).
 - Gestão: barra lateral com "Formulário de solicitação" (abre `/` em nova aba).
 - Testes: 9 novos no servidor + 27 da tela no servidor + 24 do formulário + 10 de categorias (regressão); 8 no navegador.
+
+## Centro de custo na tela de solicitação — correção (07/11/2026)
+
+**Defeito:** as opções de centro de custo eram montadas com um campo `group` — nome que o PrimeReact usa para marcar **títulos de grupo**. Resultado: todas as opções eram exibidas como títulos (negrito, mesmo estilo de "Centros de …"/"Outros centros de custo") e não podiam ser escolhidas; só o centro sugerido automaticamente (supervisor com um único vínculo) ficava preenchido. Correção: o campo foi removido (`PublicRequestPage.tsx`).
+Melhorias: títulos dos grupos em cinza, maiúsculas e fundo próprio (`.pr-cc-panel` em `public-request.css`); opções em peso normal (a escolhida em negrito); busca "Buscar por código ou nome"; quando o centro vem preenchido pelo vínculo, a dica diz "Sugerido para <supervisor>. Você pode escolher outro centro (ex.: Diretoria)."
+Testado: centro sugerido preenchido com a dica; troca para "200 — Operação Diretoria" pela busca; envio com centro 200.

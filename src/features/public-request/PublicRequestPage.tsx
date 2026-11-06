@@ -155,6 +155,8 @@ export function PublicRequestPage() {
   const [honeypot, setHoneypot] = useState('')
   // Quem já tem sessão de gestão vê "Ir para a gestão" em vez de "Acesso à gestão".
   const [loggedIn, setLoggedIn] = useState(false)
+  // Centro de custo preenchido automaticamente pelo vínculo do supervisor (pode ser trocado).
+  const [costCenterSuggested, setCostCenterSuggested] = useState(false)
   const sendId = useRef(newSendId())
   const openedAt = useRef(Date.now())
 
@@ -216,8 +218,8 @@ export function PublicRequestPage() {
     if (!options) return []
     const linked = new Set(options.vinculos[form.supervisor.toUpperCase()] || [])
     const label = (c: { codigo: string; descricao: string }) => (c.descricao ? `${c.codigo} — ${c.descricao}` : c.codigo)
-    const mine = options.centros.filter((c) => linked.has(c.codigo)).map((c) => ({ label: label(c), value: c.codigo, group: 'Do supervisor' }))
-    const others = options.centros.filter((c) => !linked.has(c.codigo)).map((c) => ({ label: label(c), value: c.codigo, group: 'Outros' }))
+    const mine = options.centros.filter((c) => linked.has(c.codigo)).map((c) => ({ label: label(c), value: c.codigo }))
+    const others = options.centros.filter((c) => !linked.has(c.codigo)).map((c) => ({ label: label(c), value: c.codigo }))
     return mine.length
       ? [{ label: `Centros de ${form.supervisor}`, items: mine }, { label: 'Outros centros de custo', items: others }]
       : [{ label: 'Centros de custo', items: others }]
@@ -227,7 +229,10 @@ export function PublicRequestPage() {
   useEffect(() => {
     if (!options || !needsCostCenter || form.centroCusto) return
     const linked = options.vinculos[form.supervisor.toUpperCase()] || []
-    if (linked.length === 1) setForm((current) => ({ ...current, centroCusto: linked[0] }))
+    if (linked.length === 1) {
+      setForm((current) => ({ ...current, centroCusto: linked[0] }))
+      setCostCenterSuggested(true)
+    }
   }, [options, needsCostCenter, form.supervisor, form.centroCusto])
 
   function validate(): boolean {
@@ -491,9 +496,9 @@ export function PublicRequestPage() {
                   <Dropdown value={form.responsavelCusto} options={options.responsaveis.map((r) => ({ label: r.nome, value: r.nome }))} onChange={(e) => { set('responsavelCusto', e.value || ''); set('centroCusto', '') }} placeholder="Selecione" />
                 </Field>
                 {needsCostCenter && (
-                  <Field label="Centro de custo" required error={errors.centroCusto} hint="Conforme aparece no Bitrix.">
+                  <Field label="Centro de custo" required error={errors.centroCusto} hint={costCenterSuggested ? `Sugerido para ${form.supervisor}. Você pode escolher outro centro (ex.: Diretoria).` : 'Conforme aparece no Bitrix. Digite para buscar.'}>
                     {options.centros.length ? (
-                      <Dropdown value={form.centroCusto} options={costCenterOptions} optionGroupLabel="label" optionGroupChildren="items" onChange={(e) => set('centroCusto', e.value || '')} filter placeholder="Selecione" />
+                      <Dropdown value={form.centroCusto} options={costCenterOptions} optionGroupLabel="label" optionGroupChildren="items" onChange={(e) => { set('centroCusto', e.value || ''); setCostCenterSuggested(false) }} filter filterPlaceholder="Buscar por código ou nome" placeholder="Selecione" panelClassName="pr-cc-panel" />
                     ) : (
                       <InputText value={form.centroCusto} onChange={(e) => set('centroCusto', onlyDigits(e.target.value))} inputMode="numeric" placeholder="Ex.: 2309" />
                     )}

@@ -117,3 +117,7 @@
 /* Atalho do formulário na barra lateral da gestão */
 .nx-nav-external{text-decoration:none}
 .nx-nav-external .nx-nav-external-icon{margin-left:auto;font-size:11px;opacity:.6}
+/* Centro de custo: títulos dos grupos não parecem opções (07/11/2026) */
+.pr-cc-panel .p-dropdown-item-group{padding:9px 14px 6px;background:var(--unilog-cinza-10,#ededee);color:var(--unilog-cinza-80,#6d6e78);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:default}
+.pr-cc-panel .p-dropdown-item{font-weight:400;padding-left:22px}
+.pr-cc-panel .p-dropdown-item.p-highlight{font-weight:700}
