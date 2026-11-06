@@ -12,6 +12,8 @@ const PublicSolicitationService = (() => {
   const ORIGIN = 'FORMULARIO_WEB';
   const ACTIONS = Object.freeze({ OPTIONS: 'OPCOES', SUBMIT: 'ENVIAR' });
   const ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
+  const MAX_DAYS = 31;
+  const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
   const text_ = (v) => String(v == null ? '' : v).trim();
 
@@ -58,54 +60,80 @@ const PublicSolicitationService = (() => {
     const food = input.alimentacao && typeof input.alimentacao === 'object' ? input.alimentacao : null;
     if (!labor && !food) ValidationService.fail('Escolha o que deseja solicitar: mão de obra, alimentação/bebidas ou os dois.');
 
-    const common = {};
-    common[Q.requester] = text_(input.nomeSolicitante);
-    common[Q.supervisor] = text_(input.supervisor);
-    common[Q.operation] = text_(input.operacao);
-    common[Q.operationalDate] = text_(input.dataOperacional);
-    common[Q.justification] = text_(input.justificativa);
-    common[Q.costResponsibility] = text_(input.responsavelCusto);
-    common[Q.costCenter] = text_(input.centroCusto);
-    if (!common[Q.requester]) ValidationService.fail('Informe o nome do solicitante.');
+    // Vários dias no mesmo envio (07/11/2026): uma solicitação por dia e por tipo; todas validadas
+    // antes de gravar; gravação única (tudo ou nada). Sem a lista, vale a data única (como antes).
+    const days = resolveDays_(input);
+    const multi = days.length > 1 || Array.isArray(input.datasOperacionais);
 
     const createdAt = new Date();
     const built = [];
+    days.forEach((day) => {
+      const common = {};
+      common[Q.requester] = text_(input.nomeSolicitante);
+      common[Q.supervisor] = text_(input.supervisor);
+      common[Q.operation] = text_(input.operacao);
+      common[Q.operationalDate] = day;
+      common[Q.justification] = text_(input.justificativa);
+      common[Q.costResponsibility] = text_(input.responsavelCusto);
+      common[Q.costCenter] = text_(input.centroCusto);
+      if (!common[Q.requester]) ValidationService.fail('Informe o nome do solicitante.');
+      const dayLabel = multi ? day.slice(8, 10) + '/' + day.slice(5, 7) + ' — ' : '';
+      const idSuffix = multi ? '-' + day.replace(/-/g, '') : '';
 
-    // Valida as duas partes ANTES de gravar qualquer uma: ou cria tudo, ou nada.
-    if (labor) {
-      const answers = Object.assign({}, common);
-      answers[Q.type] = N.FORM_TYPES.LABOR;
-      answers[Q.activity] = text_(labor.atividade);
-      answers[Q.role] = text_(labor.funcao);
-      answers[Q.shift] = text_(labor.turno);
-      answers[Q.requestedQuantity] = text_(labor.quantidade);
-      answers[Q.referenceVolume] = text_(labor.volumeReferencia);
-      answers[Q.volumeUnit] = text_(labor.unidadeVolume);
-      const laborBuilt = withPrefix_('Mão de obra', () => N.buildFromAnswers(answers, { responseId: sendId + '-MO', createdAt: createdAt, origin: ORIGIN }));
-      // Acordo indicado pelo solicitante (07/11/2026): validado aqui; o Administrativo confirma na triagem.
-      const indicated = withPrefix_('Mão de obra', () => AgreementService.validateIndication(labor.idAcordoIndicado, laborBuilt.record.OPERACAO, laborBuilt.record.DATA_OPERACIONAL, laborBuilt.record.SUPERVISOR));
-      if (indicated) {
-        PricingService.ensureOriginColumns();
-        laborBuilt.record.ID_ACORDO_INDICADO = indicated;
+      if (labor) {
+        const answers = Object.assign({}, common);
+        answers[Q.type] = N.FORM_TYPES.LABOR;
+        answers[Q.activity] = text_(labor.atividade);
+        answers[Q.role] = text_(labor.funcao);
+        answers[Q.shift] = text_(labor.turno);
+        answers[Q.requestedQuantity] = text_(labor.quantidade);
+        answers[Q.referenceVolume] = text_(labor.volumeReferencia);
+        answers[Q.volumeUnit] = text_(labor.unidadeVolume);
+        const laborBuilt = withPrefix_(dayLabel + 'Mão de obra', () => N.buildFromAnswers(answers, { responseId: sendId + idSuffix + '-MO', createdAt: createdAt, origin: ORIGIN }));
+        // Acordo indicado pelo solicitante: validado para cada dia; o Administrativo confirma na triagem.
+        const indicated = withPrefix_(dayLabel + 'Mão de obra', () => AgreementService.validateIndication(labor.idAcordoIndicado, laborBuilt.record.OPERACAO, laborBuilt.record.DATA_OPERACIONAL, laborBuilt.record.SUPERVISOR));
+        if (indicated) {
+          PricingService.ensureOriginColumns();
+          laborBuilt.record.ID_ACORDO_INDICADO = indicated;
+        }
+        built.push(laborBuilt);
       }
-      built.push(laborBuilt);
-    }
-    if (food) {
-      const answers = Object.assign({}, common);
-      answers[Q.type] = N.FORM_TYPES.FOOD;
-      answers[Q.food] = text_(food.produtoAlimentacao);
-      answers[Q.foodQuantity] = text_(food.qtdAlimentacao);
-      answers[Q.drink] = text_(food.produtoBebida);
-      answers[Q.drinkQuantity] = text_(food.qtdBebida);
-      if (answers[Q.food] && !answers[Q.foodQuantity]) ValidationService.fail('Alimentação/bebidas: informe a quantidade de alimentação.');
-      if (answers[Q.drink] && !answers[Q.drinkQuantity]) ValidationService.fail('Alimentação/bebidas: informe a quantidade de bebida.');
-      built.push(withPrefix_('Alimentação/bebidas', () => N.buildFromAnswers(answers, { responseId: sendId + '-AB', createdAt: createdAt, origin: ORIGIN })));
-    }
+      if (food) {
+        const answers = Object.assign({}, common);
+        answers[Q.type] = N.FORM_TYPES.FOOD;
+        answers[Q.food] = text_(food.produtoAlimentacao);
+        answers[Q.foodQuantity] = text_(food.qtdAlimentacao);
+        answers[Q.drink] = text_(food.produtoBebida);
+        answers[Q.drinkQuantity] = text_(food.qtdBebida);
+        if (answers[Q.food] && !answers[Q.foodQuantity]) ValidationService.fail('Alimentação/bebidas: informe a quantidade de alimentação.');
+        if (answers[Q.drink] && !answers[Q.drinkQuantity]) ValidationService.fail('Alimentação/bebidas: informe a quantidade de bebida.');
+        built.push(withPrefix_(dayLabel + 'Alimentação/bebidas', () => N.buildFromAnswers(answers, { responseId: sendId + idSuffix + '-AB', createdAt: createdAt, origin: ORIGIN })));
+      }
+    });
 
     const results = N.persistMany(built, ORIGIN);
     return {
-      protocolos: results.map((r) => ({ tipoSolicitacao: r.tipoSolicitacao, idSolicitacao: r.idSolicitacao, jaRegistrado: r.duplicado })),
+      protocolos: results.map((r, index) => ({
+        tipoSolicitacao: r.tipoSolicitacao,
+        idSolicitacao: r.idSolicitacao,
+        jaRegistrado: r.duplicado,
+        dataOperacional: built[index].record.DATA_OPERACIONAL,
+      })),
     };
+  }
+
+  function resolveDays_(input) {
+    if (!Array.isArray(input.datasOperacionais)) return [text_(input.dataOperacional)];
+    const unique = {};
+    input.datasOperacionais.forEach((value) => {
+      const day = text_(value);
+      if (!DATE_PATTERN.test(day)) ValidationService.fail('Data inválida na lista de dias: ' + day + '.');
+      unique[day] = true;
+    });
+    const days = Object.keys(unique).sort();
+    if (!days.length) ValidationService.fail('Selecione ao menos um dia.');
+    if (days.length > MAX_DAYS) ValidationService.fail('Selecione no máximo ' + MAX_DAYS + ' dias por envio.');
+    return days;
   }
 
   // Erros de validação dizem a qual parte do pedido se referem.

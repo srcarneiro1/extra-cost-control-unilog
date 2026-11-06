@@ -13,7 +13,7 @@ export type PublicOptions = {
   acordos?: Array<{ id: string; nome: string; operacoes: string[]; vigenciaInicio: string; vigenciaFim: string; supervisores: string[] }>
 }
 
-export type PublicProtocol = { tipoSolicitacao: 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'; idSolicitacao: string; jaRegistrado: boolean }
+export type PublicProtocol = { tipoSolicitacao: 'MAO_DE_OBRA' | 'ALIMENTACAO_BEBIDA'; idSolicitacao: string; jaRegistrado: boolean; dataOperacional?: string }
 
 export type PublicSubmission = {
   idEnvio: string
@@ -23,6 +23,7 @@ export type PublicSubmission = {
   supervisor: string
   operacao: string
   dataOperacional: string
+  datasOperacionais?: string[]
   justificativa: string
   responsavelCusto: string
   centroCusto: string

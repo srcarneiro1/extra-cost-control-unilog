@@ -23,6 +23,9 @@ type Form = {
   supervisor: string
   operacao: string
   dataOperacional: string
+  variosDias: boolean
+  dataFinal: string
+  diasDesmarcados: string[]
   justificativa: string
   querMaoDeObra: boolean
   querAlimentacao: boolean
@@ -46,11 +49,33 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Vários dias (07/11/2026): um botão por dia do período; todos marcados por padrão.
+const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+const MAX_DAYS = 31
+function daysBetween(start: string, end: string): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) return []
+  const out: string[] = []
+  const d = new Date(`${start}T12:00:00`)
+  const last = new Date(`${end}T12:00:00`)
+  while (d <= last && out.length <= MAX_DAYS) {
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+    d.setDate(d.getDate() + 1)
+  }
+  return out
+}
+const dayLabel = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00`)
+  return { weekday: WEEKDAYS[d.getDay()], date: `${iso.slice(8, 10)}/${iso.slice(5, 7)}` }
+}
+
 const emptyForm = (keep?: Partial<Form>): Form => ({
   nomeSolicitante: keep?.nomeSolicitante || '',
   supervisor: keep?.supervisor || '',
   operacao: keep?.operacao || '',
   dataOperacional: today(),
+  variosDias: false,
+  dataFinal: '',
+  diasDesmarcados: [],
   justificativa: '',
   querMaoDeObra: false,
   querAlimentacao: false,
@@ -161,12 +186,20 @@ export function PublicRequestPage() {
     setErrors((current) => ({ ...current, [key]: undefined, ...(key === 'querMaoDeObra' || key === 'querAlimentacao' ? { tipo: undefined } : {}) }))
   }
 
-  // Acordos "indicados" que valem para a operação, a data e o supervisor escolhidos (07/11/2026).
+  // Dias do período (modo "vários dias") e os que ficam marcados.
+  const periodDays = useMemo(() => (form.variosDias ? daysBetween(form.dataOperacional, form.dataFinal) : []), [form.variosDias, form.dataOperacional, form.dataFinal])
+  const selectedDays = useMemo(() => (form.variosDias
+    ? periodDays.filter((d) => !form.diasDesmarcados.includes(d)).slice(0, MAX_DAYS)
+    : (form.dataOperacional ? [form.dataOperacional] : [])), [form.variosDias, periodDays, form.diasDesmarcados, form.dataOperacional])
+  const firstDay = selectedDays[0] || form.dataOperacional
+  const lastDay = selectedDays[selectedDays.length - 1] || form.dataOperacional
+
+  // Acordos "indicados" que valem para a operação, os dias e o supervisor escolhidos (07/11/2026).
   const eligibleAgreements = useMemo(() => (options?.acordos || []).filter((a) =>
     (!a.operacoes.length || a.operacoes.includes(form.operacao.toUpperCase())) &&
-    form.dataOperacional >= a.vigenciaInicio && form.dataOperacional <= a.vigenciaFim &&
+    firstDay >= a.vigenciaInicio && lastDay <= a.vigenciaFim &&
     (!a.supervisores.length || a.supervisores.includes(form.supervisor.toUpperCase()))
-  ), [options, form.operacao, form.dataOperacional, form.supervisor])
+  ), [options, form.operacao, firstDay, lastDay, form.supervisor])
 
   // Se a indicação deixou de valer (mudou operação, data ou supervisor), limpa.
   useEffect(() => {
@@ -203,6 +236,11 @@ export function PublicRequestPage() {
     if (!form.supervisor) e.supervisor = 'Selecione o supervisor.'
     if (!form.operacao) e.operacao = 'Selecione a operação.'
     if (!form.dataOperacional) e.dataOperacional = 'Informe a data em que o serviço vai acontecer.'
+    if (form.variosDias) {
+      if (!form.dataFinal || form.dataFinal < form.dataOperacional) e.dataFinal = 'Informe a data final (igual ou depois da inicial).'
+      else if (periodDays.length > MAX_DAYS) e.dataFinal = `Escolha um período de até ${MAX_DAYS} dias.`
+      else if (!selectedDays.length) e.dataFinal = 'Deixe ao menos um dia marcado.'
+    }
     if (!form.justificativa.trim()) e.justificativa = 'Explique o motivo da solicitação.'
     if (!form.querMaoDeObra && !form.querAlimentacao) e.tipo = 'Escolha mão de obra, alimentação/bebidas ou os dois.'
     if (form.querMaoDeObra) {
@@ -240,7 +278,8 @@ export function PublicRequestPage() {
         nomeSolicitante: form.nomeSolicitante.trim(),
         supervisor: form.supervisor,
         operacao: form.operacao,
-        dataOperacional: form.dataOperacional,
+        dataOperacional: selectedDays[0] || form.dataOperacional,
+        ...(form.variosDias ? { datasOperacionais: selectedDays } : {}),
         justificativa: form.justificativa.trim(),
         responsavelCusto: form.responsavelCusto,
         centroCusto: needsCostCenter ? form.centroCusto : '',
@@ -305,7 +344,10 @@ export function PublicRequestPage() {
             <ul>
               {protocols.map((p) => (
                 <li key={p.idSolicitacao}>
-                  <span>{p.tipoSolicitacao === 'MAO_DE_OBRA' ? 'Mão de obra terceirizada' : 'Alimentação / bebidas'}</span>
+                  <span>
+                    {new Set(protocols.map((x) => x.dataOperacional)).size > 1 && p.dataOperacional && <em className="pr-proto-date">{dayLabel(p.dataOperacional).date} ({dayLabel(p.dataOperacional).weekday}) · </em>}
+                    {p.tipoSolicitacao === 'MAO_DE_OBRA' ? 'Mão de obra terceirizada' : 'Alimentação / bebidas'}
+                  </span>
                   <strong>{p.idSolicitacao}</strong>
                 </li>
               ))}
@@ -331,6 +373,10 @@ export function PublicRequestPage() {
             </div>
 
             <Section step={1} title="Dados gerais" description="Quem está pedindo, para qual operação e quando.">
+              <div className="pr-days-mode" role="group" aria-label="Quantidade de dias" title="Escolha antes de informar as datas">
+                <button type="button" className={!form.variosDias ? 'is-on' : ''} aria-pressed={!form.variosDias} onClick={() => set('variosDias', false)}>Um dia</button>
+                <button type="button" className={form.variosDias ? 'is-on' : ''} aria-pressed={form.variosDias} onClick={() => { set('variosDias', true); if (!form.dataFinal) set('dataFinal', form.dataOperacional) }}>Vários dias</button>
+              </div>
               <div className="pr-grid">
                 <Field label="Nome do solicitante" required error={errors.nomeSolicitante}>
                   <InputText value={form.nomeSolicitante} onChange={(e) => set('nomeSolicitante', e.target.value)} autoComplete="name" maxLength={120} />
@@ -341,10 +387,33 @@ export function PublicRequestPage() {
                 <Field label="Operação" required error={errors.operacao}>
                   <Dropdown value={form.operacao} options={toOptions(options.operacoes)} onChange={(e) => set('operacao', e.value || '')} filter placeholder="Selecione" />
                 </Field>
-                <Field label="Data operacional" required error={errors.dataOperacional} hint="Dia em que o serviço vai acontecer (não a data de hoje, se for diferente).">
-                  <InputText type="date" value={form.dataOperacional} onChange={(e) => set('dataOperacional', e.target.value)} />
+                <Field label={form.variosDias ? 'Data inicial' : 'Data operacional'} required error={errors.dataOperacional} hint={form.variosDias ? undefined : 'Dia em que o serviço vai acontecer (não a data de hoje, se for diferente).'}>
+                  <InputText type="date" value={form.dataOperacional} onChange={(e) => { set('dataOperacional', e.target.value); set('diasDesmarcados', []) }} />
                 </Field>
+                {form.variosDias && (
+                  <Field label="Data final" required error={errors.dataFinal}>
+                    <InputText type="date" value={form.dataFinal} min={form.dataOperacional} onChange={(e) => { set('dataFinal', e.target.value); set('diasDesmarcados', []) }} />
+                  </Field>
+                )}
               </div>
+              {form.variosDias && periodDays.length > 0 && periodDays.length <= MAX_DAYS && (
+                <div className="pr-days">
+                  <span className="pr-days-help">Cada dia marcado vira uma solicitação. Clique para desmarcar os dias que não precisa.</span>
+                  <div className="pr-days-list">
+                    {periodDays.map((d) => {
+                      const on = !form.diasDesmarcados.includes(d)
+                      const l = dayLabel(d)
+                      return (
+                        <button key={d} type="button" className={`pr-day${on ? ' is-on' : ''}`} aria-pressed={on}
+                          onClick={() => set('diasDesmarcados', on ? [...form.diasDesmarcados, d] : form.diasDesmarcados.filter((x) => x !== d))}>
+                          <small>{l.weekday}</small><strong>{l.date}</strong>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <span className="pr-days-count">{selectedDays.length} {selectedDays.length === 1 ? 'dia marcado' : 'dias marcados'}</span>
+                </div>
+              )}
               <Field label="Justificativa" required error={errors.justificativa} hint="Ex.: aumento de volume, carga e descarga, atraso operacional, reforço.">
                 <InputTextarea value={form.justificativa} onChange={(e) => set('justificativa', e.target.value)} rows={3} autoResize maxLength={1000} />
               </Field>

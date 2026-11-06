@@ -396,17 +396,52 @@ const FormResponseNormalizerService = (() => {
     }
     try {
       SolicitationStatusService.ensureSchema();
+      // Duplicidade lida uma vez por origem (não a cada registro) e gravação em lote (07/11/2026).
+      const indexes = {};
+      const toAppend = [];
       const results = builtList.map((built) => {
-        const existing = findExisting_(built.responseId, built.origin);
-        if (existing) return { duplicado: true, idSolicitacao: existing.ID_SOLICITACAO, tipoSolicitacao: built.type };
+        const origin = built.origin || ORIGIN;
+        if (!indexes[origin]) indexes[origin] = originIndex(origin);
+        const existing = indexes[origin][built.responseId];
+        if (existing) return { duplicado: true, idSolicitacao: existing, tipoSolicitacao: built.type };
         built.record.ID_SOLICITACAO = ProtocolService.next(built.createdAt);
-        SheetRepository.appendObject(SHEET_SOLICITACOES, built.record, { textFields: TEXT_FIELDS });
+        indexes[origin][built.responseId] = built.record.ID_SOLICITACAO;
+        toAppend.push(built.record);
         return { duplicado: false, idSolicitacao: built.record.ID_SOLICITACAO, tipoSolicitacao: built.type };
       });
-      results.forEach((r, i) => log_(execution, builtList[i].responseId, builtList[i].createdAt, r.duplicado ? 'DUPLICADA' : 'CRIADA', r.idSolicitacao, '', started));
+      SheetRepository.appendObjects(SHEET_SOLICITACOES, toAppend, { textFields: TEXT_FIELDS });
+      logMany_(builtList.map((b, i) => [execution, b.responseId, b.createdAt, results[i].duplicado ? 'DUPLICADA' : 'CRIADA', results[i].idSolicitacao, (b.notes || []).join(' ')]), started);
       return results;
     } finally {
       lock.releaseLock();
+    }
+  }
+
+  // Registro de várias tentativas numa única escrita (chamado dentro do bloqueio).
+  function logMany_(entries, started) {
+    const duration = Date.now() - started;
+    try {
+      const spreadsheet = SheetRepository.getSpreadsheet();
+      let sheet = spreadsheet.getSheetByName(LOG_SHEET);
+      if (!sheet) {
+        sheet = spreadsheet.insertSheet(LOG_SHEET);
+        sheet.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS]);
+      } else {
+        SheetRepository.ensureColumns(LOG_SHEET, LOG_HEADERS);
+      }
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const rows = entries.map((e) => {
+        const values = { DATA_HORA: new Date(), EXECUCAO: e[0], ID_RESPOSTA: e[1], DATA_RESPOSTA: e[2], RESULTADO: e[3], ID_SOLICITACAO: e[4] || '', MENSAGEM: String(e[5] || '').slice(0, 500), DURACAO_MS: duration };
+        return headers.map((h) => (Object.prototype.hasOwnProperty.call(values, h) ? values[h] : ''));
+      });
+      if (rows.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+    } catch (error) {
+      // registro é auxiliar
+    }
+    try {
+      console.log(JSON.stringify({ evento: 'extra_forms', execucao: entries.length ? entries[0][0] : '', resultado: 'LOTE', quantidade: entries.length, duracaoMs: duration }));
+    } catch (error) {
+      // idem
     }
   }
 

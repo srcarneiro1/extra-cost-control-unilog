@@ -83,6 +83,12 @@ export function ShellSidebar({
               </div>
             )
           })}
+          {/* Atalho para a tela aberta de solicitação (07/11/2026), em nova aba: a gestão continua aberta. */}
+          <a className="nx-nav-item nx-nav-external" href="/" target="_blank" rel="noopener noreferrer">
+            <i className="pi pi-send" />
+            <span>Formulário de solicitação</span>
+            <i className="pi pi-external-link nx-nav-external-icon" aria-hidden="true" />
+          </a>
         </nav>
 
         <div className="nx-user-card">

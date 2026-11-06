@@ -184,6 +184,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     supervisor: text(body.supervisor, 120),
     operacao: text(body.operacao, 120),
     dataOperacional: text(body.dataOperacional, 10),
+    // Vários dias (07/11/2026): até 31 datas no formato AAAA-MM-DD.
+    ...(Array.isArray(body.datasOperacionais)
+      ? { datasOperacionais: body.datasOperacionais.slice(0, 31).map((d: unknown) => text(d, 10)).filter((d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d)) }
+      : {}),
     justificativa: text(body.justificativa, 1000),
     responsavelCusto: text(body.responsavelCusto, 60),
     centroCusto: text(body.centroCusto, 12),

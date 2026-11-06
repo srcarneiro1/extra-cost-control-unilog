@@ -99,3 +99,21 @@
 .pr-error-ref button:hover{border-color:var(--unilog-cinza-60)}
 .pr-submit-error-text{display:grid;gap:4px}
 .pr-submit-error .pr-error-ref{justify-content:flex-start}
+/* Vários dias (07/11/2026) */
+.pr-days-mode{display:inline-flex;gap:0;border:1px solid var(--unilog-cinza-40,#b6b7bb);border-radius:6px;overflow:hidden;width:max-content}
+.pr-days-mode button{padding:8px 16px;border:0;background:#fff;color:var(--unilog-cinza,#494a56);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.pr-days-mode button+button{border-left:1px solid var(--unilog-cinza-40,#b6b7bb)}
+.pr-days-mode button.is-on{background:var(--unilog-cinza,#494a56);color:#fff}
+.pr-days{display:grid;gap:8px}
+.pr-days-help,.pr-days-count{font-size:12px;color:var(--unilog-cinza-80,#6d6e78)}
+.pr-days-count{font-weight:700;color:var(--unilog-cinza,#494a56)}
+.pr-days-list{display:flex;flex-wrap:wrap;gap:6px}
+.pr-day{display:grid;justify-items:center;gap:1px;min-width:58px;padding:7px 8px;border:1px solid var(--unilog-cinza-20,#dbdbdd);border-radius:6px;background:#fff;color:var(--unilog-cinza-60,#92929a);font:inherit;cursor:pointer;text-decoration:line-through}
+.pr-day small{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+.pr-day strong{font-size:13px}
+.pr-day.is-on{border-color:var(--unilog-vermelho,#db0812);background:var(--unilog-vermelho-10,#fbe6e7);color:var(--unilog-cinza,#494a56);text-decoration:none}
+.pr-day:focus-visible{outline:2px solid rgba(219,8,18,.35);outline-offset:2px}
+.pr-proto-date{font-style:normal;font-weight:700}
+/* Atalho do formulário na barra lateral da gestão */
+.nx-nav-external{text-decoration:none}
+.nx-nav-external .nx-nav-external-icon{margin-left:auto;font-size:11px;opacity:.6}

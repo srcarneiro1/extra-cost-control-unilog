@@ -450,3 +450,12 @@ Problema: na mesma operação/fornecedor/período convivem pedidos normais (tabe
 - Rotina `aplicarAcordosSolicitacoesExistentes` só aplica acordos AUTOMATICA.
 - Testes: 14 novos no servidor + 31 de acordos (regressão), 27 da tela de solicitação no servidor, 5 na tela de solicitação, 5 na triagem e 4 no cadastro.
 - **Várias operações por acordo (07/11/2026):** campo OPERACAO aceita uma, várias ("OP1; OP2") ou TODAS; tela com "Abrangência de operações" (selecionadas/todas) e seleção múltipla, como supervisores. Acordos antigos com uma operação seguem válidos. Conflito: mesmo fornecedor + operações em comum (ou "todas") + vigências e condições que se cruzam. Tela de solicitação filtra por `operacoes` (lista vazia = todas). Testes: 10 novos + 31 de acordos + 14 do acordo indicado + 27 da tela no servidor; telas: 5 no cadastro e 6 na solicitação.
+
+## Vários dias na tela de solicitação + atalho na gestão — 07/11/2026 (API 2026.11.07.3)
+
+- Tela `/`: em "Dados gerais", "Um dia | Vários dias". Em vários dias: data inicial e final (até 31 dias), um botão por dia com o dia da semana (todos marcados; clique desmarca). Cada dia marcado vira uma solicitação por tipo (mão de obra e/ou lanche), com o acordo indicado em todos. A pergunta do acordo só aparece se todos os dias marcados estiverem na vigência. Sucesso lista os protocolos com data e dia da semana.
+- Servidor (`PublicSolicitationService.submit`): `datasOperacionais` (lista, até 31, sem repetição, AAAA-MM-DD); valida todos os dias e partes antes de gravar (tudo ou nada; mensagem cita o dia, ex.: "01/01 — Mão de obra: …"); ID de origem por dia (`idEnvio-AAAAMMDD-MO/AB`) → reenvio não duplica. Sem a lista, data única como antes.
+- Desempenho: `persistMany` lê a duplicidade uma vez por origem e grava tudo numa única escrita (`SheetRepository.appendObjects`, mesmos formatos de `appendObject`); registro de integração em lote (`logMany_`).
+- Gateway público aceita `datasOperacionais` (até 31 datas válidas).
+- Gestão: barra lateral com "Formulário de solicitação" (abre `/` em nova aba).
+- Testes: 9 novos no servidor + 27 da tela no servidor + 24 do formulário + 10 de categorias (regressão); 8 no navegador.

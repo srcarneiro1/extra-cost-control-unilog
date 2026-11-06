@@ -521,6 +521,37 @@ const SheetRepository = (() => {
     return targetRow;
   }
 
+  // Grava várias linhas numa única escrita (07/11/2026): mesmos formatos de appendObject, aplicados
+  // a todas as linhas antes dos valores. Usado no envio de vários dias pela tela de solicitação.
+  function appendObjects(sheetName, records, options) {
+    if (!records || !records.length) return 0;
+    const sheet = getSheet_(sheetName);
+    const headers = headers_(sheet);
+    const lastColumn = headers.length;
+    const rows = records.map(function (record) {
+      return headers.map(function (header) {
+        if (!header) return '';
+        return Object.prototype.hasOwnProperty.call(record, header) ? record[header] : '';
+      });
+    });
+    const firstRow = sheet.getLastRow() + 1;
+    const needed = firstRow + rows.length - 1 - sheet.getMaxRows();
+    if (needed > 0) sheet.insertRowsAfter(sheet.getMaxRows(), needed);
+    const range = sheet.getRange(firstRow, 1, rows.length, lastColumn);
+    const textFields = options && Array.isArray(options.textFields) ? options.textFields : [];
+    if (textFields.length > 0 || sheetName === 'SOLICITACOES') {
+      const formatRow = headers.map(function (header) {
+        if (textFields.indexOf(header) >= 0) return '@';
+        if (solicitationMoneyField_(sheetName, header)) return MONEY_FORMAT;
+        return 'General';
+      });
+      range.setNumberFormats(rows.map(function () { return formatRow.slice(); }));
+    }
+    range.setValues(rows);
+    invalidateCaches_(sheetName);
+    return firstRow;
+  }
+
   function findRowByField(sheetName, fieldName, value) {
     const sheet = getSheet_(sheetName);
     const headers = headers_(sheet);
@@ -632,6 +663,7 @@ const SheetRepository = (() => {
     readObjectsForMonthFromEndBy,
     getDataRowCount,
     appendObject,
+    appendObjects,
     findRowByField,
     updateFields,
     ensureColumns,
