@@ -27,12 +27,32 @@ function json(payload: unknown, status = 200, extra: Record<string, string> = {}
   })
 }
 
-function fail(message: string, status = 400): Response {
-  return json({ ok: false, error: { message } }, status)
+// Diagnóstico (06/11/2026): toda falha volta com um CÓDIGO (em que ponto falhou) e uma REFERÊNCIA,
+// e é registrada no log do Cloudflare com a mesma referência e o detalhe técnico — sem expor URL,
+// token ou dados do formulário. Para achar: Cloudflare Pages → Functions → Logs, buscar a referência.
+type Ctx = { requestId: string; started: number; stage: 'OPCOES' | 'ENVIO' }
+
+function newContext(stage: Ctx['stage']): Ctx {
+  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now())
+  return { requestId: id.replace(/-/g, '').slice(0, 8), started: Date.now(), stage }
 }
 
-async function callAppsScript(env: Env, payload: Record<string, unknown>): Promise<Response> {
-  if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) return fail('Serviço indisponível no momento.', 500)
+function log(ctx: Ctx, result: string, detail = '', status = 0) {
+  console.log(JSON.stringify({
+    evento: 'publico_solicitacao', referencia: ctx.requestId, etapa: ctx.stage, resultado: result,
+    status, detalhe: detail.slice(0, 300), duracaoMs: Date.now() - ctx.started,
+  }))
+}
+
+function fail(ctx: Ctx, code: string, message: string, status = 400, detail = ''): Response {
+  log(ctx, code, detail || message, status)
+  return json({ ok: false, error: { message, code, requestId: ctx.requestId } }, status, { 'x-request-id': ctx.requestId })
+}
+
+async function callAppsScript(ctx: Ctx, env: Env, payload: Record<string, unknown>): Promise<Response> {
+  if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_GATEWAY_TOKEN) {
+    return fail(ctx, 'CONFIGURACAO_AUSENTE', 'Serviço indisponível no momento.', 500, 'APPS_SCRIPT_URL ou APPS_SCRIPT_GATEWAY_TOKEN ausente no Cloudflare')
+  }
   const url = new URL(env.APPS_SCRIPT_URL)
   url.searchParams.set('route', ROUTE)
   const body = JSON.stringify({ ...payload, _gatewayToken: env.APPS_SCRIPT_GATEWAY_TOKEN })
@@ -52,19 +72,28 @@ async function callAppsScript(env: Env, payload: Record<string, unknown>): Promi
       if (next.hostname !== APPS_SCRIPT_EXECUTION_HOST) break
       current = next.toString()
     }
-  } catch {
-    return fail('Não foi possível conectar ao serviço. Tente novamente em alguns instantes.', 502)
+  } catch (error) {
+    return fail(ctx, 'REDE_APPS_SCRIPT', 'Não foi possível conectar ao serviço. Tente novamente em alguns instantes.', 502,
+      `falha de rede até o Apps Script: ${error instanceof Error ? error.message : String(error)}`)
   }
-  if (!response) return fail('Serviço indisponível no momento.', 502)
+  if (!response) return fail(ctx, 'SEM_RESPOSTA', 'Serviço indisponível no momento.', 502, 'Apps Script não respondeu')
   const text = await response.text()
-  let data: { ok?: boolean; data?: unknown; error?: { message?: string } }
+  let data: { ok?: boolean; data?: unknown; error?: { message?: string; name?: string } }
   try {
     data = JSON.parse(text)
   } catch {
-    return fail('O serviço respondeu de forma inesperada. Tente novamente.', 502)
+    const kind = /<html|<!doctype/i.test(text) ? 'página HTML (ex.: login do Google, implantação sem acesso público ou erro do Apps Script)' : 'conteúdo não JSON'
+    return fail(ctx, 'RESPOSTA_INVALIDA', 'O serviço respondeu de forma inesperada. Tente novamente.', 502,
+      `Apps Script devolveu ${kind}; HTTP ${response.status}; ${text.length} bytes`)
   }
-  if (data && data.ok === true) return json({ ok: true, data: data.data })
-  return fail((data && data.error && data.error.message) || 'Não foi possível concluir a solicitação.', 400)
+  if (data && data.ok === true) {
+    log(ctx, 'OK', '', 200)
+    return json({ ok: true, data: data.data }, 200, { 'x-request-id': ctx.requestId })
+  }
+  const message = (data && data.error && data.error.message) || 'Não foi possível concluir a solicitação.'
+  const name = (data && data.error && data.error.name) || ''
+  const code = /autoriza/i.test(message) ? 'APPS_SCRIPT_TOKEN' : /rota/i.test(message) ? 'APPS_SCRIPT_VERSAO' : name === 'ValidationError' || response.status === 200 ? 'VALIDACAO' : 'APPS_SCRIPT_ERRO'
+  return fail(ctx, code, message, 400, `Apps Script: ${message}`)
 }
 
 // Limite de envios por origem (IP), usando o cache do próprio Cloudflare (sem serviço extra).
@@ -116,7 +145,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const hit = await cache.match(key)
     if (hit) return hit
   }
-  const response = await callAppsScript(context.env, { acao: 'OPCOES' })
+  const response = await callAppsScript(newContext('OPCOES'), context.env, { acao: 'OPCOES' })
   if (response.ok && cache) {
     const copy = new Response(await response.clone().text(), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `max-age=${OPTIONS_CACHE_SECONDS}` } })
     context.waitUntil(cache.put(key, copy))
@@ -125,27 +154,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const ctx = newContext('ENVIO')
   const raw = await context.request.text()
-  if (raw.length > MAX_BODY_BYTES) return fail('Envio grande demais.', 413)
+  if (raw.length > MAX_BODY_BYTES) return fail(ctx, 'ENVIO_GRANDE', 'Envio grande demais.', 413, `${raw.length} bytes`)
   let body: Record<string, unknown>
   try {
     body = JSON.parse(raw)
   } catch {
-    return fail('Envio inválido.')
+    return fail(ctx, 'ENVIO_INVALIDO', 'Envio inválido.', 400, 'corpo não é JSON')
   }
 
   // Anti-robô invisível: campo-isca preenchido ou envio rápido demais = robô (resposta genérica).
   const openedAt = Number(body.abertoEm || 0)
   const elapsed = Date.now() - openedAt
   if (text(body.site, 200) || !openedAt || elapsed < MIN_FILL_MS || elapsed > MAX_FILL_MS) {
-    return fail('Não foi possível validar o envio. Recarregue a página e tente novamente.')
+    const why = text(body.site, 200) ? 'campo-isca preenchido' : !openedAt ? 'sem horário de abertura' : elapsed < MIN_FILL_MS ? `enviado ${elapsed} ms após abrir` : 'página aberta há mais de 24 h'
+    return fail(ctx, 'ANTI_ROBO', 'Não foi possível validar o envio. Recarregue a página e tente novamente.', 400, why)
   }
 
   if (await rateLimited(context.request)) {
-    return fail('Muitos envios em pouco tempo. Aguarde alguns minutos e tente novamente.', 429)
+    return fail(ctx, 'LIMITE_ENVIOS', 'Muitos envios em pouco tempo. Aguarde alguns minutos e tente novamente.', 429, `mais de ${RATE_LIMIT} envios em ${RATE_WINDOW_SECONDS / 60} min`)
   }
 
-  return callAppsScript(context.env, {
+  return callAppsScript(ctx, context.env, {
     acao: 'ENVIAR',
     idEnvio: text(body.idEnvio, 64),
     nomeSolicitante: text(body.nomeSolicitante, 120),

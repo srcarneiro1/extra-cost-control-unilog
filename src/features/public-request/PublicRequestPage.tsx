@@ -10,6 +10,7 @@ import { Dropdown } from 'primereact/dropdown'
 import { InputText } from 'primereact/inputtext'
 import { InputTextarea } from 'primereact/inputtextarea'
 import {
+  PublicRequestError,
   fetchPublicOptions,
   newSendId,
   sendPublicRequest,
@@ -79,6 +80,26 @@ function Field({ label, required, error, hint, children }: { label: string; requ
   )
 }
 
+// Código e referência do erro, discretos, com botão para copiar (para o suporte achar no log).
+function ErrorReference({ error }: { error: PublicRequestError | null }) {
+  const [copied, setCopied] = useState(false)
+  if (!error || (!error.code && !error.requestId)) return null
+  const time = error.at.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const reference = [error.code && `Código: ${error.code}`, error.requestId && `Ref.: ${error.requestId}`, time].filter(Boolean).join(' · ')
+  return (
+    <span className="pr-error-ref">
+      {reference}
+      <button
+        type="button"
+        onClick={() => { void navigator.clipboard?.writeText(`${error.message} — ${reference}`).then(() => setCopied(true)).catch(() => undefined) }}
+        aria-label="Copiar detalhes do erro"
+      >
+        <i className={`pi ${copied ? 'pi-check' : 'pi-copy'}`} aria-hidden="true" /> {copied ? 'Copiado' : 'Copiar'}
+      </button>
+    </span>
+  )
+}
+
 function Section({ step, title, description, children }: { step: number; title: string; description?: string; children: ReactNode }) {
   return (
     <section className="pr-section">
@@ -97,6 +118,8 @@ function Section({ step, title, description, children }: { step: number; title: 
 export function PublicRequestPage() {
   const [options, setOptions] = useState<PublicOptions | null>(null)
   const [loadError, setLoadError] = useState('')
+  const [loadErrorInfo, setLoadErrorInfo] = useState<PublicRequestError | null>(null)
+  const [submitErrorInfo, setSubmitErrorInfo] = useState<PublicRequestError | null>(null)
   const [form, setForm] = useState<Form>(() => emptyForm())
   const [errors, setErrors] = useState<Partial<Record<keyof Form | 'tipo' | 'itens', string>>>({})
   const [submitError, setSubmitError] = useState('')
@@ -110,10 +133,12 @@ export function PublicRequestPage() {
 
   async function load() {
     setLoadError('')
+    setLoadErrorInfo(null)
     try {
       setOptions(await fetchPublicOptions())
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Não foi possível carregar o formulário.')
+      setLoadErrorInfo(error instanceof PublicRequestError ? error : null)
     }
   }
 
@@ -185,6 +210,7 @@ export function PublicRequestPage() {
 
   async function submit() {
     setSubmitError('')
+    setSubmitErrorInfo(null)
     if (!validate()) {
       setSubmitError('Confira os campos destacados.')
       return
@@ -216,6 +242,7 @@ export function PublicRequestPage() {
     } catch (error) {
       // Mesmo idEnvio na nova tentativa: se o primeiro envio tiver sido gravado, não duplica.
       setSubmitError(error instanceof Error ? error.message : 'Não foi possível enviar. Tente novamente.')
+      setSubmitErrorInfo(error instanceof PublicRequestError ? error : null)
     } finally {
       setSending(false)
     }
@@ -270,8 +297,10 @@ export function PublicRequestPage() {
           </section>
         ) : !options ? (
           loadError ? (
-            <section className="pr-state">
+            <section className="pr-state pr-state-error">
+              <i className="pi pi-exclamation-circle" aria-hidden="true" />
               <p>{loadError}</p>
+              <ErrorReference error={loadErrorInfo} />
               <Button label="Tentar novamente" icon="pi pi-refresh" onClick={() => void load()} outlined />
             </section>
           ) : (
@@ -382,7 +411,12 @@ export function PublicRequestPage() {
               </div>
             </Section>
 
-            {submitError && <div className="pr-submit-error" role="alert"><i className="pi pi-exclamation-circle" aria-hidden="true" />{submitError}</div>}
+            {submitError && (
+              <div className="pr-submit-error" role="alert">
+                <i className="pi pi-exclamation-circle" aria-hidden="true" />
+                <span className="pr-submit-error-text">{submitError}<ErrorReference error={submitErrorInfo} /></span>
+              </div>
+            )}
             <div className="pr-actions">
               <Button type="submit" label={sending ? 'Enviando…' : 'Enviar solicitação'} icon="pi pi-send" loading={sending} className="pr-primary" />
             </div>

@@ -418,3 +418,12 @@ Testes: 24 no simulador (opções, envio de lanche, reenvio idempotente, mão de
 - Na tela de solicitação, o botão do topo vira "Ir para a gestão" quando há sessão ativa (`/api/auth/me`); no login, "Só quer fazer uma solicitação?" leva à raiz.
 - Testes: 9 no navegador (raiz, botão sem e com sessão, login, atalho /solicitar, favorito antigo, troca de # na mesma aba, /gestao com sessão).
 - Rodapé da tela de solicitação fixo no fim da tela quando há pouco conteúdo (ex.: erro ao carregar as opções): `.pr-page` em coluna flexível (`public-request.css`).
+
+## Diagnóstico de erros na tela de solicitação — 06/11/2026
+
+- Toda falha da rota pública volta com **código** (em que ponto falhou) e **referência** (8 caracteres), também no cabeçalho `x-request-id`, e é registrada no log do Cloudflare (`evento: publico_solicitacao`, com referência, etapa OPCOES/ENVIO, resultado, status HTTP, detalhe técnico e duração). Sucessos também são registrados (OK). Nada de token, URL do Apps Script ou dados do formulário no log.
+- Códigos: `CONFIGURACAO_AUSENTE` (variável do Cloudflare), `REDE_APPS_SCRIPT` (falha de rede até o Google), `SEM_RESPOSTA`, `RESPOSTA_INVALIDA` (Google devolveu HTML — login/permissão da implantação — ou não JSON), `APPS_SCRIPT_TOKEN` (token recusado), `APPS_SCRIPT_VERSAO` (rota inexistente: Apps Script desatualizado), `VALIDACAO` (dado do pedido), `APPS_SCRIPT_ERRO`, `ANTI_ROBO`, `LIMITE_ENVIOS`, `ENVIO_GRANDE`, `ENVIO_INVALIDO`; no navegador, `SEM_INTERNET` (aparelho sem conexão) e `HTTP_nnn`.
+- Tela: abaixo da mensagem, "Código · Ref. · data/hora" com botão **Copiar** (na falha ao carregar e na falha ao enviar).
+- Carga das opções: uma nova tentativa automática após 1,5 s (leitura; a 1ª chamada após um tempo parado costuma falhar enquanto o Apps Script "acorda"). O envio nunca é repetido automaticamente.
+- Onde achar no log: Cloudflare → Workers & Pages → projeto do Extra → Functions/Logs (tempo real) → buscar a referência.
+- Testes: 10 no gateway (isolado) e 6 na tela.

@@ -90,3 +90,12 @@
 .pr-page{display:flex;flex-direction:column}
 .pr-page>.pr-main{flex:1 0 auto;width:100%}
 .pr-page>.pr-footer{flex-shrink:0}
+/* Código e referência do erro (06/11/2026) */
+.pr-state-error{flex-direction:column;text-align:center;gap:8px}
+.pr-state-error>.pi{font-size:26px;color:var(--unilog-vermelho)}
+.pr-state-error p{margin:0;color:var(--unilog-cinza);font-weight:600}
+.pr-error-ref{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;font-size:11.5px;font-weight:400;color:var(--unilog-cinza-80);font-family:'Roboto',Verdana,Arial,sans-serif}
+.pr-error-ref button{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border:1px solid var(--unilog-cinza-40);border-radius:6px;background:#fff;color:var(--unilog-cinza);font:inherit;cursor:pointer}
+.pr-error-ref button:hover{border-color:var(--unilog-cinza-60)}
+.pr-submit-error-text{display:grid;gap:4px}
+.pr-submit-error .pr-error-ref{justify-content:flex-start}
