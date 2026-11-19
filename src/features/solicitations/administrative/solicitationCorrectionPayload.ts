@@ -4,6 +4,9 @@ import type { SolicitationCorrectionFormState } from '@/features/solicitations/a
 export function buildSolicitationCorrectionData(
   form: SolicitationCorrectionFormState,
   detail: AdministrativeSolicitationDetail,
+  // Se o responsável exige centro de custo, conforme o cadastro (CAD_RESPONSAVEIS_CUSTO) — a mesma regra que mostra o
+  // campo na tela e que o Apps Script valida. Antes era fixo "só UNILOG", e DIRETORIA/PROJETOS iam com centro vazio.
+  exigeCentroCusto: boolean,
 ): Record<string, unknown> {
   const dados: Record<string, unknown> = {
     supervisor: form.supervisor,
@@ -12,7 +15,7 @@ export function buildSolicitationCorrectionData(
     fornecedor: form.fornecedor,
     justificativa: form.justificativa,
     responsavelCusto: form.responsavelCusto,
-    centroCusto: form.responsavelCusto === 'UNILOG' ? form.centroCusto : '',
+    centroCusto: exigeCentroCusto ? form.centroCusto.trim() : '',
   }
 
   if (detail.tipoSolicitacao === 'MAO_DE_OBRA') {

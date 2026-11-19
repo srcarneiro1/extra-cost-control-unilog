@@ -80,12 +80,13 @@ export function SolicitationCorrectionModal({
     if (!currentForm || !currentDetail) return
 
     const validationError = validateSolicitationCorrection(currentForm)
+      || (requiresCostCenter && !currentForm.centroCusto.trim() ? 'Informe o centro de custo.' : '')
     if (validationError) {
       setError(validationError)
       return
     }
 
-    const dados = buildSolicitationCorrectionData(currentForm, currentDetail)
+    const dados = buildSolicitationCorrectionData(currentForm, currentDetail, Boolean(requiresCostCenter))
 
     setSaving(true)
     setError('')
