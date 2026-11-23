@@ -382,6 +382,10 @@ export function applyAdministrativeTriage(input: {
   produtoAlimentacaoAplicado?: string
   produtoBebidaAplicado?: string
   motivoAjusteProduto?: string
+  // Obrigatória somente para solicitações de mão de obra com acordo indicado.
+  decisaoAcordo?: 'APLICAR' | 'USAR_TABELA'
+  motivoNaoAplicacao?: string
+  // Compatibilidade com versões anteriores do Apps Script durante a publicação.
   confirmarAcordo?: boolean
 }): Promise<unknown> {
   return postRequest('/api/triagem', input)
