@@ -6,6 +6,29 @@ const SolicitationCorrectionService = (() => {
     FOOD: 'ALIMENTACAO_BEBIDA',
   });
 
+  // Campos que impactam o custo de alimentação/bebida.
+  const FOOD_RECALC_FIELDS = Object.freeze([
+    'DATA_OPERACIONAL', 'FORNECEDOR',
+    'PRODUTO_ALIMENTACAO', 'QTD_ALIMENTACAO',
+    'PRODUTO_ALIMENTACAO_APLICADO', 'PRECO_ALIMENTACAO_APLICADO', 'VALOR_ALIMENTACAO',
+    'PRODUTO_BEBIDA', 'QTD_BEBIDA',
+    'PRODUTO_BEBIDA_APLICADO', 'PRECO_BEBIDA_APLICADO', 'VALOR_BEBIDA',
+    'VALOR_PREVISTO',
+  ]);
+
+  // Os dados financeiros vinculados a um fechamento não podem ser alterados.
+  const FINANCIAL_LOCK_FIELDS = Object.freeze([
+    'SUPERVISOR', 'OPERACAO', 'DATA_OPERACIONAL', 'COMPETENCIA',
+    'FORNECEDOR', 'RESPONSAVEL_CUSTO', 'CENTRO_CUSTO',
+    'ATIVIDADE', 'FUNCAO', 'TURNO', 'QTD_SOLICITADA', 'QTD_COMPARECIDA',
+    'PRECO_UNITARIO_APLICADO', 'ORIGEM_PRECO', 'ID_ACORDO_APLICADO',
+    'PRODUTO_ALIMENTACAO', 'QTD_ALIMENTACAO',
+    'PRODUTO_ALIMENTACAO_APLICADO', 'PRECO_ALIMENTACAO_APLICADO', 'VALOR_ALIMENTACAO',
+    'PRODUTO_BEBIDA', 'QTD_BEBIDA',
+    'PRODUTO_BEBIDA_APLICADO', 'PRECO_BEBIDA_APLICADO', 'VALOR_BEBIDA',
+    'VALOR_PREVISTO', 'VALOR_REAL',
+  ]);
+
   const AUDIT_HEADERS = [
     'ID_AUDITORIA',
     'ID_SOLICITACAO',
@@ -68,10 +91,42 @@ const SolicitationCorrectionService = (() => {
       // Colunas de origem do preço precisam existir antes da gravação (updateFields recusa campo ausente).
       if (type === TYPES.LABOR) PricingService.ensureOriginColumns();
       const updates = Object.assign({}, common.updates, specific);
-      const changedFields = changedFields_(record, updates);
 
+      // Após o atendimento, alterações de quantidade, produto ou preço
+      // também recalculam o custo realizado. Alterações apenas descritivas
+      // mantêm o custo realizado original.
+      const initialChanges = changedFields_(record, updates);
+      const foodCostChanged = initialChanges.some(function (fieldName) {
+        return FOOD_RECALC_FIELDS.indexOf(fieldName) >= 0;
+      });
+      if (
+        type === TYPES.FOOD &&
+        SolicitationStatusService.resolve(record) === SolicitationStatusService.STATUS.ATTENDED &&
+        foodCostChanged
+      ) {
+        if (updates.VALOR_PREVISTO === '' || !Number.isFinite(Number(updates.VALOR_PREVISTO))) {
+          ValidationService.fail('Não foi possível recalcular o valor realizado da alimentação.');
+        }
+        updates.VALOR_REAL = roundMoney_(updates.VALOR_PREVISTO);
+      }
+
+      const changedFields = changedFields_(record, updates);
       if (!changedFields.length) {
         ValidationService.fail('Nenhuma alteração foi identificada na solicitação.');
+      }
+
+      // Checagem executada antes da gravação e dentro do bloqueio do script.
+      const financialChange = changedFields.some(function (fieldName) {
+        return FINANCIAL_LOCK_FIELDS.indexOf(fieldName) >= 0;
+      });
+      if (
+        financialChange &&
+        SheetRepository.findRowByField('FECHAMENTO_SOLICITACOES', 'ID_SOLICITACAO', solicitationId)
+      ) {
+        ValidationService.fail(
+          'A solicitação já está vinculada a um fechamento financeiro. ' +
+          'Corrija o fechamento antes de alterar seus valores.'
+        );
       }
 
       const afterRecord = Object.assign({}, record, updates);
@@ -438,7 +493,8 @@ const SolicitationCorrectionService = (() => {
 
   function comparable_(value) {
     if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
-      return Utilities.formatDate(value, DateService.TIMEZONE, "yyyy-MM-dd'T'HH:mm:ss");
+      // Compara apenas a data para evitar alteração falsa de DATA_OPERACIONAL.
+      return Utilities.formatDate(value, DateService.TIMEZONE, 'yyyy-MM-dd');
     }
     if (value == null) return '';
     return String(value).trim();
