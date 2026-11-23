@@ -294,3 +294,22 @@ body{background:var(--unilog-canvas)!important;color:var(--unilog-ink-2)}
 .nx-agreement-reason .p-inputtextarea{width:100%;min-height:75px;resize:vertical}
 .nx-agreement-decision-help{color:#8a5800!important;font-weight:600}
 @media(max-width:480px){.nx-agreement-decision-option{padding:10px}.nx-agreement-preview{align-items:flex-start;flex-direction:column}}
+
+/* Decisão de preço na triagem (23/11/2026): as regras gerais do formulário (.workflow-action-box label → grade com
+   fonte de 9 px; .workflow-action-box input → altura mínima de 46 px) também atingiam as opções e o botão de seleção,
+   empilhando a bolinha sobre o texto. Aqui, com prioridade maior e só dentro da decisão de preço. */
+.workflow-action-box .nx-agreement-decision{gap:8px;padding:12px 14px 14px}
+.workflow-action-box .nx-agreement-decision>strong{font-size:14px;font-weight:700;line-height:1.3;color:#333641}
+.workflow-action-box .nx-agreement-decision>small{font-size:11px;line-height:1.4}
+.workflow-action-box .nx-agreement-decision-option{display:flex;align-items:flex-start;gap:10px;font-size:12px;font-weight:400;color:#494a56}
+.workflow-action-box .nx-agreement-decision-option input[type=radio]{width:18px;height:18px;min-height:18px;margin:1px 0 0;padding:0;flex:none}
+.workflow-action-box .nx-agreement-decision-option>span>strong{font-size:12px;font-weight:700;line-height:1.35}
+.workflow-action-box .nx-agreement-decision-option>span>small{font-size:11px;line-height:1.4}
+.workflow-action-box .nx-agreement-preview>span{font-size:11px}
+.workflow-action-box .nx-agreement-reason{display:grid;gap:6px;font-size:11px;font-weight:700}
+.workflow-action-box .nx-agreement-reason .p-inputtextarea{height:auto;min-height:75px}
+@media(max-width:760px){.workflow-action-box .nx-agreement-reason .p-inputtextarea{font-size:16px}}
+/* "Decisão de preço *" como os demais rótulos do formulário (igual a "Fornecedor": 10 px, peso 750, #5c5d6c, 7 px
+   até o campo), acima do quadro e sem cortar a borda. O fieldset/legend continua para leitores de tela. */
+.workflow-action-box .nx-agreement-decision{position:relative;margin-top:22px} /* top/left contam por dentro das bordas (1 px no topo, 4 px à esquerda) */
+.workflow-action-box .nx-agreement-decision-title{position:absolute;top:-23px;left:-4px;margin:0;padding:0;font-size:10px;line-height:15px;font-weight:750;color:#5c5d6c;background:none}
