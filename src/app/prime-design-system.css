@@ -274,3 +274,23 @@ body{background:var(--unilog-canvas)!important;color:var(--unilog-ink-2)}
 .nx-agreement-indicated-choice input{width:18px;height:18px;accent-color:#db0812}
 .nx-agreement-indicated-warning{color:#b00610!important;font-weight:600}
 .nx-agreement-public-name{display:block;color:#6d6e78;font-size:11px}
+
+
+/* Decisão comercial obrigatória quando o solicitante indicou um acordo. */
+.nx-agreement-decision{min-width:0;margin:0;border:1px solid #e9d5d7;border-left:4px solid var(--unilog-vermelho,#db0812)}
+.nx-agreement-decision-title{padding:0 5px;font-size:12px;font-weight:750;color:#494a56}
+.nx-agreement-decision-title span,.nx-agreement-reason>span strong{color:#b00610}
+.nx-agreement-decision-options{display:grid;gap:8px;margin-top:7px}
+.nx-agreement-decision-option{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid #dadbe1;border-radius:8px;background:#fff;cursor:pointer}
+.nx-agreement-decision-option.is-selected{border-color:#ba1019;background:#fff7f7;box-shadow:0 0 0 1px #f1bdc0}
+.nx-agreement-decision-option:focus-within{outline:2px solid #ba1019;outline-offset:2px}
+.nx-agreement-decision-option input{width:18px;height:18px;margin:1px 0 0;flex:none;accent-color:#b00610}
+.nx-agreement-decision-option>span{display:grid;gap:4px;min-width:0}
+.nx-agreement-decision-option>span>strong{font-size:12px;color:#333641}
+.nx-agreement-decision-option>span>small{line-height:1.4;color:#6d6e78;font-weight:400}
+.nx-agreement-preview{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border:1px solid #c8ded0;border-radius:7px;background:#eef9f1;font-size:11px}
+.nx-agreement-preview strong{font-size:14px;color:#16763a}
+.nx-agreement-reason{display:grid;gap:6px;font-size:11px;font-weight:700;color:#494a56}
+.nx-agreement-reason .p-inputtextarea{width:100%;min-height:75px;resize:vertical}
+.nx-agreement-decision-help{color:#8a5800!important;font-weight:600}
+@media(max-width:480px){.nx-agreement-decision-option{padding:10px}.nx-agreement-preview{align-items:flex-start;flex-direction:column}}

@@ -182,6 +182,8 @@ export function SolicitationDetailModal({
   const [attendance, setAttendance] = useState('')
   const [partialCount, setPartialCount] = useState(0)
   const [partialDrafts, setPartialDrafts] = useState<PartialShiftDraft[]>([])
+  const [agreementDecision, setAgreementDecision] = useState<'' | 'APLICAR' | 'USAR_TABELA'>('')
+  const [agreementTableReason, setAgreementTableReason] = useState('')
 
   useEffect(() => {
     if (!detail) return
@@ -192,7 +194,10 @@ export function SolicitationDetailModal({
     setAttendance(detail.qtdComparecida == null ? '' : String(detail.qtdComparecida))
     setPartialCount(0)
     setPartialDrafts([])
-  }, [detail])
+    // Uma decisão de outra solicitação nunca pode ser reaproveitada.
+    setAgreementDecision('')
+    setAgreementTableReason('')
+  }, [detail, open])
 
   const eligibleProviders = useMemo(() => {
     if (!catalogs || !detail) return []
@@ -230,6 +235,19 @@ export function SolicitationDetailModal({
   )
   const currentStatus = detail ? statusInfo(detail.status) : null
   const isLoading = loading || !detail
+  const hasIndicatedAgreement = detail?.tipoSolicitacao === 'MAO_DE_OBRA' && Boolean(detail.idAcordoIndicado)
+  const agreementProviderMismatch = Boolean(
+    hasIndicatedAgreement && agreementDecision === 'APLICAR' && provider &&
+    detail?.acordoIndicado?.fornecedor &&
+    provider.trim().toUpperCase() !== detail.acordoIndicado.fornecedor.trim().toUpperCase()
+  )
+  const agreementDecisionValid = !hasIndicatedAgreement || (
+    (agreementDecision === 'APLICAR' && !agreementProviderMismatch) ||
+    (agreementDecision === 'USAR_TABELA' && agreementTableReason.trim().length > 0)
+  )
+  const agreementProjectedValue = detail?.acordoIndicado && detail.qtdSolicitada != null
+    ? detail.acordoIndicado.precoUnitario * detail.qtdSolicitada
+    : null
 
   const providerOptions = [{ label: 'Selecione', value: '' }, ...eligibleProviders.map((item) => ({ label: item.nome, value: item.nome }))]
   const foodOptions = namedOptions(foods)
@@ -268,17 +286,20 @@ export function SolicitationDetailModal({
     }
   }
 
-  // Acordo indicado pelo solicitante (07/11/2026): o Administrativo confirma ou usa a tabela.
-  const [confirmAgreement, setConfirmAgreement] = useState(false)
-
   async function handleTriage() {
-    if (!canAdminister || !detail || detail.triagemConcluida || !provider) return
+    if (!canAdminister || !detail || detail.triagemConcluida || !provider || !agreementDecisionValid) return
     setActionLoading(true)
     try {
       const result = await applyAdministrativeTriage({
         idSolicitacao: detail.idSolicitacao,
         fornecedor: provider,
-        ...(detail.tipoSolicitacao === 'MAO_DE_OBRA' && detail.idAcordoIndicado ? { confirmarAcordo: confirmAgreement } : {}),
+        ...(hasIndicatedAgreement ? {
+          decisaoAcordo: agreementDecision as 'APLICAR' | 'USAR_TABELA',
+          motivoNaoAplicacao: agreementDecision === 'USAR_TABELA' ? agreementTableReason.trim() : undefined,
+          // Enquanto a nova versão do Apps Script não for publicada, a antiga
+          // recebe o booleano que já conhece.
+          confirmarAcordo: agreementDecision === 'APLICAR',
+        } : {}),
         ...(detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA'
           ? {
               produtoAlimentacaoAplicado: detail.produtoAlimentacao ? appliedFood : undefined,
@@ -521,9 +542,10 @@ export function SolicitationDetailModal({
               <SectionHeading icon="pi pi-check-square" title="Triagem administrativa" detail="Defina o fornecedor e congele o preço aplicado" />
               <div className="workflow-form-grid nx-workflow-grid">
                 <label className="nx-workflow-field"><span>Fornecedor</span><Dropdown value={provider} options={providerOptions} onChange={(event) => setProvider(event.value || '')} filter /></label>
-                {detail.tipoSolicitacao === 'MAO_DE_OBRA' && detail.idAcordoIndicado && (
-                  <div className="workflow-form-wide nx-agreement-indicated">
-                    <span className="nx-agreement-indicated-title"><i className="pi pi-briefcase" aria-hidden="true" /> O solicitante indicou um acordo comercial</span>
+                {hasIndicatedAgreement && (
+                  <fieldset className="workflow-form-wide nx-agreement-indicated nx-agreement-decision">
+                    <legend className="nx-agreement-decision-title">Decisão de preço <span aria-hidden="true">*</span></legend>
+                    <span className="nx-agreement-indicated-title"><i className="pi pi-briefcase" aria-hidden="true" /> Acordo comercial indicado pelo solicitante</span>
                     <strong>{detail.acordoIndicado?.nome || detail.idAcordoIndicado} · {detail.idAcordoIndicado}</strong>
                     {detail.acordoIndicado && (
                       <small>
@@ -531,20 +553,43 @@ export function SolicitationDetailModal({
                         {!detail.acordoIndicado.ativo && ' · acordo inativo'}
                       </small>
                     )}
-                    <label className="nx-agreement-indicated-choice">
-                      <input type="checkbox" checked={confirmAgreement} onChange={(event) => { setConfirmAgreement(event.target.checked); if (event.target.checked && !provider && detail.acordoIndicado?.fornecedor) setProvider(detail.acordoIndicado.fornecedor) }} />
-                      <span>Confirmar o acordo (sem confirmar, vale o preço da tabela)</span>
-                    </label>
-                    {confirmAgreement && detail.acordoIndicado?.fornecedor && provider && provider.toUpperCase() !== detail.acordoIndicado.fornecedor.toUpperCase() && (
-                      <small className="nx-agreement-indicated-warning">O acordo vale para o fornecedor {detail.acordoIndicado.fornecedor}; com outro fornecedor a triagem será recusada.</small>
+                    <div className="nx-agreement-decision-options" role="radiogroup" aria-label="Escolha obrigatória da tarifa">
+                      <label className={`nx-agreement-decision-option ${agreementDecision === 'APLICAR' ? 'is-selected' : ''}`}>
+                        <input type="radio" name={`agreement-decision-${detail.idSolicitacao}`} checked={agreementDecision === 'APLICAR'} onChange={() => {
+                          setAgreementDecision('APLICAR')
+                          if (!provider && detail.acordoIndicado?.fornecedor) setProvider(detail.acordoIndicado.fornecedor)
+                        }} />
+                        <span><strong>Aplicar o acordo comercial indicado</strong>
+                          <small>{detail.acordoIndicado ? `${formatMoney(detail.acordoIndicado.precoUnitario)} por pessoa/dia` : 'Preço conforme o acordo cadastrado'}</small>
+                        </span>
+                      </label>
+                      <label className={`nx-agreement-decision-option ${agreementDecision === 'USAR_TABELA' ? 'is-selected' : ''}`}>
+                        <input type="radio" name={`agreement-decision-${detail.idSolicitacao}`} checked={agreementDecision === 'USAR_TABELA'} onChange={() => setAgreementDecision('USAR_TABELA')} />
+                        <span><strong>Utilizar o preço da tabela normal</strong><small>O preço será calculado pelo sistema para a data, fornecedor e turno.</small></span>
+                      </label>
+                    </div>
+                    {agreementDecision === 'APLICAR' && agreementProjectedValue != null && (
+                      <div className="nx-agreement-preview"><span>Valor previsto pelo acordo · {detail.qtdSolicitada} pessoa(s)</span><strong>{formatMoney(agreementProjectedValue)}</strong></div>
                     )}
-                  </div>
+                    {agreementDecision === 'USAR_TABELA' && (
+                      <label className="nx-agreement-reason">
+                        <span>Justificativa para não aplicar o acordo <strong>*</strong></span>
+                        <InputTextarea value={agreementTableReason} maxLength={500} rows={2} autoResize placeholder="Informe por que esta solicitação deve usar a tabela normal" onChange={(event) => setAgreementTableReason(event.target.value)} />
+                      </label>
+                    )}
+                    {agreementDecision === '' && (
+                      <small className="nx-agreement-decision-help">Selecione uma das opções para habilitar a conclusão da triagem.</small>
+                    )}
+                    {agreementProviderMismatch && (
+                      <small className="nx-agreement-indicated-warning">Este acordo exige o fornecedor {detail.acordoIndicado?.fornecedor}. Selecione o fornecedor correto ou escolha a tabela normal.</small>
+                    )}
+                  </fieldset>
                 )}
                 {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && detail.produtoAlimentacao && <label className="nx-workflow-field"><span>Alimentação aplicada</span><Dropdown value={appliedFood} options={foodOptions} onChange={(event) => setAppliedFood(event.value || '')} filter /></label>}
                 {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && detail.produtoBebida && <label className="nx-workflow-field"><span>Bebida aplicada</span><Dropdown value={appliedDrink} options={drinkOptions} onChange={(event) => setAppliedDrink(event.value || '')} filter /></label>}
                 {detail.tipoSolicitacao === 'ALIMENTACAO_BEBIDA' && <label className="workflow-form-wide nx-workflow-field nx-workflow-field-wide"><span>Motivo do ajuste</span><InputTextarea value={adjustmentReason} onChange={(event) => setAdjustmentReason(event.target.value)} rows={3} autoResize placeholder="Obrigatório somente quando o produto aplicado for diferente." /></label>}
               </div>
-              <div className="nx-workflow-actions"><Button label={actionLoading ? 'Salvando…' : 'Registrar triagem'} icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-check'} onClick={() => void handleTriage()} disabled={actionLoading || !provider} className="nx-primary-button" /></div>
+              <div className="nx-workflow-actions"><Button label={actionLoading ? 'Salvando…' : 'Concluir triagem'} icon={actionLoading ? 'pi pi-spin pi-spinner' : 'pi pi-check'} onClick={() => void handleTriage()} disabled={actionLoading || !provider || !agreementDecisionValid} className="nx-primary-button" /></div>
             </section>
           )}
 

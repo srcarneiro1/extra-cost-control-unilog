@@ -31,18 +31,34 @@ const TriageService = (() => {
       validateProviderCompatibility_(providerRow, type);
 
       const operationalDate = DateService.parseDateOnly(record.DATA_OPERACIONAL);
-      // Acordo indicado pelo solicitante: só vale se o Administrativo confirmar (07/11/2026).
-      const confirmAgreement = input.confirmarAcordo === true && String(record.ID_ACORDO_INDICADO || '').trim();
+      // Se o solicitante indicou um acordo, a decisão comercial é obrigatória.
+      // Preserva a compatibilidade com clientes antigos que enviavam confirmarAcordo=true.
+      const agreementChoice = resolveAgreementChoice_(record, type, input);
       const updates = type === TYPES.LABOR
-        ? laborUpdates_(record, providerRow.FORNECEDOR, operationalDate, confirmAgreement ? String(record.ID_ACORDO_INDICADO).trim() : '')
+        ? laborUpdates_(record, providerRow.FORNECEDOR, operationalDate, agreementChoice.confirmedId)
         : foodUpdates_(record, providerRow.FORNECEDOR, operationalDate, input);
       updates.FORNECEDOR = providerRow.FORNECEDOR;
 
+      // A escolha explícita pela tabela não pode ser substituída silenciosamente por outro acordo.
+      if (agreementChoice.decision === 'USAR_TABELA' && updates.ORIGEM_PRECO !== 'TABELA') {
+        ValidationService.fail('Não foi possível aplicar o preço da tabela. Revise os acordos comerciais vigentes.');
+      }
+
+      const auditReason = agreementChoice.decision
+        ? 'TRIAGEM_REGISTRADA | ' + JSON.stringify({
+            decisaoAcordo: agreementChoice.decision,
+            acordoIndicado: agreementChoice.indicatedId,
+            acordoAplicado: updates.ID_ACORDO_APLICADO || '',
+            origemPreco: updates.ORIGEM_PRECO,
+            precoUnitario: updates.PRECO_UNITARIO_APLICADO,
+            motivoNaoAplicacao: agreementChoice.reason,
+          })
+        : 'TRIAGEM_REGISTRADA';
       const statusResult = SolicitationStatusService.applyWithinLock({
         found: found,
         target: SolicitationStatusService.STATUS.TRIAGE,
         usuarioAdministrativo: administrativeUser,
-        motivo: 'TRIAGEM_REGISTRADA',
+        motivo: auditReason,
         updates: updates,
       });
 
@@ -55,6 +71,35 @@ const TriageService = (() => {
     } finally {
       lock.releaseLock();
     }
+  }
+
+  function resolveAgreementChoice_(record, type, input) {
+    const indicatedId = String(record.ID_ACORDO_INDICADO || '').trim();
+    if (type !== TYPES.LABOR || !indicatedId) {
+      return { decision: '', confirmedId: '', indicatedId: '', reason: '' };
+    }
+
+    let decision = ValidationService.normalizeUpper(input.decisaoAcordo || '');
+    // Clientes publicados antes da atualização enviam apenas este booleano.
+    // false/ausente NÃO é considerado uma decisão consciente de usar a tabela.
+    if (!decision && input.confirmarAcordo === true) decision = 'APLICAR';
+    decision = ValidationService.enumValue(
+      decision,
+      'Decisão sobre o acordo comercial indicado (selecione aplicar acordo ou usar tabela)',
+      ['APLICAR', 'USAR_TABELA']
+    );
+
+    if (Object.prototype.hasOwnProperty.call(input, 'confirmarAcordo') &&
+        input.confirmarAcordo === true && decision !== 'APLICAR') {
+      ValidationService.fail('Decisão sobre o acordo comercial inconsistente.');
+    }
+
+    let reason = '';
+    if (decision === 'USAR_TABELA') {
+      reason = ValidationService.requiredText(input.motivoNaoAplicacao, 'Justificativa para utilizar a tabela');
+      if (reason.length > 500) ValidationService.fail('Justificativa deve conter no máximo 500 caracteres.');
+    }
+    return { decision: decision, confirmedId: decision === 'APLICAR' ? indicatedId : '', indicatedId: indicatedId, reason: reason };
   }
 
   function ensureNotTriaged_(record) {
